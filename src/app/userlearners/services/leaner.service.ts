@@ -1,14 +1,20 @@
 import { ConflictException, Injectable, UnauthorizedException,  BadRequestException,
-  ForbiddenException } from '@nestjs/common';
+  ForbiddenException, NotFoundException } from '@nestjs/common';
+
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Learner, LearnerDocument } from '@common/db/schemas/learner.schema';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
 import { SomeOneLeanerRegisterDto } from '../dto/someone-else-register.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as crypto from 'crypto';
+import { Logger } from 'nestjs-pino';
+
 
 
 @Injectable()
@@ -17,6 +23,7 @@ export class LearnerService {
     @InjectModel(Learner.name)
     private learnerModel: Model<LearnerDocument>,
     private jwtService: JwtService,
+    private readonly logger: Logger,
   ) {}
   async registerSelf(payload: SelfLeanerRegisterDto) {
     return this.createLearner(payload);
@@ -116,6 +123,68 @@ export class LearnerService {
       message: 'Password changed successfully',
     };
   } 
+
+  /* 1️⃣ Request reset */
+async forgotPassword(identifier: string) {
+  const learner = await this.learnerModel.findOne({
+    $or: [
+      { email: identifier },
+      { mobileNumber: identifier },
+    ],
+  });
+
+  if (!learner) {
+    // Do NOT reveal user existence
+    return { message: 'If account exists, reset instructions sent' };
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  learner.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+    this.logger.log(`Password reset token for learner ${learner._id}: ${token}`);
+    
+  learner.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+  await learner.save();
+
+  // 🔔 Send token via email/SMS here
+  // resetLink = `${FRONTEND_URL}/reset-password?token=${token}`
+
+  return { message: 'If account exists, reset instructions sent' };
 }
 
+/* 2️⃣ Reset password */
+async resetPassword(payload: ResetPasswordDto) {
+  const { token, newPassword, confirmPassword } = payload;
 
+  if (newPassword !== confirmPassword) {
+    throw new BadRequestException('Passwords do not match');
+  }
+
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  const learner = await this.learnerModel.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: new Date() },
+  });
+
+  if (!learner) {
+    throw new BadRequestException('Token invalid or expired');
+  }
+
+  learner.password = await bcrypt.hash(newPassword, 10);
+  learner.passwordResetToken = undefined;
+  learner.passwordResetExpires = undefined;
+
+  await learner.save();
+
+  return { message: 'Password reset successful' };
+}
+}

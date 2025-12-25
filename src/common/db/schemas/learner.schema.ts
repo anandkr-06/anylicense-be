@@ -48,6 +48,13 @@ export class Learner {
   
   @Prop({ default: false, index: true })
   isActive!: boolean;
+
+  // Forgot password
+  @Prop()
+  passwordResetToken?: string;
+
+  @Prop()
+  passwordResetExpires?: Date;
 }
 
 export const LearnerSchema = SchemaFactory.createForClass(Learner);
