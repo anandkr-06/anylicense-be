@@ -5,6 +5,8 @@ import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
 import { SomeOneLeanerRegisterDto } from '../dto/someone-else-register.dto';
 import { LearnerLoginDto } from '../dto/learner-login.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 
 @Controller('learner')
 export class LearnerController {
@@ -39,4 +41,17 @@ export class LearnerController {
     const learnerId = req.user.sub; // from JWT payload
     return this.learnerService.changePassword(learnerId, body);
   }
+
+  @Public()
+@Post('forgot-password')
+async forgotPassword(@Body() body: ForgotPasswordDto) {
+  return this.learnerService.forgotPassword(body.identifier);
+}
+
+@Public()
+@Post('reset-password')
+async resetPassword(@Body() body: ResetPasswordDto) {
+  return this.learnerService.resetPassword(body);
+}
+
 }
