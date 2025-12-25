@@ -1,0 +1,104 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthService } from '../services/auth.service';
+import { Public } from '@common/decorators/public.decorator';
+import {
+  commonSwaggerErrorResponses,
+  commonSwaggerSuccess,
+} from '@lib/swagger/swagger-decorator';
+import { ApiBody, ApiSecurity } from '@nestjs/swagger';
+import { LoginDto } from '@app/auth/dto/login.dto';
+import {
+  mockForgetPasswordResponse,
+  mockLoginResponse,
+  mockLogoutResponse,
+  mockResetPasswordResponse,
+} from '../mocks/login.mock';
+import { ForgetPasswordDto } from '@app/auth/dto/forget-password.dto';
+import { ResetPasswordDto } from '@app/auth/dto/reset-password.dto';
+import { successResponse } from '@common/helpers/response.helper';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+
+@Controller('auth/v1')
+export class AuthController {
+  constructor(private authService: AuthService) {}
+
+  @Public()
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @commonSwaggerErrorResponses([])
+  @commonSwaggerSuccess('Login', mockLoginResponse)
+  @ApiBody({
+    type: LoginDto,
+    description: 'Request Body',
+    examples: {
+      valid: {
+        summary: 'Valid Example',
+        value: {
+          email: 'instructor@test.com',
+          password: 'password',
+          role: 'instructor',
+        },
+      },
+    },
+  })
+  public login(@Body() body: LoginDto) {
+    return this.authService.login(body.email, body.password, body.role);
+  }
+
+  @Public()
+  @Post('forget-password')
+  @commonSwaggerErrorResponses([])
+  @commonSwaggerSuccess('Forget Password', mockForgetPasswordResponse)
+  @ApiBody({
+    type: ForgetPasswordDto,
+    description: 'Request Body',
+    examples: {
+      valid: {
+        summary: 'Valid Example',
+        value: {
+          email: 'instructor@test.com',
+        },
+      },
+    },
+  })
+  public forgetpassword(@Body() body: ForgetPasswordDto) {
+    return this.authService.forgetpassword(body.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @commonSwaggerErrorResponses([])
+  @commonSwaggerSuccess('Reset Password', mockResetPasswordResponse)
+  @ApiBody({
+    type: ForgetPasswordDto,
+    description: 'Request Body',
+    examples: {
+      valid: {
+        summary: 'Valid Example',
+        value: {
+          token: 'resetToken',
+          newPassword: 'TestInstructor',
+        },
+      },
+    },
+  })
+  public resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body.token, body.newPassword);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @commonSwaggerErrorResponses([])
+  @ApiSecurity('jwt-auth')
+  @commonSwaggerSuccess('logout', mockLogoutResponse)
+  public logout() {
+    return successResponse({}, 'Working on Logout');
+  }
+}

@@ -1,0 +1,9 @@
+export const GENERIC_ERROR = 'SERVICE ERROR';
+export const GENERIC_ERROR_MESSAGE = 'Generic Error!';
+export const ERROR_SOURCE = 'Service';
+export const INTERNAL_SERVER_ERROR = 'Internal server error';
+export const GENERIC_CODE = 'AL';
+export const UNEXPECTED_ERROR = 'Unexpected error';
+export const RESOURCE_NOT_FOUND = 'Resource not Found';
+export const BAD_REQUEST = 'Bad Request';
+export const UNAUTHORIZED = 'Unauthorized';
