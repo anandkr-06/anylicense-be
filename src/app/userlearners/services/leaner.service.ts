@@ -1,9 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException,  BadRequestException,
+  ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Learner, LearnerDocument } from '@common/db/schemas/learner.schema';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
 import { SomeOneLeanerRegisterDto } from '../dto/someone-else-register.dto';
+import { ChangePasswordDto } from '../dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -81,7 +83,39 @@ export class LearnerService {
         mobileNumber: learner.mobileNumber,
       },
     };
-  }   
+  }  
+  async changePassword(
+    learnerId: string,
+    payload: ChangePasswordDto,
+  ) {
+    const { existingPassword, newPassword, confirmPassword } = payload;
+  
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+  
+    const learner = await this.learnerModel.findById(learnerId);
+  
+    if (!learner) {
+      throw new ForbiddenException('Learner not found');
+    }
+  
+    const isValid = await bcrypt.compare(
+      existingPassword,
+      learner.password,
+    );
+  
+    if (!isValid) {
+      throw new ForbiddenException('Existing password is incorrect');
+    }
+  
+    learner.password = await bcrypt.hash(newPassword, 10);
+    await learner.save();
+  
+    return {
+      message: 'Password changed successfully',
+    };
+  } 
 }
 
 

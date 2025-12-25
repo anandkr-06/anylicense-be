@@ -1,9 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { Public } from '@common/decorators/public.decorator';
 import { LearnerService } from '../services/leaner.service';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
 import { SomeOneLeanerRegisterDto } from '../dto/someone-else-register.dto';
 import { LearnerLoginDto } from '../dto/learner-login.dto';
+import { ChangePasswordDto } from '../dto/change-password.dto';
 
 @Controller('learner')
 export class LearnerController {
@@ -29,5 +30,13 @@ export class LearnerController {
       body.password,
     );
   }
+  
+  @Post('change-password')
+  async changePassword(
+    @Req() req: any,
+    @Body() body: ChangePasswordDto,
+  ) {
+    const learnerId = req.user.sub; // from JWT payload
+    return this.learnerService.changePassword(learnerId, body);
+  }
 }
-
