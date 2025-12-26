@@ -55,6 +55,15 @@ export class Learner {
 
   @Prop()
   passwordResetExpires?: Date;
+  
+  @Prop({ trim: true })
+  emergencyContactName?: string;
+
+  @Prop({ trim: true })
+  emergencyContactNumber?: string;
+
+  @Prop({ trim: true })
+  profileImage?: string;
 }
 
 export const LearnerSchema = SchemaFactory.createForClass(Learner);
