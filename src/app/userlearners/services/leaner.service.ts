@@ -14,7 +14,7 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { Logger } from 'nestjs-pino';
-
+import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
 
 
 @Injectable()
@@ -187,4 +187,49 @@ async resetPassword(payload: ResetPasswordDto) {
 
   return { message: 'Password reset successful' };
 }
+async updateProfile(
+  learnerId: string,
+  payload: UpdateLearnerProfileDto,
+) {
+  // Check duplicate email
+  if (payload.email) {
+    const emailExists = await this.learnerModel.findOne({
+      email: payload.email,
+      _id: { $ne: learnerId },
+    });
+    if (emailExists) {
+      throw new ConflictException('Email already in use');
+    }
+  }
+
+  // Check duplicate mobile
+  if (payload.mobileNumber) {
+    const mobileExists = await this.learnerModel.findOne({
+      mobileNumber: payload.mobileNumber,
+      _id: { $ne: learnerId },
+    });
+    if (mobileExists) {
+      throw new ConflictException('Mobile number already in use');
+    }
+  }
+
+  const learner = await this.learnerModel.findByIdAndUpdate(
+    learnerId,
+    {
+      ...payload,
+      lastUpdated: new Date(),
+    },
+    { new: true },
+  );
+
+  if (!learner) {
+    throw new NotFoundException('Learner not found');
+  }
+
+  return {
+    message: 'Profile updated successfully',
+    data: learner,
+  };
 }
+}
+
