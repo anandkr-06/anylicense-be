@@ -231,5 +231,21 @@ async updateProfile(
     data: learner,
   };
 }
+
+async getProfile(learnerId: string) {
+  const learner = await this.learnerModel
+    .findById(learnerId)
+    .select('-password') // 🔐 never expose password
+    .lean();
+
+  if (!learner) {
+    throw new NotFoundException('Learner not found');
+  }
+
+  return {
+    data: learner,
+  };
+}
+
 }
 

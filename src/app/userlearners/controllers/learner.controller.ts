@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Put } from '@nestjs/common';
+import { Body, Controller, Post, Req, Put, Get } from '@nestjs/common';
 import { Public } from '@common/decorators/public.decorator';
 import { LearnerService } from '../services/leaner.service';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
@@ -66,6 +66,12 @@ async resetPassword(@Body() body: ResetPasswordDto) {
 async updateProfile(@Req() req: any, @Body() body: UpdateLearnerProfileDto) {
   return this.learnerService.updateProfile(req.user.sub, body);
 }
+
+@Get('profile')
+  async getProfile(@Req() req: any) {
+    return this.learnerService.getProfile(req.user.sub);
+  }
+
 }
 
 
