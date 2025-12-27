@@ -15,13 +15,11 @@ export class AuthService {
     private userService: UserService,
   ) {}
 
-  public async login(email: string, password: string, role: string) {
+  public async login(email: string, password: string) {
     const user = await this.userService.validateUser(email, password);
     if (!user) throw new UnauthorizedException('Invalid User');
 
-    if (user.role !== role) {
-      throw new UnauthorizedException('Invalid User');
-    }
+   
     const payload = {
       publicId: user.publicId,
       firstName: user.firstName,

@@ -8,6 +8,5 @@ export class LoginDto {
   @IsString()
   @MinLength(8)
   public password!: string;
-  @IsString()
-  public role!: UserRole;
+  
 }

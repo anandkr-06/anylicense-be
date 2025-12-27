@@ -2,9 +2,10 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
-  UnauthorizedException,
+  UnauthorizedException, ConflictException
 } from '@nestjs/common';
 import { UserDbService } from '@common/db/services/user.db.service';
+import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
 import { RegisterUserDto } from '../dto/register-user.dto';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
 import { successResponse } from '@common/helpers/response.helper';
@@ -29,71 +30,87 @@ export class UserService {
     private readonly userDbService: UserDbService,
     private readonly userAddressDbService: UserAddressDbService,
     private readonly suburbDbService: SuburbDbService,
+    @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
   ) {}
 
   public async register(
-    payload: RegisterUserDto,
-    role: UserRole,
-    file?: Express.Multer.File,
+    dto: RegisterUserDto,
+    // role: UserRole,
+    // file?: Express.Multer.File,
   ): Promise<ApiResponse<UserResponse>> {
-    const existingUser = await this.userDbService.findUniqueCheck(
-      payload.email,
-      UserRole.INSTRUCTOR,
-    );
-    if (existingUser) {
-      throw new BadRequestException('Email already exists');
-    }
+    
+    // const existingUser = await this.userDbService.findUniqueCheck(
+    //   dto.email,
+    //   UserRole.INSTRUCTOR,
+    // );
+    // if (existingUser) {
+    //   throw new BadRequestException('Email already exists');
+    // }
 
     try {
-      let imageBase64: string | null = null;
+      const hashedPassword = await hashPassword(dto.password);
 
-      if (file) {
-        const base64String = file.buffer.toString('base64');
-        const mimeType = file.mimetype;
-        imageBase64 = `data:${mimeType};base64,${base64String}`;
-      }
-
-      const hashedPassword = await hashPassword(payload.password);
-
-      const data = this.gettingUserValue(payload, imageBase64);
+      
       const user = await this.userDbService.createUser({
-        ...data,
-        ...{
-          role: role,
-        },
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        mobileNumber: dto.mobileNumber,
         password: hashedPassword,
+        gender: dto.gender,
+        dob: dto.dob,
+        description: dto.description,
+        postCode: dto.postCode,
+        isTncApproved: dto.isTncApproved,
+        isNotificationSent: dto.isNotificationSent,
+        isActive: true
       });
 
-      if (UserRole.INSTRUCTOR === role) {
-        const packages = createDefaultPackagesForInstructor(
-          user._id,
-          payload.transmissionType,
-        );
-        await this.packageModel.insertMany(packages);
-      }
+      await this.instructorProfileModel.create({
+        userId: user._id,
+        suburbs:["Sydney", "Parramatta"],
+        availability: ["AM", "PM"],
+        isVerified: false
+      });
 
-      let address = null;
-      if (payload.address && user._id && role === UserRole.INSTRUCTOR) {
-        address = await this.userAddressDbService.createAddress(
-          payload.address,
-          user._id,
-        );
-        await this.userDbService.addAddressToUser(user._id, address._id);
-      }
+      // if (UserRole.INSTRUCTOR === role) {
+      //   const packages = createDefaultPackagesForInstructor(
+      //     user._id,
+      //     payload.transmissionType,
+      //   );
+      //   await this.packageModel.insertMany(packages);
+      // }
+
+      // let address = null;
+      // if (payload.address && user._id && role === UserRole.INSTRUCTOR) {
+      //   address = await this.userAddressDbService.createAddress(
+      //     payload.address,
+      //     user._id,
+      //   );
+      //   await this.userDbService.addAddressToUser(user._id, address._id);
+      // }
 
       return successResponse(await this._buildUserRespons(user));
-    } catch (err: unknown) {
-      throw new InternalServerErrorException((err as Error).message);
-    }
+    } catch (error: any) {
+          if (error?.code === 11000) {
+            if (error?.keyPattern?.email) {
+              throw new ConflictException('Email already registered');
+            }
+            if (error?.keyPattern?.mobileNumber) {
+              throw new ConflictException('Mobile number already registered');
+            }
+            throw new ConflictException('User already exists');
+          }
+        
+          throw new InternalServerErrorException(error?.message);
+        }
   }
 
-  public async getUserById(
+  public async getProfile(
     publicId: string,
   ): Promise<ApiResponse<UserResponse>> {
-    const user = await this.userDbService.findByPublicId(publicId, {
-      withAddress: true,
-    });
+    const user = await this.userDbService.findByPublicId(publicId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -134,109 +151,107 @@ export class UserService {
     user: UserDocument,
     params: Record<string, unknown> = {},
   ): Promise<UserResponse> {
-    let address: Array<AddressDocument> = [];
-    let packages: Array<PackageDocument> = [];
+    // let address: Array<AddressDocument> = [];
+    // let packages: Array<PackageDocument> = [];
 
-    if (isDefined(params['address']) && params['address'] === true) {
-      address = await this.userAddressDbService.findAllByUserId(user._id);
-    }
+    // if (isDefined(params['address']) && params['address'] === true) {
+    //   address = await this.userAddressDbService.findAllByUserId(user._id);
+    // }
 
-    if (isDefined(params['packages']) && params['packages'] === true) {
-      packages = await this.packageModel
-        .find({
-          userId: user._id,
-        })
-        .exec();
-    }
+    // if (isDefined(params['packages']) && params['packages'] === true) {
+    //   packages = await this.packageModel
+    //     .find({
+    //       userId: user._id,
+    //     })
+    //     .exec();
+    // }
 
     return {
       id: user.publicId,
       email: user.email,
       publicId: user.publicId,
       role: user.role,
-      subject: user.subject,
       description: user.description,
       mobileNumber: user.mobileNumber,
       firstName: user.firstName,
       lastName: user.lastName,
       fullName: `${user.firstName} ${user.lastName}`,
       initials: this.getInitials(user.firstName, user.lastName),
-      address: address,
-      packages: packages,
+      address: [],
     };
   }
+
   private getInitials(firstname: string, lastname?: string): string {
     const first = firstname?.[0] ?? '';
     const last = lastname?.[0] ?? '';
     return `${first}${last}`.toUpperCase();
   }
 
-  private gettingUserValue(
-    payload: RegisterUserDto,
-    profileImage: string | null,
-  ): Partial<UserDocument> {
-    const vehicleDetail: VehicleInterface[] = [];
-    const defaultVehicleValue = {
-      registrationNumber: '',
-      licenceCategory: '',
-      make: '',
-      model: '',
-      color: '',
-      year: 1990,
-      ancapSafetyRating: '',
-      hasDualControls: false,
-    };
-    const baseVehicle = {
-      year: 1990,
-      hasDualControls: false,
-    };
-    const transmissionType = payload.transmissionType;
-    if (transmissionType === TransmissionType.AUTO) {
-      vehicleDetail.push({
-        ...baseVehicle,
-        ...{ transmissionType: TransmissionType.AUTO },
-      });
-    } else if (transmissionType === TransmissionType.MANUAL) {
-      vehicleDetail.push({
-        ...baseVehicle,
-        ...{ transmissionType: TransmissionType.AUTO },
-      });
-    } else {
-      vehicleDetail.push(
-        {
-          ...baseVehicle,
-          ...{ transmissionType: TransmissionType.AUTO },
-        },
-        {
-          ...baseVehicle,
-          ...{ transmissionType: TransmissionType.MANUAL },
-        },
-      );
-    }
+  // private gettingUserValue(
+  //   payload: RegisterUserDto,
+  //   profileImage: string | null,
+  // ): Partial<UserDocument> {
+  //   const vehicleDetail: VehicleInterface[] = [];
+  //   const defaultVehicleValue = {
+  //     registrationNumber: '',
+  //     licenceCategory: '',
+  //     make: '',
+  //     model: '',
+  //     color: '',
+  //     year: 1990,
+  //     ancapSafetyRating: '',
+  //     hasDualControls: false,
+  //   };
+  //   const baseVehicle = {
+  //     year: 1990,
+  //     hasDualControls: false,
+  //   };
+  //   const transmissionType = payload.transmissionType;
+  //   if (transmissionType === TransmissionType.AUTO) {
+  //     vehicleDetail.push({
+  //       ...baseVehicle,
+  //       ...{ transmissionType: TransmissionType.AUTO },
+  //     });
+  //   } else if (transmissionType === TransmissionType.MANUAL) {
+  //     vehicleDetail.push({
+  //       ...baseVehicle,
+  //       ...{ transmissionType: TransmissionType.AUTO },
+  //     });
+  //   } else {
+  //     vehicleDetail.push(
+  //       {
+  //         ...baseVehicle,
+  //         ...{ transmissionType: TransmissionType.AUTO },
+  //       },
+  //       {
+  //         ...baseVehicle,
+  //         ...{ transmissionType: TransmissionType.MANUAL },
+  //       },
+  //     );
+  //   }
 
-    const user = {
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      email: payload.email,
-      gender: payload.gender,
-      mobileNumber: payload.mobileNumber,
-      dob: payload.dob,
-      subject: payload.subject,
-      description: payload.description,
-      isTncApproved: payload.isTncApproved,
-      isNotificationSent: payload.isNotificationSent,
-      profileImage: profileImage,
-      vehicles: vehicleDetail,
-      financialDetail: {
-        bankName: '',
-        accountHolderName: '',
-        accountNumber: '',
-        bsbNumber: '',
-        abnNumber: '',
-        businessName: '',
-      },
-    };
+  //   const user = {
+  //     firstName: payload.firstName,
+  //     lastName: payload.lastName,
+  //     email: payload.email,
+  //     gender: payload.gender,
+  //     mobileNumber: payload.mobileNumber,
+  //     dob: payload.dob,
+  //     description: payload.description,
+  //     isTncApproved: payload.isTncApproved,
+  //     isNotificationSent: payload.isNotificationSent,
+  //     profileImage: profileImage,
+  //     vehicles: vehicleDetail,
+  //     financialDetail: {
+  //       bankName: '',
+  //       accountHolderName: '',
+  //       accountNumber: '',
+  //       bsbNumber: '',
+  //       abnNumber: '',
+  //       businessName: '',
+  //     },
+  //   };
 
-    return user;
-  }
+  //   return user;
+  // }
 }

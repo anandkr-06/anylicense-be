@@ -1,7 +1,7 @@
-import { CreateAddressDto } from '@app/address/dto/create-address.dto';
+
 import { TransmissionType } from '@constant/packages';
 import { UserGender } from '@constant/users';
-import { Type } from 'class-transformer';
+
 import {
   IsBoolean,
   IsEmail,
@@ -23,32 +23,35 @@ export class RegisterUserDto {
   @IsEmail()
   public email!: string;
 
-  @IsOptional()
-  @IsEnum(UserGender)
-  public gender?: UserGender;
-
-  @IsNotEmpty()
-  @MinLength(8)
-  public password!: string;
-
   @IsNotEmpty()
   public mobileNumber!: string;
 
+  @IsOptional()
   @IsNotEmpty()
-  @IsEnum(TransmissionType)
-  public transmissionType!: TransmissionType;
+  @IsEnum(UserGender)
+  public gender?: UserGender;
 
   @IsString()
   @IsOptional()
   public dob?: string;
 
   @IsString()
-  @IsOptional()
-  public subject?: string;
+  description?: string;
 
+  @IsNotEmpty()
   @IsString()
-  @IsOptional()
-  public description?: string;
+  postCode!: string;
+
+
+  @IsNotEmpty()
+  @MinLength(8)
+  public password!: string;
+
+  @IsNotEmpty()
+  @IsEnum(TransmissionType)
+  public transmissionType!: TransmissionType;
+
+
 
   @IsBoolean()
   public isTncApproved!: boolean;
@@ -57,7 +60,11 @@ export class RegisterUserDto {
   public isNotificationSent!: boolean;
 
   @IsOptional()
-  @ValidateNested()
-  @Type(() => CreateAddressDto)
-  public address?: CreateAddressDto;
+  @IsBoolean()
+  public isActive!: boolean;
+
+  // @IsOptional()
+  // @ValidateNested()
+  // @Type(() => CreateAddressDto)
+  // public address?: CreateAddressDto;
 }

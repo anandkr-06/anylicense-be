@@ -49,6 +49,12 @@ export class Learner {
   @Prop({ default: false, index: true })
   isActive!: boolean;
 
+  @Prop({ default: false, index: true })
+  dob!: string;
+
+  @Prop({ default: false, index: true })
+  gender!: string;
+
   // Forgot password
   @Prop()
   passwordResetToken?: string;

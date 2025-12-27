@@ -113,7 +113,6 @@ export class SearchService {
       email: user.email,
       publicId: user.publicId,
       role: user.role,
-      subject: user.subject,
       description: user.description,
       mobileNumber: user.mobileNumber,
       firstName: user.firstName,
