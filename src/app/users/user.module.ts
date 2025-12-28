@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UserService } from './services/user.service';
+import { MoreProfile } from './services/moreprofile.service';
 import { UserController } from './controllers/user.controller';
 import { UserDbService } from '../../common/db/services/user.db.service';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -29,7 +30,7 @@ import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/in
     DbModule,
   ],
   controllers: [UserController, ],
-  providers: [UserService, UserDbService, ],
-  exports: [UserService],
+  providers: [UserService, UserDbService, MoreProfile],
+  exports: [UserService,MoreProfile],
 })
 export class UserModule {}

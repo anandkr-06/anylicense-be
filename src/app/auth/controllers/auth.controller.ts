@@ -13,7 +13,7 @@ import {
   commonSwaggerSuccess,
 } from '@lib/swagger/swagger-decorator';
 import { ApiBody, ApiSecurity } from '@nestjs/swagger';
-import { LoginDto } from '@app/auth/dto/login.dto';
+import { InstructorLoginDto } from '@app/auth/dto/login.dto';
 import {
   mockForgetPasswordResponse,
   mockLoginResponse,
@@ -32,8 +32,8 @@ export class AuthController {
   @Public()
   @Post('login')
 
-  public login(@Body() body: LoginDto) {
-    return this.authService.login(body.email, body.password);
+  public login(@Body() body: InstructorLoginDto) {
+    return this.authService.login(body.identifier, body.password);
   }
 
   @Public()
