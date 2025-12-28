@@ -164,9 +164,10 @@ export class UserService {
   .findOne({ userId: instructor._id })
   .populate('userId')
   .exec();
+  
     return {
       data: { 
-        ...instructor,
+        
         profile: profile,
       },
     
