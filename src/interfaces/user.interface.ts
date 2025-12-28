@@ -1,22 +1,40 @@
 import { AddressDocument } from '@common/db/schemas/address.schema';
 import { PackageDocument } from '@common/db/schemas/package.schema';
-import { UserRole } from '@constant/users';
+import { InstructorProfileResponse } from './instructor-profile.interface';
+
+import { UserGender, UserRole } from '@constant/users';
 
 export interface UserResponse {
   id: string;
   publicId: string;
-  email: string;
+  email: string | null;
+  role: string;
+
+  description: string;
   mobileNumber: string;
-  subject?: string;
-  description?: string;
-  role: UserRole;
+
   firstName: string;
-  lastName?: string | undefined;
+  lastName: string | undefined;
   fullName: string;
   initials: string;
-  address?: AddressDocument[] | [];
-  packages?: PackageDocument[] | [];
+
+
+
+  profileImage: string | null;
+
+  dob: string | null;
+  gender: UserGender | undefined;
+  postcode: string | undefined;
+
+  languagesKnown: string[]  | undefined;            
+  proficientLanguages: string[]  | undefined;       
+
+  instructorExperienceYears: number  | undefined;
+  isMemberOfDrivingAssociation: boolean  | undefined;
+  transmissionType: string | null;
+  profile: InstructorProfileResponse[];
 }
+
 
 export interface JwtPayload {
   publicId: string;
