@@ -140,6 +140,7 @@ export class UserService {
     return match ? user : null;
   }
 
+  
   public async findOneAndUpdateByEmail(
     email: string,
     updateData: UserDocument | Partial<UserDocument>,

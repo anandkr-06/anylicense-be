@@ -2,7 +2,7 @@ import {
   Body,
   Controller,
   Get,
-  
+  Put,
   Post,
   Req,
   UnauthorizedException,
@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from '../services/user.service';
 import { RegisterUserDto } from '../dto/register-user.dto';
+import { UpdateInstructorProfileDto } from '@app/instructor/dto/update-instructor-profile.dto';
 import { CustomRequest } from '@common/types/express';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Public } from '@common/decorators/public.decorator';
@@ -34,14 +35,15 @@ export class UserController {
     return this.userService.getProfile(req.user.id);
   }
   
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
 
-  // @Put('me')
-  // updateProfile(@Req() req, @Body() dto) {
-  //   return this.instructorService.updateProfile(req.user.sub, dto);
-  // }
+  @Put('me')
+  updateProfile(@Req() req: any, @Body() dto: UpdateInstructorProfileDto) {
+    return this.userService.findOneAndUpdateByEmail(req.user.email, dto);
+  }
   
 
+  
   // @Get()
   // @UseGuards(JwtAuthGuard)
   // @ApiSecurity('jwt-auth')

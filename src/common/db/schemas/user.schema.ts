@@ -80,6 +80,9 @@ export class User {
   @Prop({ default: false })
   public isMemberOfDrivingAssociation?: boolean;
 
+  @Prop({ enum: TransmissionType, default: TransmissionType.MANUAL })
+  transmissionType!:  TransmissionType; 
+
   // // @Prop({ type: [String], default: [] })
   // // public drivingAssociations?: string[];
 
