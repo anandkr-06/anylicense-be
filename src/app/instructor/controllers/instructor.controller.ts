@@ -14,7 +14,7 @@ import {
 export class InstructorController {
   constructor(private instructorService: InstructorService) {}
 
-  @Post('update')
+  @Post('additional-info')
   async updateProfile(
     @CurrentUser() currentUser: JwtPayload,
     @Body() payload: UpdateInstructorProfileDto,
@@ -26,28 +26,29 @@ export class InstructorController {
     return user;
   }
 
-  @Post('update/vehicles')
-  async updateVehicle(
-    @CurrentUser() currentUser: JwtPayload,
-    @Body() payload: UpdateInstructorVehicleDto,
-  ) {
-    const user = await this.instructorService.updateVehicle(
-      currentUser,
-      payload,
-    );
-    return user;
-  }
-  @Post('update/financial')
-  async updateFinancialDetail(
-    @CurrentUser() currentUser: JwtPayload,
-    @Body() payload: UpdateInstructorFinancialDto,
-  ) {
-    const user = await this.instructorService.updateFinancial(
-      currentUser,
-      payload,
-    );
-    return user;
-  }
+  // @Post('update/vehicles')
+  // async updateVehicle(
+  //   @CurrentUser() currentUser: JwtPayload,
+  //   @Body() payload: UpdateInstructorVehicleDto,
+  // ) {
+  //   const user = await this.instructorService.updateVehicle(
+  //     currentUser,
+  //     payload,
+  //   );
+  //   return user;
+  // }
+
+  // @Post('update/financial')
+  // async updateFinancialDetail(
+  //   @CurrentUser() currentUser: JwtPayload,
+  //   @Body() payload: UpdateInstructorFinancialDto,
+  // ) {
+  //   const user = await this.instructorService.updateFinancial(
+  //     currentUser,
+  //     payload,
+  //   );
+  //   return user;
+  // }
 
   @Post('change-password')
   async changePassword(

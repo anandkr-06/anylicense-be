@@ -135,12 +135,12 @@ export class InstructorService {
         user.isMemberOfDrivingAssociation = dto.isMemberOfDrivingAssociation;
       }
 
-      if (
-        dto.drivingAssociations !== undefined &&
-        user.isMemberOfDrivingAssociation
-      ) {
-        //user.drivingAssociations = dto.drivingAssociations;
-      }
+      // if (
+      //   dto.drivingAssociations !== undefined &&
+      //   user.isMemberOfDrivingAssociation
+      // ) {
+      //   user.drivingAssociations = dto.drivingAssociations;
+      // }
 
       await user.save();
       return successResponse({ instructor: user });
@@ -192,122 +192,122 @@ export class InstructorService {
     }
   }
 
-  public async updateFinancial(
-    currentUser: JwtPayload,
-    dto: UpdateInstructorFinancialDto,
-  ) {
-    const user = await this.userModel
-      .findOne({
-        publicId: currentUser.publicId,
-        role: UserRole.INSTRUCTOR,
-      })
-      .exec();
+  // public async updateFinancial(
+  //   currentUser: JwtPayload,
+  //   dto: UpdateInstructorFinancialDto,
+  // ) {
+  //   const user = await this.userModel
+  //     .findOne({
+  //       publicId: currentUser.publicId,
+  //       role: UserRole.INSTRUCTOR,
+  //     })
+  //     .exec();
 
-    if (!user) {
-      throw new BadRequestException('No Instructor found');
-    }
-    try {
-      // if (!user.financialDetail) {
-      //   user.financialDetail = {};
-      // }
+  //   if (!user) {
+  //     throw new BadRequestException('No Instructor found');
+  //   }
+  //   try {
+  //     if (!user.financialDetail) {
+  //       user.financialDetail = {};
+  //     }
 
-      // if (dto.bankName !== undefined)
-      //   user.financialDetail.bankName = dto.bankName;
+  //     if (dto.bankName !== undefined)
+  //       user.financialDetail.bankName = dto.bankName;
 
-      // if (dto.accountHolderName !== undefined)
-      //   user.financialDetail.accountHolderName = dto.accountHolderName;
+  //     if (dto.accountHolderName !== undefined)
+  //       user.financialDetail.accountHolderName = dto.accountHolderName;
 
-      // let accountNo = '';
-      // if (dto.accountNumber !== undefined) {
-      //   user.financialDetail.accountNumber = this.cryptoHelper.encrypt(
-      //     dto.accountNumber,
-      //   );
-      //   accountNo = this.cryptoHelper.decrypt(
-      //     user.financialDetail.accountNumber,
-      //   );
-      // }
+  //     let accountNo = '';
+  //     if (dto.accountNumber !== undefined) {
+  //       user.financialDetail.accountNumber = this.cryptoHelper.encrypt(
+  //         dto.accountNumber,
+  //       );
+  //       accountNo = this.cryptoHelper.decrypt(
+  //         user.financialDetail.accountNumber,
+  //       );
+  //     }
 
-      // if (dto.bsbNumber !== undefined)
-      //   user.financialDetail.bsbNumber = dto.bsbNumber;
+  //     if (dto.bsbNumber !== undefined)
+  //       user.financialDetail.bsbNumber = dto.bsbNumber;
 
-      // if (dto.abnNumber !== undefined)
-      //   user.financialDetail.abnNumber = dto.abnNumber;
+  //     if (dto.abnNumber !== undefined)
+  //       user.financialDetail.abnNumber = dto.abnNumber;
 
-      // if (dto.businessName !== undefined)
-      //   user.financialDetail.businessName = dto.businessName;
+  //     if (dto.businessName !== undefined)
+  //       user.financialDetail.businessName = dto.businessName;
 
-      // await user.save();
+  //     await user.save();
 
-      // return successResponse({
-      //   financialDetail: {
-      //     bankName: user.financialDetail.bankName,
-      //     accountHolderName: user.financialDetail.accountHolderName,
-      //     accountNumber: accountNo,
-      //     bsbNumber: user.financialDetail.bsbNumber,
-      //     abnNumber: user.financialDetail.abnNumber,
-      //     businessName: user.financialDetail.businessName,
-      //   },
-      // });
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw new BadRequestException((error as Error).message);
-    }
-  }
+  //     return successResponse({
+  //       financialDetail: {
+  //         bankName: user.financialDetail.bankName,
+  //         accountHolderName: user.financialDetail.accountHolderName,
+  //         accountNumber: accountNo,
+  //         bsbNumber: user.financialDetail.bsbNumber,
+  //         abnNumber: user.financialDetail.abnNumber,
+  //         businessName: user.financialDetail.businessName,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     if (error instanceof HttpException) throw error;
+  //     throw new BadRequestException((error as Error).message);
+  //   }
+  // }
 
-  public async updateVehicle(
-    currentUser: JwtPayload,
-    dto: UpdateInstructorVehicleDto,
-  ) {
-    const user = await this.userModel
-      .findOne({
-        publicId: currentUser.publicId,
-        role: UserRole.INSTRUCTOR,
-      })
-      .exec();
+  // public async updateVehicle(
+  //   currentUser: JwtPayload,
+  //   dto: UpdateInstructorVehicleDto,
+  // ) {
+  //   const user = await this.userModel
+  //     .findOne({
+  //       publicId: currentUser.publicId,
+  //       role: UserRole.INSTRUCTOR,
+  //     })
+  //     .exec();
 
-    if (!user) {
-      throw new BadRequestException('No Instructor found');
-    }
+  //   if (!user) {
+  //     throw new BadRequestException('No Instructor found');
+  //   }
 
-    if (dto.vehicles.length > 2) {
-      throw new BadRequestException(
-        'Only AUTO and MANUAL vehicles are allowed',
-      );
-    }
+  //   if (dto.vehicles.length > 2) {
+  //     throw new BadRequestException(
+  //       'Only AUTO and MANUAL vehicles are allowed',
+  //     );
+  //   }
 
-    try {
-      // --- Replace vehicles atomically
-      // user.vehicles = dto.vehicles.map((v) => ({
-      //   registrationNumber: v.registrationNumber,
-      //   licenceCategory: v.licenceCategory,
-      //   make: v.make,
-      //   model: v.model,
-      //   color: v.color,
-      //   year: v.year,
-      //   transmissionType: v.transmissionType,
-      //   ancapSafetyRating: v.ancapSafetyRating,
-      //   hasDualControls: v.hasDualControls ?? false,
-      // }));
+  //   try {
+  //     // --- Replace vehicles atomically
+  //     user.vehicles = dto.vehicles.map((v) => ({
+  //       registrationNumber: v.registrationNumber,
+  //       licenceCategory: v.licenceCategory,
+  //       make: v.make,
+  //       model: v.model,
+  //       color: v.color,
+  //       year: v.year,
+  //       transmissionType: v.transmissionType,
+  //       ancapSafetyRating: v.ancapSafetyRating,
+  //       hasDualControls: v.hasDualControls ?? false,
+  //     }));
 
-      // await user.save();
-      // return successResponse({
-      //   vehicles: user.vehicles.map((v) => ({
-      //     registrationNumber: v.registrationNumber,
-      //     licenceCategory: v.licenceCategory,
-      //     make: v.make,
-      //     model: v.model,
-      //     color: v.color,
-      //     year: v.year,
-      //     transmissionType: v.transmissionType,
-      //     ancapSafetyRating: v.ancapSafetyRating,
-      //     hasDualControls: v.hasDualControls,
-      //   })),
-      // });
-    } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw new BadRequestException((error as Error).message);
-    }
-  }
+  //     await user.save();
+  //     return successResponse({
+  //       vehicles: user.vehicles.map((v) => ({
+  //         registrationNumber: v.registrationNumber,
+  //         licenceCategory: v.licenceCategory,
+  //         make: v.make,
+  //         model: v.model,
+  //         color: v.color,
+  //         year: v.year,
+  //         transmissionType: v.transmissionType,
+  //         ancapSafetyRating: v.ancapSafetyRating,
+  //         hasDualControls: v.hasDualControls,
+  //       })),
+  //     });
+  //   } catch (error) {
+  //     if (error instanceof HttpException) throw error;
+  //     throw new BadRequestException((error as Error).message);
+  //   }
+  // }
 
   private _buildUserRespons(user: UserDocument): UserResponse {
     return new UserResponseBuilder(user).build();

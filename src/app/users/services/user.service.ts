@@ -23,6 +23,8 @@ import { AddressDocument } from '@common/db/schemas/address.schema';
 import { isDefined } from 'class-validator';
 import { TransmissionType } from '@constant/packages';
 import { VehicleInterface } from '@interfaces/vehicle.interface';
+import { UpdateAdditionalInfoDto } from '@app/instructor/dto/update-instructor-profile.dto';
+import { UpdateVehicleDetailsDto } from '../dto/vehicle-details.dto';
 
 @Injectable()
 export class UserService {
@@ -123,6 +125,22 @@ export class UserService {
     );
   }
 
+  public async getMoreProfileDetails(
+    userId: string,
+  ): Promise<ApiResponse<UserResponse>> {
+    const user = await this.userDbService.findByPublicId(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return successResponse(
+      await this._buildUserRespons(user, {
+        address: true,
+        packages: true,
+      }),
+    );
+  }
+
   public async getUserByEmail(email: string): Promise<UserDocument | null> {
     const user = await this.userDbService.findByEmail(email);
     if (!user) return null;
@@ -147,6 +165,21 @@ export class UserService {
   ): Promise<UserDocument | null> {
     return this.userDbService.findOneAndUpdate(email, updateData);
   }
+
+  public async findOneAndUpdateByAdditionalInfo(
+    email: string,
+    updateData: UpdateAdditionalInfoDto | Partial<UserDocument>,
+  ): Promise<UserDocument | null> {
+    return this.userDbService.findOneAndUpdate(email, updateData);
+  }
+
+  public async findOneAndUpdateByVehicleDetails(
+    userId: string,
+    updateData: UpdateVehicleDetailsDto | Partial<InstructorProfileDocument>,
+  ): Promise<InstructorProfileDocument | null> {
+    return this.instructorProfileModel.findOneAndUpdate({userId}, updateData);
+  }
+
 
   private async _buildUserRespons(
     user: UserDocument,

@@ -72,6 +72,35 @@ export class UpdateInstructorProfileDto {
   @IsArray()
   @IsString({ each: true })
   public drivingAssociations?: string[];
+
+  
+}
+
+export class UpdateAdditionalInfoDto {
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  public languagesKnown?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  public proficientLanguages?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  public instructorExperienceYears?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  public isMemberOfDrivingAssociation?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  public drivingAssociations!: string[];
 }
 
 export class UpdateInstructorFinancialDto {
