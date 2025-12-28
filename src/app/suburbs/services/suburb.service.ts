@@ -21,14 +21,31 @@ export class SuburbService {
     const skip = (page - 1) * limit;
     const filter: any = {};
   
+    // if (search && search.length >= 3) {
+    //   const regex = new RegExp(`^${search}`, 'i');
+    //   filter.$or = [
+    //     { locality: regex },
+    //     { postcode: regex },
+    //   ];
+    // }
+  
     if (search && search.length >= 3) {
       const regex = new RegExp(`^${search}`, 'i');
+    
       filter.$or = [
         { locality: regex },
-        { postcode: regex },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $toString: '$postcode' },
+              regex,
+            },
+          },
+        },
       ];
     }
-  
+    
+    
     const [data, total] = await Promise.all([
       this.suburbModel
         .find(filter)
