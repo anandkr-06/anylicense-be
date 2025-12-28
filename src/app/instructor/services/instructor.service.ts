@@ -139,7 +139,7 @@ export class InstructorService {
         dto.drivingAssociations !== undefined &&
         user.isMemberOfDrivingAssociation
       ) {
-        user.drivingAssociations = dto.drivingAssociations;
+        //user.drivingAssociations = dto.drivingAssociations;
       }
 
       await user.save();
@@ -207,47 +207,47 @@ export class InstructorService {
       throw new BadRequestException('No Instructor found');
     }
     try {
-      if (!user.financialDetail) {
-        user.financialDetail = {};
-      }
+      // if (!user.financialDetail) {
+      //   user.financialDetail = {};
+      // }
 
-      if (dto.bankName !== undefined)
-        user.financialDetail.bankName = dto.bankName;
+      // if (dto.bankName !== undefined)
+      //   user.financialDetail.bankName = dto.bankName;
 
-      if (dto.accountHolderName !== undefined)
-        user.financialDetail.accountHolderName = dto.accountHolderName;
+      // if (dto.accountHolderName !== undefined)
+      //   user.financialDetail.accountHolderName = dto.accountHolderName;
 
-      let accountNo = '';
-      if (dto.accountNumber !== undefined) {
-        user.financialDetail.accountNumber = this.cryptoHelper.encrypt(
-          dto.accountNumber,
-        );
-        accountNo = this.cryptoHelper.decrypt(
-          user.financialDetail.accountNumber,
-        );
-      }
+      // let accountNo = '';
+      // if (dto.accountNumber !== undefined) {
+      //   user.financialDetail.accountNumber = this.cryptoHelper.encrypt(
+      //     dto.accountNumber,
+      //   );
+      //   accountNo = this.cryptoHelper.decrypt(
+      //     user.financialDetail.accountNumber,
+      //   );
+      // }
 
-      if (dto.bsbNumber !== undefined)
-        user.financialDetail.bsbNumber = dto.bsbNumber;
+      // if (dto.bsbNumber !== undefined)
+      //   user.financialDetail.bsbNumber = dto.bsbNumber;
 
-      if (dto.abnNumber !== undefined)
-        user.financialDetail.abnNumber = dto.abnNumber;
+      // if (dto.abnNumber !== undefined)
+      //   user.financialDetail.abnNumber = dto.abnNumber;
 
-      if (dto.businessName !== undefined)
-        user.financialDetail.businessName = dto.businessName;
+      // if (dto.businessName !== undefined)
+      //   user.financialDetail.businessName = dto.businessName;
 
-      await user.save();
+      // await user.save();
 
-      return successResponse({
-        financialDetail: {
-          bankName: user.financialDetail.bankName,
-          accountHolderName: user.financialDetail.accountHolderName,
-          accountNumber: accountNo,
-          bsbNumber: user.financialDetail.bsbNumber,
-          abnNumber: user.financialDetail.abnNumber,
-          businessName: user.financialDetail.businessName,
-        },
-      });
+      // return successResponse({
+      //   financialDetail: {
+      //     bankName: user.financialDetail.bankName,
+      //     accountHolderName: user.financialDetail.accountHolderName,
+      //     accountNumber: accountNo,
+      //     bsbNumber: user.financialDetail.bsbNumber,
+      //     abnNumber: user.financialDetail.abnNumber,
+      //     businessName: user.financialDetail.businessName,
+      //   },
+      // });
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException((error as Error).message);
@@ -277,32 +277,32 @@ export class InstructorService {
 
     try {
       // --- Replace vehicles atomically
-      user.vehicles = dto.vehicles.map((v) => ({
-        registrationNumber: v.registrationNumber,
-        licenceCategory: v.licenceCategory,
-        make: v.make,
-        model: v.model,
-        color: v.color,
-        year: v.year,
-        transmissionType: v.transmissionType,
-        ancapSafetyRating: v.ancapSafetyRating,
-        hasDualControls: v.hasDualControls ?? false,
-      }));
+      // user.vehicles = dto.vehicles.map((v) => ({
+      //   registrationNumber: v.registrationNumber,
+      //   licenceCategory: v.licenceCategory,
+      //   make: v.make,
+      //   model: v.model,
+      //   color: v.color,
+      //   year: v.year,
+      //   transmissionType: v.transmissionType,
+      //   ancapSafetyRating: v.ancapSafetyRating,
+      //   hasDualControls: v.hasDualControls ?? false,
+      // }));
 
-      await user.save();
-      return successResponse({
-        vehicles: user.vehicles.map((v) => ({
-          registrationNumber: v.registrationNumber,
-          licenceCategory: v.licenceCategory,
-          make: v.make,
-          model: v.model,
-          color: v.color,
-          year: v.year,
-          transmissionType: v.transmissionType,
-          ancapSafetyRating: v.ancapSafetyRating,
-          hasDualControls: v.hasDualControls,
-        })),
-      });
+      // await user.save();
+      // return successResponse({
+      //   vehicles: user.vehicles.map((v) => ({
+      //     registrationNumber: v.registrationNumber,
+      //     licenceCategory: v.licenceCategory,
+      //     make: v.make,
+      //     model: v.model,
+      //     color: v.color,
+      //     year: v.year,
+      //     transmissionType: v.transmissionType,
+      //     ancapSafetyRating: v.ancapSafetyRating,
+      //     hasDualControls: v.hasDualControls,
+      //   })),
+      // });
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException((error as Error).message);

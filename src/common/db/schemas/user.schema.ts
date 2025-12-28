@@ -41,17 +41,19 @@ export class User {
   @Prop({ required: true })
   public dob!: string;
 
-  @Prop({ default: null })
-  public subject?: string;
-
-  @Prop({ enum: UserGender, default: null })
+  
+  @Prop({ enum: UserGender, default: UserGender.MALE })
   public gender?: UserGender;
+
+  @Prop({ required: false, trim: true })
+  
+  public postCode!: string;
 
   @Prop({ default: [] })
   public serviceArea?: Array<string>;
 
-  @Prop({ default: null })
-  public description?: string;
+  @Prop({ required: true, trim: true })
+  public description!: string;
 
   @Prop({ required: true, default: false })
   public isTncApproved!: boolean;
@@ -59,30 +61,16 @@ export class User {
   @Prop({ required: true, default: false })
   public isNotificationSent!: boolean;
 
-  @Prop({ enum: UserRole, default: UserRole.LEARNER })
+  @Prop({ enum: UserRole, default: UserRole.INSTRUCTOR })
   public role!: UserRole;
 
-  @Prop({ type: String, default: '' })
-  public bestDescribe?: string;
-
-  @Prop({ enum: UserRegistrationType, default: UserRegistrationType.SELF })
-  public registrationType!: UserRegistrationType;
-
-  @Prop({ type: Object, default: {} })
-  public purchaserDetail?: Record<string, unknown>;
-
-  @Prop({
-    type: [{ type: Types.ObjectId, ref: 'UserAddress' }],
-    default: [],
-  })
-  public addresses?: Types.ObjectId[];
-
+  //Multi Language Support
   @Prop({ type: [String], default: [] })
   public languagesKnown?: string[];
 
   @Prop({ type: [String], default: [] })
   public proficientLanguages?: string[];
-
+//Multi Language Support
   @Prop({ default: 0 })
   public instructorExperienceYears?: number;
 
@@ -92,53 +80,65 @@ export class User {
   @Prop({ default: false })
   public isMemberOfDrivingAssociation?: boolean;
 
-  @Prop({ type: [String], default: [] })
-  public drivingAssociations?: string[];
+  @Prop({ enum: TransmissionType, default: TransmissionType.MANUAL })
+  transmissionType!:  TransmissionType; 
 
-  @Prop({
-    type: [
-      {
-        registrationNumber: { type: String, required: false, default: '' },
-        licenceCategory: { type: String, required: false, default: '' },
-        make: { type: String, required: false, default: '' },
-        model: { type: String, required: false, default: '' },
-        color: { type: String, required: false, default: '' },
-        year: { type: Number, required: false, default: 1990 },
-        transmissionType: {
-          type: String,
-          enum: TransmissionType,
-          required: true,
-        },
-        ancapSafetyRating: { type: String },
-        hasDualControls: { type: Boolean, default: false },
-      },
-    ],
-    default: [],
-  })
-  public vehicles?: VehicleInterface[];
+  // // @Prop({ type: [String], default: [] })
+  // // public drivingAssociations?: string[];
 
-  @Prop({
-    type: {
-      bankName: { type: String },
-      accountHolderName: { type: String },
-      accountNumber: { type: String },
-      bsbNumber: { type: String },
-      abnNumber: { type: String },
-      businessName: { type: String },
-    },
-    default: null,
-  })
-  public financialDetail?: FinancialDetailInterface;
+  // @Prop({
+  //   type: [
+  //     {
+  //       registrationNumber: { type: String, required: false, default: '' },
+  //       licenceCategory: { type: String, required: false, default: '' },
+  //       make: { type: String, required: false, default: '' },
+  //       model: { type: String, required: false, default: '' },
+  //       color: { type: String, required: false, default: '' },
+  //       year: { type: Number, required: false, default: 1990 },
+  //       transmissionType: {
+  //         type: String,
+  //         enum: TransmissionType,
+  //         required: true,
+  //       },
+  //       ancapSafetyRating: { type: String },
+  //       hasDualControls: { type: Boolean, default: false },
+  //     },
+  //   ],
+  //   default: [],
+  // })
+  // public vehicles?: VehicleInterface[];
 
+  // @Prop({
+  //   type: {
+  //     bankName: { type: String },
+  //     accountHolderName: { type: String },
+  //     accountNumber: { type: String },
+  //     bsbNumber: { type: String },
+  //     abnNumber: { type: String },
+  //     businessName: { type: String },
+  //   },
+  //   default: null,
+  // })
+  // public financialDetail?: FinancialDetailInterface;
+
+  
+
+  // @Prop({ default: false })
+  // public isDocumentVerified!: boolean;
   @Prop({ default: true })
   public isActive!: boolean;
-
-  @Prop({ default: false })
-  public isDocumentVerified!: boolean;
 }
 
 export type UserDocument = User & Document & { _id: Types.ObjectId };
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.index({ email: 1, role: 1 }, { unique: true });
-UserSchema.index({ mobile: 1, role: 1 }, { unique: true });
+// UserSchema.index({ email: 1, role: 1 }, { unique: true });
+// UserSchema.index({ mobile: 1, role: 1 }, { unique: true });
+// const UserSchema = new Schema({
+//   email: { type: String },
+//   mobileNumber: { type: String }
+// });
+
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ mobileNumber: 1 }, { unique: true });
+

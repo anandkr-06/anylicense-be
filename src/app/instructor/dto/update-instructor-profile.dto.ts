@@ -31,6 +31,22 @@ export class UpdateInstructorProfileDto {
   @IsOptional()
   @IsEnum(UserGender)
   public gender?: UserGender;
+  
+  @IsOptional()
+  @IsString()
+  profileImage?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+ 
+  @IsOptional()
+  @IsString()
+  postCode!: string;
+
+  @IsOptional()
+  @IsEnum(TransmissionType)
+  public transmissionType!: TransmissionType;
 
   /* ---------- Instructor Profile ---------- */
   @IsOptional()

@@ -14,7 +14,6 @@ export class UserResponseBuilder {
       email: this._user.email,
       publicId: this._user.publicId,
       role: this._user.role,
-      subject: this._user.subject,
       description: this._user.description,
       mobileNumber: this._user.mobileNumber,
       firstName: this._user.firstName,

@@ -23,6 +23,10 @@ export class UpdateLearnerProfileDto {
 
   @IsOptional()
   @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
   pickUpAddress?: string;
 
   @IsOptional()

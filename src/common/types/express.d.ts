@@ -6,6 +6,7 @@ export interface CustomRequest extends Request {
     publicId: string;
     email: string;
     role: string;
+    sub: string;
     [key: string]: unknown;
   };
 }
