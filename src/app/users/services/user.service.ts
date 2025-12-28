@@ -9,7 +9,6 @@ import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas
 import { RegisterUserDto } from '../dto/register-user.dto';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
 import { successResponse } from '@common/helpers/response.helper';
-import { UserDocument } from '@common/db/schemas/user.schema';
 import { UserResponse } from '@interfaces/user.interface';
 import { UserRole } from '@constant/users';
 import { UserAddressDbService } from '@common/db/services/address.db.service';
@@ -25,6 +24,11 @@ import { TransmissionType } from '@constant/packages';
 import { VehicleInterface } from '@interfaces/vehicle.interface';
 import { UpdateAdditionalInfoDto } from '@app/instructor/dto/update-instructor-profile.dto';
 import { UpdateVehicleDetailsDto } from '../dto/vehicle-details.dto';
+import { User, UserDocument } from '@common/db/schemas/user.schema';
+import {NotFoundException} from "@nestjs/common";
+
+import { PinoLogger } from 'nestjs-pino';
+
 
 @Injectable()
 export class UserService {
@@ -34,7 +38,11 @@ export class UserService {
     private readonly suburbDbService: SuburbDbService,
     @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
-  ) {}
+    @InjectModel(User.name)
+        private readonly userModel: Model<UserDocument>,
+        private readonly logger: PinoLogger,
+  ) {this.logger.setContext(User.name);}
+  
 
   public async register(
     dto: RegisterUserDto,
@@ -109,22 +117,64 @@ export class UserService {
         }
   }
 
-  public async getProfile(
-    publicId: string,
-  ): Promise<ApiResponse<UserResponse>> {
-    const user = await this.userDbService.findByPublicId(publicId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
+  // public async getProfile(
+  //   userId: string,
+  // ): Promise<ApiResponse<UserResponse>> {
+  //   const user = await this.userDbService.findByPublicId(userId);
+  //   if (!user) {
+  //     throw new UnauthorizedException('User not found');
+  //   }
 
-    return successResponse(
-      await this._buildUserRespons(user, {
-        address: true,
-        packages: true,
-      }),
-    );
+  //   return successResponse(
+  //     await this._buildUserRespons(user, {
+  //       address: true,
+  //       packages: true,
+  //     }),
+  //   );
+  // }
+
+  // async getProfile(instructorId: string) {
+  //   const instructor = await this.userModel
+  //     .findById(instructorId)
+  //     .select('-password') // 🔐 never expose password
+  //     .lean();
+  
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+  //   return successResponse(
+  //         await this._buildUserRespons(instructor, {
+  //           address: true,
+  //           packages: true,
+  //         }),
+  //       );
+  // }
+
+  async getProfile(instructorPublicId: string) {
+       const instructor = await this.userModel
+      .findById(instructorPublicId)
+      .select('-password') // 🔐 never expose password
+      .lean();
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
+    
+    const profile = await this.instructorProfileModel
+  .findOne({ userId: instructor._id })
+  .populate('userId')
+  .exec();
+    return {
+      data: { 
+        ...instructor,
+        profile: profile,
+      },
+    
+    }
   }
 
+  
+  
   public async getMoreProfileDetails(
     userId: string,
   ): Promise<ApiResponse<UserResponse>> {
@@ -200,6 +250,21 @@ export class UserService {
     //     .exec();
     // }
 
+    this.logger.debug(
+      { userId: user._id },
+      'Fetching instructor profile',
+    );
+    
+    const profiles = await this.instructorProfileModel.find({
+      userId: user._id,
+    });
+    
+    this.logger.debug(
+      { count: profiles.length },
+      'Instructor profiles found',
+    );
+    
+    
     return {
       id: user.publicId,
       email: user.email,
@@ -208,10 +273,23 @@ export class UserService {
       description: user.description,
       mobileNumber: user.mobileNumber,
       firstName: user.firstName,
-      lastName: user.lastName,
+      lastName: user.lastName,  
       fullName: `${user.firstName} ${user.lastName}`,
       initials: this.getInitials(user.firstName, user.lastName),
-      address: [],
+      // packages: packages,
+      // address: address,
+      profileImage: null,
+      dob: user.dob,
+      gender: user.gender,
+      postcode: user.postCode,
+      languagesKnown: user.languagesKnown,
+      proficientLanguages: user.proficientLanguages,
+      instructorExperienceYears: user.instructorExperienceYears,
+      isMemberOfDrivingAssociation: user.isMemberOfDrivingAssociation,
+      transmissionType: user.transmissionType,  
+      profile: [],
+      
+
     };
   }
 

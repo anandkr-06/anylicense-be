@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { UserDbService } from '@common/db/services/user.db.service';
 
 import { UserDocument } from '@common/db/schemas/user.schema';
@@ -15,18 +16,30 @@ import { PackageDbService } from '@common/db/services/package.db.service';
 import { Model } from 'mongoose';
 
 import { Package, PackageDocument } from '@common/db/schemas/package.schema';
+import { InstructorProfile,InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfileResponse } from '@interfaces/instructor-profile.interface';
+import { InstructorProfileResponseBuilder } from '@interfaces/instructor-profile-response.builder';
 import { isDefined } from 'class-validator';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserRole } from '@constant/users';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { format } from 'date-fns';
+import { Logger } from 'nestjs-pino';
+
 
 @Injectable()
 export class SearchService {
   constructor(
     private readonly userDbService: UserDbService,
-    @InjectModel(Package.name) private packageModel: Model<PackageDocument>,
-    @InjectModel(Slot.name) private readonly slotModel: Model<SlotDocument>,
+  
+    @InjectModel(Package.name)
+    private readonly packageModel: Model<PackageDocument>,
+  
+    @InjectModel(InstructorProfile.name) 
+    private readonly instructorProfileModel: Model<InstructorProfileDocument>,
+  
+    @InjectModel(Slot.name)
+    private readonly slotModel: Model<SlotDocument>,
   ) {}
 
   public async getAll(
@@ -98,31 +111,61 @@ export class SearchService {
     user: UserDocument,
     params: Record<string, unknown> = {},
   ): Promise<UserResponse> {
-    let packages: Array<PackageDocument> = [];
-
-    if (isDefined(params['packages']) && params['packages'] === true) {
-      packages = await this.packageModel
-        .find({
-          userId: user._id,
-        })
+  
+    let profile: InstructorProfileResponse[] = [];
+  
+    // ✅ fetch profile unless explicitly disabled
+    if (params['profile'] !== false) {
+      const profiles = await this.instructorProfileModel
+      .find({ userId: new Types.ObjectId(user._id) })
         .exec();
+  
+  
+      profile = profiles.map(p =>
+        InstructorProfileResponseBuilder.from(p),
+      );
     }
+    const profiles = await this.instructorProfileModel
+  .find({ userId: user._id })
+  .lean()
+  .exec();
 
+profile = profiles.map(p =>
+  InstructorProfileResponseBuilder.from(p as any),
+);
+
+  
     return {
       id: user.publicId,
-      email: user.email,
       publicId: user.publicId,
+      email: user.email,
       role: user.role,
-      description: user.description,
-      mobileNumber: user.mobileNumber,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: `${user.firstName} ${user.lastName}`,
+  
+      description: user.description ?? '',
+      mobileNumber: user.mobileNumber ?? '',
+  
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+      fullName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
       initials: this.getInitials(user.firstName, user.lastName),
-      packages: packages,
-      address: [],
+  
+      gender: user.gender ?? undefined,
+      dob: user.dob ? new Date(user.dob).toISOString() : null,
+  
+      profileImage: null,
+      postcode: user.postCode ?? null,
+  
+      languagesKnown: user.languagesKnown ?? [],
+      proficientLanguages: user.proficientLanguages ?? [],
+  
+      instructorExperienceYears: user.instructorExperienceYears ?? 0,
+      isMemberOfDrivingAssociation: user.isMemberOfDrivingAssociation ?? false,
+      transmissionType: user.transmissionType ?? null,
+  
+      profile,
     };
   }
+  
 
   private _buildSlot(slot: SlotDocument) {
     return {

@@ -39,7 +39,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@Req() req: any) {
-    return this.userService.getProfile(req.user.id);
+    return this.userService.getProfile(req.user.sub);
   }
   
   @UseGuards(JwtAuthGuard)
