@@ -24,8 +24,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UserRole } from '@constant/users';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { format } from 'date-fns';
-import { Logger } from 'nestjs-pino';
 
+import {SearchInstructorDto} from '../dto/search-instructor.dto'
 
 @Injectable()
 export class SearchService {
@@ -42,6 +42,195 @@ export class SearchService {
     private readonly slotModel: Model<SlotDocument>,
   ) {}
 
+  // async searchInstructors(dto: SearchInstructorDto) {
+  //   const { suburb, vehicleType, date } = dto;
+  //   const searchDate = new Date(date);
+  
+  //   return this.instructorProfileModel.find({
+  //     serviceAreas: {
+  //       $elemMatch: { suburb }
+  //     },
+  
+  //    // [`vehicles.${vehicleType}.isActive`]: true,
+  //    [`vehicles.${vehicleType}`]: { $exists: true },
+  
+  //     "availability.dateRanges": {
+  //       $elemMatch: {
+  //         isActive: true,
+  //         startDate: { $lte: searchDate },
+  //         endDate: { $gte: searchDate }
+  //       }
+  //     },
+  
+  //    "availability.blockedDates.date": { $ne: searchDate }
+  //   })
+  //   .select("userId serviceAreas vehicles availability")
+  //   .lean();
+  // }
+
+  // async searchInstructors(dto: SearchInstructorDto) {
+  //   const { suburb, vehicleType, date } = dto;
+  //   const searchDate = new Date(date);
+  
+  //   return this.instructorProfileModel.aggregate([
+  //     // 1️⃣ Filters
+  //     {
+  //       $match: {
+  //         serviceAreas: { $elemMatch: { suburb } },
+  //         [`vehicles.${vehicleType}`]: { $exists: true },
+  //         "availability.dateRanges": {
+  //           $elemMatch: {
+  //             isActive: true,
+  //             startDate: { $lte: searchDate },
+  //             endDate: { $gte: searchDate }
+  //           }
+  //         },
+  //         "availability.blockedDates.date": { $ne: searchDate }
+  //       }
+  //     },
+  
+  //     // 2️⃣ Join user
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "userId",
+  //         foreignField: "_id",
+  //         as: "user"
+  //       }
+  //     },
+  //     { $unwind: "$user" },
+  
+  //     // 3️⃣ Projection
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         instructorId: "$userId",
+  
+  //         name: {
+  //           $concat: ["$user.firstName", " ", "$user.lastName"]
+  //         },
+  //         noOfLesson: "$user.noOfLesson",
+  
+  //         profileImage: "$user.profileImage",
+  //         rating: { $ifNull: ["$rating", 0] },
+  //         description: "$description",
+  
+  //         vehicleType: vehicleType,
+  
+  //         pricePerHour: {
+  //           $ifNull: [`$vehicles.${vehicleType}.pricePerHour`, 0]
+  //         },
+  
+  //         vehicleMake: {
+  //           $ifNull: [`$vehicles.${vehicleType}.details.make`, ""]
+  //         },
+  
+  //         vehicleModel: {
+  //           $ifNull: [`$vehicles.${vehicleType}.details.model`, ""]
+  //         }
+  //       }
+  //     }
+  //   ]);
+  // }
+
+  async searchInstructors(dto: SearchInstructorDto) {
+    const {
+      suburb,
+      vehicleType,
+      date,
+      page = 1,
+      limit = 10
+    } = dto;
+  
+    const searchDate = new Date(date);
+    const skip = (page - 1) * limit;
+  
+    const pipeline = [
+      // 1️⃣ Filters
+      {
+        $match: {
+          serviceAreas: { $elemMatch: { suburb } },
+          [`vehicles.${vehicleType}`]: { $exists: true },
+          "availability.dateRanges": {
+            $elemMatch: {
+              isActive: true,
+              startDate: { $lte: searchDate },
+              endDate: { $gte: searchDate }
+            }
+          },
+          "availability.blockedDates.date": { $ne: searchDate }
+        }
+      },
+  
+      // 2️⃣ Join users
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      { $unwind: "$user" },
+  
+      // 3️⃣ Pagination + count
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 0,
+                instructorId: "$userId",
+  
+                name: {
+                  $concat: ["$user.firstName", " ", "$user.lastName"]
+                },
+  
+                profileImage: "$user.profileImage",
+                rating: { $ifNull: ["$rating", 0] },
+                description: "$description",
+  
+                vehicleType: vehicleType,
+  
+                pricePerHour: {
+                  $ifNull: [`$vehicles.${vehicleType}.pricePerHour`, 0]
+                },
+  
+                vehicleMake: {
+                  $ifNull: [`$vehicles.${vehicleType}.make`, ""]
+                },
+  
+                vehicleModel: {
+                  $ifNull: [`$vehicles.${vehicleType}.model`, ""]
+                }
+              }
+            }
+          ],
+          totalCount: [
+            { $count: "count" }
+          ]
+        }
+      }
+    ];
+  
+    const result = await this.instructorProfileModel.aggregate(pipeline);
+  
+    const total = result[0]?.totalCount[0]?.count || 0;
+  
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data: result[0]?.data || []
+    };
+  }
+  
+  
+
+  
   public async getAll(
     payload: InstructorSearchDto,
   ): Promise<ApiResponse<{ instructors: UserResponse[] }>> {
