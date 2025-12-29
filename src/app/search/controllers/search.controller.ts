@@ -19,6 +19,15 @@ export class SearchController {
   constructor(private searchService: SearchService) {}
 
   @Public()
+  @Get(':instructorId/profile')
+getInstructorProfile(
+  @Param('instructorId') instructorId: string
+) {
+  return this.searchService.getInstructorProfile(instructorId);
+}
+
+
+  @Public()
   @Get("search")
   search(@Query() dto: SearchInstructorDto) {
   return this.searchService.searchInstructors(dto);
