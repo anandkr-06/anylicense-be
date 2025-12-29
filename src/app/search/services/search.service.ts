@@ -1,7 +1,7 @@
 import {
   BadRequestException,
   Injectable,
-  UnauthorizedException,
+  UnauthorizedException, NotFoundException
 } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { UserDbService } from '@common/db/services/user.db.service';
@@ -42,6 +42,101 @@ export class SearchService {
     private readonly slotModel: Model<SlotDocument>,
   ) {}
 
+//Insturctor profile after search
+async getInstructorProfile(instructorId: string) {
+  const result = await this.instructorProfileModel.aggregate([
+    {
+      $match: {
+        userId: new Types.ObjectId(instructorId)
+      }
+    },
+
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user'
+      }
+    },
+    { $unwind: '$user' },
+
+    {
+      $addFields: {
+        vehicles: {
+          $filter: {
+            input: [
+              // AUTO
+              {
+                $cond: [
+                  { $eq: ['$vehicles.auto.hasVehicle', true] },
+                  {
+                    vehicleType: 'auto',
+                    make: '$vehicles.auto.details.make',
+                    model: '$vehicles.auto.details.model',
+                    prices: {
+                      perHourPrice: '$vehicles.auto.pricePerHour',
+                      testPerHourPrice: '$vehicles.auto.testPricePerHour',
+                      privatePerHourPrice: '$vehicles.private.auto.pricePerHour',
+                      testPrivatePerHourPrice: '$vehicles.private.auto.testPricePerHour'
+                    }
+                  },
+                  null
+                ]
+              },
+    
+              // MANUAL
+              {
+                $cond: [
+                  { $eq: ['$vehicles.manual.hasVehicle', true] },
+                  {
+                    vehicleType: 'manual',
+                    make: '$vehicles.manual.details.make',
+                    model: '$vehicles.manual.details.model',
+                    prices: {
+                      perHourPrice: '$vehicles.manual.pricePerHour',
+                      testPerHourPrice: '$vehicles.manual.testPricePerHour',
+                      privatePerHourPrice: '$vehicles.private.manual.pricePerHour',
+                      testPrivatePerHourPrice: '$vehicles.private.manual.testPricePerHour'
+                    }
+                  },
+                  null
+                ]
+              }
+            ],
+            as: 'v',
+            cond: { $ne: ['$$v', null] }
+          }
+        }
+      }
+    },
+    
+    
+    
+
+    {
+      $project: {
+        _id: 0,
+        instructorId: '$userId',
+        fullName: { $concat: ['$user.firstName', ' ', '$user.lastName'] },
+        profileImage: '$user.profileImage',
+        rating: { $ifNull: ['$rating', 0] },
+        totalLessons: { $ifNull: ['$totalLessons', 0] },
+        description: 1,
+        vehicles: 1
+      }
+    }
+  ]);
+
+  if (!result.length) {
+    throw new NotFoundException('Instructor not found');
+  }
+
+  return result[0];
+}
+
+
+  //Search
   async searchInstructors(dto: SearchInstructorDto) {
     const {
       suburb,
