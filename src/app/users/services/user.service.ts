@@ -79,27 +79,12 @@ export class UserService {
 
       await this.instructorProfileModel.create({
         userId: user._id,
-        suburbs:["Sydney", "Parramatta"],
+        serviceAreas:["Sydney", "Parramatta"],
         availability: ["AM", "PM"],
         isVerified: false
       });
 
-      // if (UserRole.INSTRUCTOR === role) {
-      //   const packages = createDefaultPackagesForInstructor(
-      //     user._id,
-      //     payload.transmissionType,
-      //   );
-      //   await this.packageModel.insertMany(packages);
-      // }
-
-      // let address = null;
-      // if (payload.address && user._id && role === UserRole.INSTRUCTOR) {
-      //   address = await this.userAddressDbService.createAddress(
-      //     payload.address,
-      //     user._id,
-      //   );
-      //   await this.userDbService.addAddressToUser(user._id, address._id);
-      // }
+     
 
       return successResponse(await this._buildUserRespons(user));
     } catch (error: any) {
@@ -117,38 +102,7 @@ export class UserService {
         }
   }
 
-  // public async getProfile(
-  //   userId: string,
-  // ): Promise<ApiResponse<UserResponse>> {
-  //   const user = await this.userDbService.findByPublicId(userId);
-  //   if (!user) {
-  //     throw new UnauthorizedException('User not found');
-  //   }
-
-  //   return successResponse(
-  //     await this._buildUserRespons(user, {
-  //       address: true,
-  //       packages: true,
-  //     }),
-  //   );
-  // }
-
-  // async getProfile(instructorId: string) {
-  //   const instructor = await this.userModel
-  //     .findById(instructorId)
-  //     .select('-password') // 🔐 never expose password
-  //     .lean();
   
-  //   if (!instructor) {
-  //     throw new NotFoundException('Instructor not found');
-  //   }
-  //   return successResponse(
-  //         await this._buildUserRespons(instructor, {
-  //           address: true,
-  //           packages: true,
-  //         }),
-  //       );
-  // }
 
   async getProfile(instructorPublicId: string) {
        const instructor = await this.userModel
@@ -175,22 +129,7 @@ export class UserService {
   }
 
   
-  
-  public async getMoreProfileDetails(
-    userId: string,
-  ): Promise<ApiResponse<UserResponse>> {
-    const user = await this.userDbService.findByPublicId(userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
 
-    return successResponse(
-      await this._buildUserRespons(user, {
-        address: true,
-        packages: true,
-      }),
-    );
-  }
 
   public async getUserByEmail(email: string): Promise<UserDocument | null> {
     const user = await this.userDbService.findByEmail(email);
