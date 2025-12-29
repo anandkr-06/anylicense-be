@@ -140,7 +140,8 @@ export class FinancialDetails {
   businessName?: string;
 }
 
-@Schema({ timestamps: true })
+// @Schema({ timestamps: true })
+@Schema({ collection: 'instructorprofiles', timestamps: true })
 export class InstructorProfile {
 
   @Prop({ type: Types.ObjectId, ref: 'User', unique: true })
@@ -148,6 +149,29 @@ export class InstructorProfile {
 
   @Prop({ type: [String], index: true })
   suburbs!: string[];
+
+  @Prop({
+    type: [
+      {
+        suburb: { type: String, required: true },
+        postcode: { type: String, default: null },
+        radiusKm: { type: Number, default: 5 },
+        suburbId: { type: String, default: null },
+        lat: { type: Number, default: null },
+        long: { type: Number, default: null },
+      },
+    ],
+    default: [],
+  })
+  serviceAreas!: {
+    suburb: string;
+    postcode?: string;
+    radiusKm?: number;
+    suburbId?: string;
+    lat?: number;
+    long?: number;
+  }[];
+  
 
   @Prop({ type: [String], index: true })
   availability!: string[];

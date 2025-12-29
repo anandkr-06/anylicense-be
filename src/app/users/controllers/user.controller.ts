@@ -54,12 +54,6 @@ export class UserController {
     return this.userService.findOneAndUpdateByAdditionalInfo(req.user.email, dto);
   }
   
-  @UseGuards(JwtAuthGuard)
-  @Get('get-more-profile')
-getMoreProfile(@Req() user: any) {
-  return this.userService.getMoreProfileDetails(user.publicId);
-}
-
   
 
   @Put('vehicle-details')
@@ -74,6 +68,9 @@ getMoreProfile(@Req() user: any) {
       { vehicles: dto.vehicles }
     );
   }
+
+  
+
 }
   
   // @Get()

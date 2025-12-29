@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserDbService } from '@common/db/services/user.db.service';
 
 import { UserResponseBuilder } from '@common/builders/user.builder';
@@ -20,6 +20,12 @@ import {
 import { UserRole } from '@constant/users';
 import { CryptoHelper } from '@common/helpers/crypto.helper';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
+import { UpdateVehicleDto } from '../dto/update-vehicle.dto';
+import { UpdatePrivateVehicleDto } from '../dto/update-private-vehicle.dto';
+import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas/instructor-profile.schema';
+import {UpdateFinancialDetailsDto} from '../dto/update-financial-details.dto'
+import {UpdateDocumentsDto} from '../dto/update-documents.dto'
+import {ServiceAreaDto} from '../dto/service-area.dto'
 
 @Injectable()
 export class InstructorService {
@@ -29,8 +35,206 @@ export class InstructorService {
     private readonly cryptoHelper: CryptoHelper,
     private readonly userDbService: UserDbService,
     private readonly packageDbService: PackageDbService,
+    @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
   ) {}
 
+ 
+// async updateServiceAreas(userId: string, serviceAreas: ServiceAreaDto[]) {
+//   const instructor = await this.instructorProfileModel.findOneAndUpdate(
+//     { userId: new Types.ObjectId(userId) }, 
+//     { $set: { serviceAreas } },
+//     { new: true }
+//   );
+
+//   if (!instructor) {
+//     throw new NotFoundException('Instructor profile not found');
+//   }
+
+//   return { message: 'Service areas updated successfully' };
+// }
+
+async updateServiceAreas(
+  userId: string,
+  serviceAreas: ServiceAreaDto[]
+) {
+  try {
+    
+
+    const instructor = await this.instructorProfileModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
+      { $set: { serviceAreas } },
+      { new: true }
+    );
+
+    console.log('UPDATED INSTRUCTOR:', instructor);
+
+    if (!instructor) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+
+    return {
+      message: 'Service areas updated successfully',
+    };
+  } catch (error) {
+    console.error('UPDATE SERVICE AREAS ERROR:', error);
+    throw error; // ❗ rethrow so NestJS shows correct status
+  }
+}
+
+  
+  async updateDocuments(
+    userId: string,
+    dto: UpdateDocumentsDto
+  ) {
+    const update: any = {};
+  
+    for (const [key, value] of Object.entries(dto)) {
+      for (const [field, fieldValue] of Object.entries(value)) {
+        update[`documents.${key}.${field}`] = fieldValue;
+      }
+    }
+  
+    const instructor = await this.instructorProfileModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
+      { $set: update },
+      { new: true }
+    );
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    return {
+      message: 'Documents updated successfully',
+    };
+  }
+
+  
+  async updateFinancialDetails(
+    userId: string,
+    dto: UpdateFinancialDetailsDto
+  ) {
+    const instructor = await this.instructorProfileModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
+      {
+        $set: {
+          'financialDetails.bankName': dto.bankName,
+          'financialDetails.accountHolderName': dto.accountHolderName,
+          'financialDetails.accountNumber': dto.accountNumber,
+          'financialDetails.bsbNumber': dto.bsbNumber,
+          'financialDetails.abnNumber': dto.abnNumber,
+          'financialDetails.businessName': dto.businessName,
+        },
+      },
+      { new: true }
+    );
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    return {
+      message: 'Financial details updated successfully',
+    };
+  }
+  
+
+
+async updateVehicle(
+  userId: string,
+  vehicleType: 'auto' | 'manual',
+  dto: UpdateVehicleDto
+) {
+  const update: any = {
+    [`vehicles.${vehicleType}.hasVehicle`]: true
+  };
+
+  if (dto.pricePerHour !== undefined) {
+    update[`vehicles.${vehicleType}.pricePerHour`] = dto.pricePerHour;
+  }
+
+  if (dto.testPricePerHour !== undefined) {
+    update[`vehicles.${vehicleType}.testPricePerHour`] = dto.testPricePerHour;
+  }
+
+  Object.entries(dto).forEach(([key, value]) => {
+    if (
+      value !== undefined &&
+      !['pricePerHour', 'testPricePerHour'].includes(key)
+    ) {
+      update[`vehicles.${vehicleType}.details.${key}`] = value;
+    }
+  });
+
+  const updated = await this.instructorProfileModel.findOneAndUpdate(
+    { userId: new Types.ObjectId(userId) },
+    { $set: update },
+    { new: true }
+  );
+  
+  if (!updated) {
+    throw new NotFoundException(`${userId}Instructor profile not found`);
+  }
+  
+  return {
+    message: `${vehicleType.toUpperCase()} vehicle updated successfully`,
+    vehicles: updated.vehicles
+  };
+
+  //return { message: `${vehicleType.toUpperCase()} vehicle updated successfully` };
+}
+
+  
+async updatePrivateVehicle(
+  userId: string,
+  dto: UpdatePrivateVehicleDto
+) {
+  const update: any = {
+    'vehicles.private.hasVehicle': true
+  };
+
+  if (dto.autoPricePerHour !== undefined) {
+    update['vehicles.private.auto.pricePerHour'] = dto.autoPricePerHour;
+  }
+
+  if (dto.autoTestPricePerHour !== undefined) {
+    update['vehicles.private.auto.testPricePerHour'] = dto.autoTestPricePerHour;
+  }
+
+  if (dto.manualPricePerHour !== undefined) {
+    update['vehicles.private.manual.pricePerHour'] = dto.manualPricePerHour;
+  }
+
+  if (dto.manualTestPricePerHour !== undefined) {
+    update['vehicles.private.manual.testPricePerHour'] = dto.manualTestPricePerHour;
+  }
+
+  const profile = await this.instructorProfileModel.findOneAndUpdate(
+    { userId: new Types.ObjectId(userId) },
+    { $set: update },
+    { new: true }
+  );
+
+  if (!profile) {
+    throw new NotFoundException('Instructor profile not found');
+  }
+
+  return {
+    message: 'Private vehicle pricing updated successfully',
+    private: profile.vehicles.private
+  };
+}
+
+  
+  async getVehicleDetails(userId: string) {
+    const profile = await this.instructorProfileModel
+      .findOne({ userId })
+      .select('vehicles');
+  
+    return profile?.vehicles || {};
+  }
+
+  
   /**
    * Search basic of date - inslot
    * Package type,

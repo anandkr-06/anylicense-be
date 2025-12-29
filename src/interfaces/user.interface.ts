@@ -3,6 +3,7 @@ import { PackageDocument } from '@common/db/schemas/package.schema';
 import { InstructorProfileResponse } from './instructor-profile.interface';
 
 import { UserGender, UserRole } from '@constant/users';
+import { ObjectId } from 'mongoose';
 
 export interface UserResponse {
   id: string;
@@ -43,4 +44,6 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   mobileNumber: string;
+  id:string
+  sub:string
 }

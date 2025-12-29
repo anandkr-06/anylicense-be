@@ -13,6 +13,11 @@ import { InstructorSlotController } from './controllers/instructor.slot.controll
 import { InstructorSlotService } from './services/instructor.slot.service';
 import { Slot, SlotSchema } from '@common/db/schemas/slot.schema';
 import { CryptoHelper } from '@common/helpers/crypto.helper';
+import {
+  InstructorProfile,
+  InstructorProfileSchema,
+} from '@common/db/schemas/instructor-profile.schema';
+
 
 @Module({
   imports: [
@@ -27,6 +32,10 @@ import { CryptoHelper } from '@common/helpers/crypto.helper';
       {
         name: Slot.name,
         schema: SlotSchema,
+      },
+      {
+        name: InstructorProfile.name,
+        schema: InstructorProfileSchema,
       },
     ]),
     AddressModule,
