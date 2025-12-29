@@ -26,7 +26,7 @@ import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas
 import {UpdateFinancialDetailsDto} from '../dto/update-financial-details.dto'
 import {UpdateDocumentsDto} from '../dto/update-documents.dto'
 import {ServiceAreaDto} from '../dto/service-area.dto'
-
+import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
 @Injectable()
 export class InstructorService {
   constructor(
@@ -39,19 +39,41 @@ export class InstructorService {
   ) {}
 
  
-// async updateServiceAreas(userId: string, serviceAreas: ServiceAreaDto[]) {
-//   const instructor = await this.instructorProfileModel.findOneAndUpdate(
-//     { userId: new Types.ObjectId(userId) }, 
-//     { $set: { serviceAreas } },
-//     { new: true }
-//   );
+async updateAvailability(
+  userId: string,
+  dto: UpdateAvailabilityDto
+) {
+  const update: any = {};
 
-//   if (!instructor) {
-//     throw new NotFoundException('Instructor profile not found');
-//   }
+  if (dto.weeklyPattern) {
+    for (const [day, slots] of Object.entries(dto.weeklyPattern)) {
+      update[`availability.weeklyPattern.${day}`] = slots;
+    }
+  }
 
-//   return { message: 'Service areas updated successfully' };
-// }
+  if (dto.dateRanges) {
+    update['availability.dateRanges'] = dto.dateRanges;
+  }
+
+  if (dto.blockedDates) {
+    update['availability.blockedDates'] = dto.blockedDates;
+  }
+
+  const instructor = await this.instructorProfileModel.findOneAndUpdate(
+    { userId: new Types.ObjectId(userId) },
+    { $set: update },
+    { new: true }
+  );
+
+  if (!instructor) {
+    throw new NotFoundException('Instructor profile not found');
+  }
+
+  return {
+    message: 'Availability updated successfully',
+  };
+}
+
 
 async updateServiceAreas(
   userId: string,

@@ -52,7 +52,7 @@ export interface FinancialDetailsResponse {
 export interface InstructorProfileResponse {
   id: string;
   suburbs: string[];
-  availability: string[];
+  availability:any
 
   vehicles: {
     auto?: VehicleWithDetailsResponse;

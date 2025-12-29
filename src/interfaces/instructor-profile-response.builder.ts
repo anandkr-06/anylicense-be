@@ -57,13 +57,7 @@ export class InstructorProfileResponseBuilder {
           }
         : undefined,
 
-    //   createdAt: this.profile.createdAt
-    //     ? new Date(this.profile.createdAt).toISOString()
-    //     : undefined,
-
-    //   updatedAt: this.profile.updatedAt
-    //     ? new Date(this.profile.updatedAt).toISOString()
-    //     : undefined,
+      
     };
   }
 }

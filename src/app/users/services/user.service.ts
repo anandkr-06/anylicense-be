@@ -80,7 +80,6 @@ export class UserService {
       await this.instructorProfileModel.create({
         userId: user._id,
         serviceAreas:["Sydney", "Parramatta"],
-        availability: ["AM", "PM"],
         isVerified: false
       });
 
