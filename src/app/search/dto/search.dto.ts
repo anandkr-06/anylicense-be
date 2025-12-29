@@ -1,5 +1,6 @@
 import { TransmissionType } from '@constant/packages';
 import { IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class InstructorSearchDto {
   @IsString()
@@ -13,3 +14,5 @@ export class InstructorSearchDto {
   @IsString()
   public date!: string;
 }
+
+

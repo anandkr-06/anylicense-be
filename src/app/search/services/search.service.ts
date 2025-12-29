@@ -24,8 +24,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UserRole } from '@constant/users';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { format } from 'date-fns';
-import { Logger } from 'nestjs-pino';
 
+import {SearchInstructorDto} from '../dto/search-instructor.dto'
 
 @Injectable()
 export class SearchService {
@@ -42,6 +42,327 @@ export class SearchService {
     private readonly slotModel: Model<SlotDocument>,
   ) {}
 
+  async searchInstructors(dto: SearchInstructorDto) {
+    const {
+      suburb,
+      vehicleType,
+      date,
+      timeOfDay,
+      sortBy,
+      sortOrder = 'asc',
+      page = 1,
+      limit = 10
+    } = dto;
+  
+    if (timeOfDay && !date) {
+      throw new BadRequestException('timeOfDay requires date');
+    }
+  
+    const searchDate = date ? new Date(date) : null;
+    const skip = (page - 1) * limit;
+    const isAM = timeOfDay === 'AM';
+  
+    const pipeline: any[] = [
+      // 1️⃣ Base filters (ALWAYS)
+      {
+        $match: {
+          serviceAreas: { $elemMatch: { suburb } },
+          [`vehicles.${vehicleType}`]: { $exists: true }
+        }
+      }
+    ];
+  
+    // 🔥 ONLY APPLY AVAILABILITY IF DATE EXISTS
+    if (searchDate) {
+      pipeline.push(
+        { $unwind: "$availability.dateRanges" },
+        {
+          $match: {
+            "availability.dateRanges.isActive": true,
+            "availability.dateRanges.startDate": { $lte: searchDate },
+            "availability.dateRanges.endDate": { $gte: searchDate },
+            "availability.blockedDates.date": { $ne: searchDate }
+          }
+        },
+        { $unwind: "$availability.dateRanges.slots" },
+        {
+          $addFields: {
+            slotMinutes: {
+              $add: [
+                {
+                  $multiply: [
+                    { $toInt: { $substr: ["$availability.dateRanges.slots.from", 0, 2] } },
+                    60
+                  ]
+                },
+                { $toInt: { $substr: ["$availability.dateRanges.slots.from", 3, 2] } }
+              ]
+            }
+          }
+        }
+      );
+  
+      // AM / PM FILTER
+      if (timeOfDay) {
+        pipeline.push({
+          $match: {
+            $expr: isAM
+              ? { $lt: ["$slotMinutes", 720] }
+              : { $gte: ["$slotMinutes", 720] }
+          }
+        });
+      }
+  
+      // GROUP BACK
+      pipeline.push(
+        {
+          $group: {
+            _id: "$userId",
+            doc: { $first: "$$ROOT" }
+          }
+        },
+        { $replaceRoot: { newRoot: "$doc" } }
+      );
+    }
+  
+    // 2️⃣ Join users
+    pipeline.push(
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      { $unwind: "$user" },
+  
+      // 3️⃣ Price field
+      {
+        $addFields: {
+          pricePerHour: `$vehicles.${vehicleType}.pricePerHour`
+        }
+      }
+    );
+  
+    // 4️⃣ Sorting
+    if (sortBy === 'price') {
+      pipeline.push({
+        $sort: {
+          pricePerHour: sortOrder === 'asc' ? 1 : -1
+        }
+      });
+    }
+  
+    // 5️⃣ Pagination
+    pipeline.push({
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 0,
+              instructorId: "$userId",
+              name: { $concat: ["$user.firstName", " ", "$user.lastName"] },
+              profileImage: "$user.profileImage",
+              rating: { $ifNull: ["$rating", 0] },
+              description: "$description",
+              vehicleType,
+              pricePerHour: "$pricePerHour",
+              vehicleMake: `$vehicles.${vehicleType}.details.make`,
+              vehicleModel: `$vehicles.${vehicleType}.details.model`
+            }
+          }
+        ],
+        totalCount: [{ $count: "count" }]
+      }
+    });
+  
+    const result = await this.instructorProfileModel.aggregate(pipeline);
+    const total = result[0]?.totalCount[0]?.count || 0;
+  
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data: result[0]?.data || []
+    };
+  }
+  
+  // async searchInstructors(dto: SearchInstructorDto) {
+  //   const { suburb, vehicleType, date } = dto;
+  //   const searchDate = new Date(date);
+  
+  //   return this.instructorProfileModel.find({
+  //     serviceAreas: {
+  //       $elemMatch: { suburb }
+  //     },
+  
+  //    // [`vehicles.${vehicleType}.isActive`]: true,
+  //    [`vehicles.${vehicleType}`]: { $exists: true },
+  
+  //     "availability.dateRanges": {
+  //       $elemMatch: {
+  //         isActive: true,
+  //         startDate: { $lte: searchDate },
+  //         endDate: { $gte: searchDate }
+  //       }
+  //     },
+  
+  //    "availability.blockedDates.date": { $ne: searchDate }
+  //   })
+  //   .select("userId serviceAreas vehicles availability")
+  //   .lean();
+  // }
+
+  // async searchInstructors(dto: SearchInstructorDto) {
+  //   const {
+  //     suburb,
+  //     vehicleType,
+  //     date,
+  //     timeOfDay,
+  //     sortBy,
+  //     sortOrder = 'asc',
+  //     page = 1,
+  //     limit = 10
+  //   } = dto;
+  
+  //   const searchDate = new Date(date);
+  //   const skip = (page - 1) * limit;
+  
+  //   const isAM = timeOfDay === 'AM';
+  
+  //   const pipeline: any[] = [
+  //     // 1️⃣ Base filters
+  //     {
+  //       $match: {
+  //         serviceAreas: { $elemMatch: { suburb } },
+  //         [`vehicles.${vehicleType}`]: { $exists: true },
+  //         "availability.blockedDates.date": { $ne: searchDate }
+  //       }
+  //     },
+  
+  //     // 2️⃣ Unwind availability
+  //     { $unwind: "$availability.dateRanges" },
+  
+  //     {
+  //       $match: {
+  //         "availability.dateRanges.isActive": true,
+  //         "availability.dateRanges.startDate": { $lte: searchDate },
+  //         "availability.dateRanges.endDate": { $gte: searchDate }
+  //       }
+  //     },
+  
+  //     // 3️⃣ Unwind slots
+  //     { $unwind: "$availability.dateRanges.slots" },
+  
+  //     // 4️⃣ Convert time → minutes
+  //     {
+  //       $addFields: {
+  //         slotMinutes: {
+  //           $add: [
+  //             {
+  //               $multiply: [
+  //                 { $toInt: { $substr: ["$availability.dateRanges.slots.from", 0, 2] } },
+  //                 60
+  //               ]
+  //             },
+  //             { $toInt: { $substr: ["$availability.dateRanges.slots.from", 3, 2] } }
+  //           ]
+  //         }
+  //       }
+  //     },
+  
+  //     // 5️⃣ AM / PM filter (TOP LEVEL $expr ✅)
+  //     ...(timeOfDay
+  //       ? [
+  //           {
+  //             $match: {
+  //               $expr: isAM
+  //                 ? { $lt: ["$slotMinutes", 720] }
+  //                 : { $gte: ["$slotMinutes", 720] }
+  //             }
+  //           }
+  //         ]
+  //       : []),
+  
+  //     // 6️⃣ Join users
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "userId",
+  //         foreignField: "_id",
+  //         as: "user"
+  //       }
+  //     },
+  //     { $unwind: "$user" },
+  
+  //     // 7️⃣ Price field
+  //     {
+  //       $addFields: {
+  //         pricePerHour: `$vehicles.${vehicleType}.pricePerHour`
+  //       }
+  //     },
+  
+  //     // 8️⃣ Sort
+  //     ...(sortBy === 'price'
+  //       ? [{ $sort: { pricePerHour: sortOrder === 'asc' ? 1 : -1 } }]
+  //       : []),
+  
+  //     // 9️⃣ Group back instructor (important!)
+  //     {
+  //       $group: {
+  //         _id: "$userId",
+  //         doc: { $first: "$$ROOT" }
+  //       }
+  //     },
+  //     { $replaceRoot: { newRoot: "$doc" } },
+  
+  //     // 🔟 Pagination + response
+  //     {
+  //       $facet: {
+  //         data: [
+  //           { $skip: skip },
+  //           { $limit: limit },
+  //           {
+  //             $project: {
+  //               _id: 0,
+  //               instructorId: "$userId",
+  //               name: { $concat: ["$user.firstName", " ", "$user.lastName"] },
+  //               profileImage: "$user.profileImage",
+  //               rating: { $ifNull: ["$rating", 0] },
+  //               description: "$description",
+  //               vehicleType,
+  //               pricePerHour: "$pricePerHour",
+  //               vehicleMake: `$vehicles.${vehicleType}.make`,
+  //               vehicleModel: `$vehicles.${vehicleType}.model`
+  //             }
+  //           }
+  //         ],
+  //         totalCount: [{ $count: "count" }]
+  //       }
+  //     }
+  //   ];
+  
+  //   const result = await this.instructorProfileModel.aggregate(pipeline);
+  //   const total = result[0]?.totalCount[0]?.count || 0;
+  
+  //   return {
+  //     page,
+  //     limit,
+  //     total,
+  //     totalPages: Math.ceil(total / limit),
+  //     data: result[0]?.data || []
+  //   };
+  // }
+  
+  
+  
+  
+
+  
   public async getAll(
     payload: InstructorSearchDto,
   ): Promise<ApiResponse<{ instructors: UserResponse[] }>> {

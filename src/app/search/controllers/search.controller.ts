@@ -5,23 +5,24 @@ import {
   HttpStatus,
   Param,
   Post,
-  Get
+  Get,
+  Query
 } from '@nestjs/common';
 
 import { Public } from '@common/decorators/public.decorator';
 import { InstructorSearchDto } from '../dto/search.dto';
 import { SearchService } from '../services/search.service';
-//import {SearchInstructorDto} from '../dto/search-instructor.dto'
+import {SearchInstructorDto} from '../dto/search-instructor.dto'
 
 @Controller('search/v1')
 export class SearchController {
   constructor(private searchService: SearchService) {}
 
-//   @Public()
-//   @Get("search")
-//   search(@Query() dto: SearchInstructorDto) {
-//   return this.instructorService.searchInstructors(dto);
-// }
+  @Public()
+  @Get("search")
+  search(@Query() dto: SearchInstructorDto) {
+  return this.searchService.searchInstructors(dto);
+}
 
   @Public()
   @Post('instructor')
