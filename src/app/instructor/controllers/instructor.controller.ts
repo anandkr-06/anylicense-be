@@ -22,12 +22,25 @@ import { UpdatePrivateVehicleDto } from '../dto/update-private-vehicle.dto';
 import { UpdateFinancialDetailsDto } from '../dto/update-financial-details.dto';
 import{UpdateDocumentsDto} from '../dto/update-documents.dto'
 import {UpdateServiceAreasDto} from '../dto/update-service-areas.dto'
+import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
 
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
 @Controller('instructor/v1')
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}
+
+  @Patch('availability')
+updateAvailability(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+  @Body() dto: UpdateAvailabilityDto
+) {
+  return this.instructorService.updateAvailability(
+    currentUser.sub,
+    dto
+  );
+}
+
 
   @Patch('service-areas')
 async updateServiceAreas(
