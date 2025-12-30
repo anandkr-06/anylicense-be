@@ -123,6 +123,8 @@ async getInstructorProfile(instructorId: string) {
         _id: 0,
         instructorId: '$userId',
         fullName: { $concat: ['$user.firstName', ' ', '$user.lastName'] },
+        firstName: '$user.firstName',
+        lastName: '$user.lastName',
         profileImage: '$user.profileImage',
         rating: { $ifNull: ['$rating', 0] },
         totalLessons: { $ifNull: ['$totalLessons', 0] },
