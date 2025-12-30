@@ -88,7 +88,7 @@ const defaultVehicles = {
       model: null,
       color: null,
       year: null,
-      transmissionType: null,
+      transmissionType: "auto",
       ancapSafetyRating: null,
       hasDualControls: false  
     }
@@ -97,10 +97,20 @@ const defaultVehicles = {
     hasVehicle: false,
     pricePerHour: 40,
     testPricePerHour: 50,
-    details: {}
+    details: {
+      registrationNumber: null,
+      licenceCategory: null,
+      make: null,
+      model: null,
+      color: null,
+      year: null,
+      transmissionType: "manual",
+      ancapSafetyRating: null,
+      hasDualControls: false  
+    }
   },
   private: {
-    hasVehicle: false,
+    hasVehicle: true,
     auto: {
       pricePerHour: 40,
       testPricePerHour: 50
@@ -130,6 +140,9 @@ export class TimeSlot {
 
   @Prop({ required: true })
   endTime!: string;
+
+  @Prop({ default: false })
+    isBooked?: boolean;
 }
 
 @Schema({ _id: false })
@@ -238,48 +251,6 @@ export class InstructorProfile {
     long?: number;
   }[];
   
-  // @Prop({
-  //   type: {
-  //     weeklyPattern: {
-  //       monday: [{ from: String, to: String }],
-  //       tuesday: [{ from: String, to: String }],
-  //       wednesday: [{ from: String, to: String }],
-  //       thursday: [{ from: String, to: String }],
-  //       friday: [{ from: String, to: String }],
-  //       saturday: [{ from: String, to: String }],
-  //       sunday: [{ from: String, to: String }],
-  //     },
-  
-  //     dateRanges: [
-  //       {
-  //         startDate: { type: Date },
-  //         endDate: { type: Date },
-  //         slots: [{ from: String, to: String }],
-  //         isActive: { type: Boolean, default: true },
-  //       },
-  //     ],
-  
-  //     blockedDates: [
-  //       {
-  //         date: { type: Date },
-  //         reason: { type: String, default: null },
-  //       },
-  //     ],
-  //   },
-  //   default: {
-  //     weeklyPattern: {
-  //       monday: [],
-  //       tuesday: [],
-  //       wednesday: [],
-  //       thursday: [],
-  //       friday: [],
-  //       saturday: [],
-  //       sunday: [],
-  //     },
-  //     dateRanges: [],
-  //     blockedDates: [],
-  //   },
-  // })
   @Prop({ type: Availability, default: { weeks: [] } })
   availability!: Availability;
  
