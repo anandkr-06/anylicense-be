@@ -27,6 +27,9 @@ import {UpdateFinancialDetailsDto} from '../dto/update-financial-details.dto'
 import {UpdateDocumentsDto} from '../dto/update-documents.dto'
 import {ServiceAreaDto} from '../dto/service-area.dto'
 import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
+import {AvailabilityWeekDto} from '../dto/week.dto'
+import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto'
+
 @Injectable()
 export class InstructorService {
   constructor(
@@ -38,42 +41,223 @@ export class InstructorService {
     @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
   ) {}
 
- 
-async updateAvailability(
-  userId: string,
-  dto: UpdateAvailabilityDto
-) {
-  const update: any = {};
-
-  if (dto.weeklyPattern) {
-    for (const [day, slots] of Object.entries(dto.weeklyPattern)) {
-      update[`availability.weeklyPattern.${day}`] = slots;
+  private generateDays(startDate: string, endDate: string): AvailabilityDay[] {
+    const days: AvailabilityDay[] = [];
+  
+    let current = new Date(startDate);
+    const end = new Date(endDate);
+  
+    while (current <= end) {
+      const dateStr = current.toISOString().substring(0, 10);
+  
+      days.push({
+        date: dateStr,
+        slots: [],
+      });
+  
+      current.setDate(current.getDate() + 1);
     }
+  
+    return days;
   }
-
-  if (dto.dateRanges) {
-    update['availability.dateRanges'] = dto.dateRanges;
+  
+  
+  async appendWeek(
+    userId: string,
+    { startDate, endDate }: { startDate: string; endDate: string }
+  ) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+  
+    if (end < start) {
+      throw new BadRequestException('Invalid date range');
+    }
+  
+    const diff =
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
+  
+    if (diff > 7) {
+      throw new BadRequestException('Week cannot exceed 7 days');
+    }
+  
+    const weekId = `${startDate}_${endDate}`;
+  
+    // 🔹 generate days
+    const days = [];
+    const current = new Date(start);
+  
+    while (current <= end) {
+      days.push({
+        date: current.toISOString().split('T')[0],
+        slots: [],
+      });
+      current.setDate(current.getDate() + 1);
+    }
+  
+    const week = {
+      weekId,
+      startDate,
+      endDate,
+      days,
+    };
+  
+    // 🔒 atomic append (NO overwrite, NO duplicate)
+    const result = await this.instructorProfileModel.findOneAndUpdate(
+      {
+        userId: new Types.ObjectId(userId),
+  
+        // prevent duplicate weekId
+        'availability.weeks.weekId': { $ne: weekId },
+  
+        // prevent overlapping ranges
+        'availability.weeks': {
+          $not: {
+            $elemMatch: {
+              startDate: { $lte: endDate },
+              endDate: { $gte: startDate },
+            },
+          },
+        },
+      },
+      {
+        $addToSet: {
+          'availability.weeks': week,
+        },
+      },
+      { new: true }
+    );
+  
+    if (!result) {
+      throw new BadRequestException(
+        'Week overlaps existing availability or already exists',
+      );
+    }
+  
+    return {
+      message: 'Week added successfully',
+      week,
+    };
   }
-
-  if (dto.blockedDates) {
-    update['availability.blockedDates'] = dto.blockedDates;
+  
+  
+  
+  
+  async addAvailabilityWeek(userId: string, dto: AvailabilityWeekDto) {
+    const profile = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+  
+    if (!profile) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    const newStart = new Date(dto.startDate);
+    const newEnd = new Date(dto.endDate);
+  
+    const weeks = profile.availability?.weeks || [];
+  
+    const isOverlapping = weeks.some((week) =>
+      newStart <= new Date(week.endDate) &&
+      newEnd >= new Date(week.startDate),
+    );
+  
+    if (isOverlapping) {
+      throw new BadRequestException('Week overlaps existing availability');
+    }
+  
+    const week: AvailabilityWeekDto = {
+      // weekId: `${dto.startDate}_${dto.endDate}`,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      days: this.generateDays(dto.startDate, dto.endDate),
+    };
+  
+    await this.instructorProfileModel.updateOne(
+      { userId: new Types.ObjectId(userId) },
+      { $push: { 'availability.weeks': week } },
+    );
+  
+    return week;
   }
+  
+  
+  
 
-  const instructor = await this.instructorProfileModel.findOneAndUpdate(
-    { userId: new Types.ObjectId(userId) },
-    { $set: update },
-    { new: true }
+
+// 2️⃣ UPDATE WHOLE WEEK
+async updateWeek(
+  userId: string,
+  weekId: string,
+  body: AvailabilityWeekDto
+) {
+
+  if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
+    throw new BadRequestException('Invalid weekId format');
+  }
+  
+  const profile = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(userId) });
+  if (!profile) throw new NotFoundException('Instructor not found');
+
+  const index = profile.availability.weeks.findIndex(
+    w => w.weekId === weekId
   );
 
-  if (!instructor) {
-    throw new NotFoundException('Instructor profile not found');
+  if (index === -1) {
+    throw new NotFoundException('Week not found');
   }
 
-  return {
-    message: 'Availability updated successfully',
+  profile.availability.weeks[index] = {
+    ...body,
+    weekId
   };
+
+  await profile.save();
+
+  return { message: 'Week updated successfully' };
 }
 
+async updateDaySlots(
+    userId: string,
+    weekId: string,
+    body: { date: string; slots: any[] }
+  ) {
+    if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
+      throw new BadRequestException('Invalid weekId format');
+    }
+    const profile = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(userId) });
+    if (!profile) throw new NotFoundException('Instructor not found');
+
+    const week = profile.availability.weeks.find(
+      w => w.weekId === weekId
+    );
+
+    if (!week) {
+      throw new NotFoundException('Week not found');
+    }
+
+    const day = week.days.find(d => d.date === body.date);
+
+    if (!day) {
+      throw new BadRequestException('Date not in selected week');
+    }
+
+    day.slots = body.slots;
+    await profile.save();
+
+    return { message: 'Day slots updated successfully' };
+  }
+
+// 4️⃣ GET AVAILABILITY
+async getAvailability(userId: string) {
+  const profile = await this.instructorProfileModel.findOne(
+    { userId: new Types.ObjectId(userId) },
+    { availability: 1 }
+  );
+
+  if (!profile) throw new NotFoundException('Instructor not found');
+
+  return profile.availability;
+}
 
 async updateServiceAreas(
   userId: string,

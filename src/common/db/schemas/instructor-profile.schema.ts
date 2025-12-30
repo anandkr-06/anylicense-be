@@ -120,6 +120,49 @@ const defaultFinancialDetails = {
   abnNumber: null,
   businessName: null
 };
+
+
+//availbility
+@Schema({ _id: false })
+export class TimeSlot {
+  @Prop({ required: true })
+  startTime!: string;
+
+  @Prop({ required: true })
+  endTime!: string;
+}
+
+@Schema({ _id: false })
+export class AvailabilityDay {
+  @Prop({ required: true })
+  date!: string;
+
+  @Prop({ type: [TimeSlot], default: [] })
+  slots!: TimeSlot[];
+}
+
+@Schema({ _id: false })
+export class AvailabilityWeek {
+  @Prop({ required: true })
+  weekId!: string;
+
+  @Prop({ required: true })
+  startDate!: string;
+
+  @Prop({ required: true })
+  endDate!: string;
+
+  @Prop({ type: [AvailabilityDay], default: [] })
+  days!: AvailabilityDay[];
+}
+
+@Schema({ _id: false })
+export class Availability {
+  @Prop({ type: [AvailabilityWeek], default: [] })
+  weeks!: AvailabilityWeek[];
+}
+
+//end
 export class FinancialDetails {
   @Prop()
   bankName?: string;
@@ -147,6 +190,29 @@ export class InstructorProfile {
   @Prop({ type: Types.ObjectId, ref: 'User', unique: true })
   userId!: Types.ObjectId;
 
+  @Prop({
+    type: [
+      {
+        weekId: String,
+        startDate: String,
+        endDate: String,
+        days: [
+          {
+            date: String,
+            slots: [
+              {
+                startTime: String,
+                endTime: String,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    default: [],
+  })
+  availabilityWeeks!: AvailabilityWeek[];
+
   @Prop({ type: [String], index: true })
   suburbs!: string[];
 
@@ -172,53 +238,51 @@ export class InstructorProfile {
     long?: number;
   }[];
   
-  @Prop({
-    type: {
-      weeklyPattern: {
-        monday: [{ from: String, to: String }],
-        tuesday: [{ from: String, to: String }],
-        wednesday: [{ from: String, to: String }],
-        thursday: [{ from: String, to: String }],
-        friday: [{ from: String, to: String }],
-        saturday: [{ from: String, to: String }],
-        sunday: [{ from: String, to: String }],
-      },
+  // @Prop({
+  //   type: {
+  //     weeklyPattern: {
+  //       monday: [{ from: String, to: String }],
+  //       tuesday: [{ from: String, to: String }],
+  //       wednesday: [{ from: String, to: String }],
+  //       thursday: [{ from: String, to: String }],
+  //       friday: [{ from: String, to: String }],
+  //       saturday: [{ from: String, to: String }],
+  //       sunday: [{ from: String, to: String }],
+  //     },
   
-      dateRanges: [
-        {
-          startDate: { type: Date },
-          endDate: { type: Date },
-          slots: [{ from: String, to: String }],
-          isActive: { type: Boolean, default: true },
-        },
-      ],
+  //     dateRanges: [
+  //       {
+  //         startDate: { type: Date },
+  //         endDate: { type: Date },
+  //         slots: [{ from: String, to: String }],
+  //         isActive: { type: Boolean, default: true },
+  //       },
+  //     ],
   
-      blockedDates: [
-        {
-          date: { type: Date },
-          reason: { type: String, default: null },
-        },
-      ],
-    },
-    default: {
-      weeklyPattern: {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: [],
-      },
-      dateRanges: [],
-      blockedDates: [],
-    },
-  })
-  availability!: {
-    weeklyPattern: Record<string, { from: string; to: string }[]>;
-    dateRanges: any[];
-    blockedDates: any[];
-  };
+  //     blockedDates: [
+  //       {
+  //         date: { type: Date },
+  //         reason: { type: String, default: null },
+  //       },
+  //     ],
+  //   },
+  //   default: {
+  //     weeklyPattern: {
+  //       monday: [],
+  //       tuesday: [],
+  //       wednesday: [],
+  //       thursday: [],
+  //       friday: [],
+  //       saturday: [],
+  //       sunday: [],
+  //     },
+  //     dateRanges: [],
+  //     blockedDates: [],
+  //   },
+  // })
+  @Prop({ type: Availability, default: { weeks: [] } })
+  availability!: Availability;
+ 
   
 
   @Prop({
