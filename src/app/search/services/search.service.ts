@@ -129,6 +129,8 @@ async getInstructorProfile(instructorId: string) {
         rating: { $ifNull: ['$rating', 0] },
         totalLessons: { $ifNull: ['$totalLessons', 0] },
         description: '$user.description',
+        languagesKnown: '$user.languagesKnown',
+        proficientLanguages: '$user.proficientLanguages',
         vehicles: 1
       }
     }
