@@ -128,7 +128,7 @@ async getInstructorProfile(instructorId: string) {
         profileImage: '$user.profileImage',
         rating: { $ifNull: ['$rating', 0] },
         totalLessons: { $ifNull: ['$totalLessons', 0] },
-        description: 1,
+        description: '$user.description',
         vehicles: 1
       }
     }
