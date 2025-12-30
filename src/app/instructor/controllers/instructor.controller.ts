@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post,
   Patch,
   Param,
   Req,
-  UseGuards,
+  UseGuards, Put,
   BadRequestException } from '@nestjs/common';
 
 import { InstructorService } from '../services/instructor.service';
@@ -23,25 +23,61 @@ import { UpdateFinancialDetailsDto } from '../dto/update-financial-details.dto';
 import{UpdateDocumentsDto} from '../dto/update-documents.dto'
 import {UpdateServiceAreasDto} from '../dto/update-service-areas.dto'
 import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
-
+import { AvailabilityWeekDto } from '../dto/week.dto';
+import  {CreateAvailabilityWeekDto} from '../dto/create-availability-week.dto'
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
-@Controller('instructor/v1')
+//@Controller('instructor/v1')
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}
+  
 
-  @Patch('availability')
-updateAvailability(
+ @Post('availability/week')
+ addWeek(
   @Req() @CurrentUser() currentUser: JwtPayload,
-  @Body() dto: UpdateAvailabilityDto
-) {
-  return this.instructorService.updateAvailability(
+   @Body() body: { startDate: string; endDate: string }
+ ) {
+   return this.instructorService.appendWeek(
     currentUser.sub,
-    dto
-  );
-}
+     body
+   );
+ }
 
+ // 2️⃣ Update whole week
+ @Patch('availability/week/:weekId')
+ updateWeek(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+   @Param('weekId') weekId: string,
+   @Body() body: AvailabilityWeekDto
+ ) {
+   return this.instructorService.updateWeek(
+    currentUser.sub,
+     weekId,
+     body
+   );
+ }
 
+//  3️⃣ Update slots for a single day
+ @Patch('availability/week/:weekId/day')
+ updateDaySlots(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+   @Param('weekId') weekId: string,
+   @Body() body: { date: string; slots: any[] }
+ ) {
+   return this.instructorService.updateDaySlots(
+    currentUser.sub,
+     weekId,
+     body
+   );
+ }
+
+ // 4️⃣ Get availability
+ @Get('availability')
+ getAvailability(@Req() @CurrentUser() currentUser: JwtPayload) {
+   return this.instructorService.getAvailability(currentUser.sub);
+ }
+
+  
   @Patch('service-areas')
 async updateServiceAreas(
   @Req() @CurrentUser() currentUser: JwtPayload,

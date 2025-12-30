@@ -25,3 +25,4 @@ export class WeeklyPatternDto {
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => TimeSlotDto)
   sunday?: TimeSlotDto[];
 }
+
