@@ -143,6 +143,9 @@ export class TimeSlot {
 
   @Prop({ default: false })
     isBooked?: boolean;
+    
+    @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
+    bookingId?: Types.ObjectId;
 }
 
 @Schema({ _id: false })
