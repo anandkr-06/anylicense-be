@@ -38,7 +38,7 @@ export class Slot {
   public lockedAt?: Date;
 
   @Prop({ default: false })
-isBooked!: boolean;
+isBooked?: boolean;
 
 @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
 bookingId?: Types.ObjectId;

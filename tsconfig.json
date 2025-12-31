@@ -25,7 +25,7 @@
             "es2019.string",
             "es2021.string"
         ],
-        "typeRoots": ["node_modules/@types"],
+        "typeRoots": ["node_modules/@types","./src/types"],
         "skipLibCheck": true,
         "emitDecoratorMetadata": true,
         "downlevelIteration": true,

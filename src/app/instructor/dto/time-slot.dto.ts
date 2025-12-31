@@ -11,7 +11,7 @@ export class TimeSlotDto {
   endTime!: string;
 
   @IsBoolean()
-  isBooked?: boolean;
+  isBooked?: boolean = false;
 
   bookingId?: Types.ObjectId;
 }
