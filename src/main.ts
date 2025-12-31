@@ -6,11 +6,18 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { getSwaggerConfig, GlobalExceptionFilter } from 'lib';
 import { Logger } from 'nestjs-pino';
 import { SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
+
+
 
 function setupMiddleware(app: INestApplication): void {
   app.useLogger(app.get(Logger));
 
   app.useLogger(app.get(Logger));
+  app.use(
+    '/webhooks/stripe',
+    bodyParser.raw({ type: 'application/json' }),
+  );
   app.setGlobalPrefix('api');
   // app.enableCors({ origin: true, credentials: true });
   app.useGlobalPipes(

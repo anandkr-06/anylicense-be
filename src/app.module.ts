@@ -21,6 +21,8 @@ import { ServiceAreaModule } from '@app/service-area/service-area.module';
 //import { LeanerModule } from '@app/leaner/leaner.module';
 import { SearchModule } from '@app/search/search.module';
 import { UserLearnersModule } from '@app/userlearners/user.module';
+import {OrdersModule} from '@app/order/order.module'
+import { PaymentsModule } from '@app/payment/payment.module';
 
 @Module({
   imports: [
@@ -59,6 +61,8 @@ import { UserLearnersModule } from '@app/userlearners/user.module';
     ServiceAreaModule,
     UserLearnersModule,
     SearchModule,
+    OrdersModule,
+    PaymentsModule,
   ],
   providers: [
     GlobalExceptionFilter,

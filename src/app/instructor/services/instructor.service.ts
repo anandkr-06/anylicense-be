@@ -22,13 +22,15 @@ import { CryptoHelper } from '@common/helpers/crypto.helper';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
 import { UpdateVehicleDto } from '../dto/update-vehicle.dto';
 import { UpdatePrivateVehicleDto } from '../dto/update-private-vehicle.dto';
-import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfileDocument, InstructorProfile, TimeSlot } from '@common/db/schemas/instructor-profile.schema';
 import {UpdateFinancialDetailsDto} from '../dto/update-financial-details.dto'
 import {UpdateDocumentsDto} from '../dto/update-documents.dto'
 import {ServiceAreaDto} from '../dto/service-area.dto'
 import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
 import {AvailabilityWeekDto} from '../dto/week.dto'
 import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto'
+import { CheckAvailabilityDto } from '../dto/check-availability.dto'; 
+import { CreateOrderDto } from '../dto/create-order.dto';
 
 @Injectable()
 export class InstructorService {
@@ -61,7 +63,123 @@ export class InstructorService {
     return days;
   }
   
+  private findSlot(
+    instructor: InstructorProfileDocument,
+    reqSlot: {
+      date: string;
+      startTime: string;
+      endTime: string;
+    },
+  ): TimeSlot | undefined {
+    for (const week of instructor.availability.weeks) {
+      const day = week.days.find(d => d.date === reqSlot.date);
+      if (!day) continue;
   
+      return day.slots.find(
+        slot =>
+          slot.startTime === reqSlot.startTime &&
+          slot.endTime === reqSlot.endTime,
+      );
+    }
+  
+    return undefined;
+  }
+  
+
+  private getTodayISODate(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+  
+  async getAvailableSlots(
+    instructorId: string,
+    timeOfDay?: 'AM' | 'PM',
+  ) {
+    const instructor = await this.instructorProfileModel
+      .findOne({userId: new Types.ObjectId(instructorId)})
+      .lean<InstructorProfile>();
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
+  
+    const today = this.getTodayISODate();
+  
+    const result = [];
+  
+    for (const week of instructor.availability?.weeks || []) {
+      for (const day of week.days) {
+        if (day.date < today) continue;
+  
+        const validSlots = day.slots.filter(slot => {
+          if (slot.isBooked) return false;
+  
+          if (timeOfDay) {
+            const hour = Number(slot.startTime.split(':')[0]);
+            return timeOfDay === 'AM' ? hour < 12 : hour >= 12;
+          }
+  
+          return true;
+        });
+  
+        if (validSlots.length) {
+          result.push({
+            date: day.date,
+            slots: validSlots,
+          });
+        }
+      }
+    }
+  
+    return result;
+  }
+  
+  
+
+    
+
+  async checkAvailability(
+    instructorId: string,
+    dto: CheckAvailabilityDto,
+  ) {
+    const instructor = await this.instructorProfileModel.findOne({userId: new Types.ObjectId(instructorId)});
+  
+    if (!instructor) {
+      throw new NotFoundException(`${instructorId}'Instructor not found'`);
+    }
+  
+    // // Vehicle validation
+    // const vehicle = instructor.vehicles[dto.vehicleType];
+    // if (!vehicle?.hasVehicle) {
+    //   throw new BadRequestException('Vehicle not available');
+    // }
+    
+  
+    for (const reqSlot of dto.slots) {
+      const slot = this.findSlot(instructor, reqSlot);
+  
+      if (!slot) {
+        return {
+          available: false,
+          message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
+        };
+      }
+  
+      if (slot.isBooked) {
+        return {
+          available: false,
+          message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
+        };
+      }
+    }
+  
+    return {
+      available: true,
+      validSlots: dto.slots.length,
+      message: 'All requested slots are available',
+    };
+  }
+  
+
   async appendWeek(
     userId: string,
     { startDate, endDate }: { startDate: string; endDate: string }

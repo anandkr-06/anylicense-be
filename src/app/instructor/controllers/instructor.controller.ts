@@ -3,7 +3,8 @@ import { Body, Controller, Get, Post,
   Param,
   Req,
   UseGuards, Put,
-  BadRequestException } from '@nestjs/common';
+  BadRequestException, 
+  Query} from '@nestjs/common';
 
 import { InstructorService } from '../services/instructor.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -25,12 +26,36 @@ import {UpdateServiceAreasDto} from '../dto/update-service-areas.dto'
 import {UpdateAvailabilityDto} from '../dto/update-availability.dto'
 import { AvailabilityWeekDto } from '../dto/week.dto';
 import  {CreateAvailabilityWeekDto} from '../dto/create-availability-week.dto'
+import {CheckAvailabilityDto} from '../dto/check-availability.dto'
+import { Public } from '@common/decorators/public.decorator';
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
 //@Controller('instructor/v1')
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}
-  
+
+@Public()
+@Get(':instructorId/available-slots')
+getAvailableSlots(
+  @Param('instructorId') instructorId: string,
+  @Query('timeOfDay') timeOfDay?: 'AM' | 'PM',
+) {
+  return this.instructorService.getAvailableSlots(
+    instructorId,
+    timeOfDay,
+  );
+}
+
+
+
+  @Public()
+  @Post(':instructorId/check-availability')
+  checkAvailability(
+    @Param('instructorId') instructorId: string,
+    @Body() dto: CheckAvailabilityDto,
+  ) {
+    return this.instructorService.checkAvailability(instructorId, dto);
+  }
 
  @Post('availability/week')
  addWeek(
