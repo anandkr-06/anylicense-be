@@ -137,7 +137,7 @@ async getInstructorProfile(instructorId: string) {
                   testPrivatePerHourPrice:
                     '$vehicles.private.manual.testPricePerHour'
                 }
-              }
+              },
             ],
             as: 'v',
             cond: { $ne: ['$$v', null] }
@@ -285,7 +285,7 @@ async getInstructorProfile(instructorId: string) {
       {
         $group: {
           _id: '$_id',
-          instructorId: { $first: '$_id' },
+          instructorId: { $first: '$userId' },
           firstName: { $first: '$user.firstName' },
           lastName: { $first: '$user.lastName' },
           profileImage: { $first: '$user.profileImage' },
