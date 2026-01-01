@@ -72,7 +72,7 @@ export class OrderService {
       pricePerHour,
       totalAmount,
       bookedSlots,
-      status: 'CONFIRMED',
+      status: 'PENDING_PAYMENT',
     });
   
     /** Attach bookingId to slots */
