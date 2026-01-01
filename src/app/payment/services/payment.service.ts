@@ -62,7 +62,7 @@ export class StripeService {
       throw new NotFoundException('Order not found');
     }
   
-    if (order.status !== 'PENDING_PAYMENT') {
+    if (order.status !== 'PENDING') {
       throw new BadRequestException(
         `Cannot create payment for order status ${order.status}`,
       );
