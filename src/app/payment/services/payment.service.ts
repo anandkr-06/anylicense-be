@@ -27,33 +27,71 @@ export class StripeService {
     });
   }
 
+  // async createPaymentIntent(orderId: string) {
+  //   const order = await this.orderModel.findById(orderId);
+
+  //   if (!order || order.status !== 'PENDING_PAYMENT') {
+  //     throw new BadRequestException('Invalid order');
+  //   }
+
+  //   const paymentIntent = await this.stripe.paymentIntents.create({
+  //     amount: order.totalAmount * 100, // paise
+  //     currency: 'inr',
+  //     metadata: {
+  //       orderId: order._id.toString(),
+  //     },
+  //   });
+
+  //   await this.paymentModel.create({
+  //     orderId: order._id,
+  //     amount: order.totalAmount,
+  //     stripePaymentIntentId: paymentIntent.id,
+  //     status: 'INITIATED',
+  //   });
+
+  //   return {
+  //     clientSecret: paymentIntent.client_secret,
+  //     amount: order.totalAmount,
+  //     currency: 'INR',
+  //   };
+  // }
   async createPaymentIntent(orderId: string) {
     const order = await this.orderModel.findById(orderId);
-
-    if (!order || order.status !== 'PENDING_PAYMENT') {
-      throw new BadRequestException('Invalid order');
+  
+    if (!order) {
+      throw new NotFoundException('Order not found');
     }
-
+  
+    if (order.status !== 'PENDING_PAYMENT') {
+      throw new BadRequestException(
+        `Cannot create payment for order status ${order.status}`,
+      );
+    }
+  
     const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: order.totalAmount * 100, // paise
+      amount: Math.round(order.totalAmount * 100), // INR → paise
       currency: 'inr',
+      automatic_payment_methods: { enabled: true },
       metadata: {
         orderId: order._id.toString(),
+        learnerId: order.learnerId.toString(),
+        instructorId: order.instructorId.toString(),
       },
     });
-
+  
     await this.paymentModel.create({
       orderId: order._id,
       amount: order.totalAmount,
       stripePaymentIntentId: paymentIntent.id,
       status: 'INITIATED',
     });
-
+  
     return {
       clientSecret: paymentIntent.client_secret,
       amount: order.totalAmount,
       currency: 'INR',
     };
   }
+  
 }
 
