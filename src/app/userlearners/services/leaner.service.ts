@@ -39,7 +39,28 @@ export class LearnerService {
     payload.password = hashedPassword;
 
     try {
-      return await this.learnerModel.create(payload);
+      // return await this.learnerModel.create(payload);
+      const learner = await this.learnerModel.create(payload);
+
+      const customPayload = {
+        sub: learner._id,
+        email: learner.email,
+      };
+  
+      return {
+        accessToken: this.jwtService.sign(customPayload),
+        success: true,
+        message: 'Learner created successfully',
+        learner: {
+          id: learner._id,
+          firstName: learner.firstName,
+          email: learner.email,
+          mobileNumber: learner.mobileNumber,
+        },
+      };
+
+
+
     } catch (error: any) {
       if (error?.code === 11000) {
         if (error?.keyPattern?.email) {
