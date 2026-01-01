@@ -34,7 +34,7 @@ export class OrderService {
     
   
     if (!instructor) {
-      throw new NotFoundException('Instructor not found');
+      throw new NotFoundException(`${dto.instructorId + " " +learnerId}'Instructor not found'`);
     }
   
     const vehicle = instructor.vehicles[dto.vehicleType];
@@ -71,7 +71,7 @@ export class OrderService {
       pricePerHour,
       totalAmount,
       bookedSlots,
-      status: 'PENDING_PAYMENT',
+      status: 'PENDING',
     });
   
     /** Attach bookingId to slots */
@@ -81,7 +81,7 @@ export class OrderService {
       }
       await instructor.save();
     }
-  
+    // return {orderId: order._id.toString() };
     return order;
   }
   
