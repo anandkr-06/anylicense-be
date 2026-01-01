@@ -8,6 +8,8 @@ import {
   import { OrderService } from '../services/order.service';
   import { CreateOrderDto } from '../dto/create-order.dto';
   import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { JwtPayload } from '@interfaces/user.interface';
   
   @Controller('orders')
   @UseGuards(JwtAuthGuard)
@@ -18,12 +20,12 @@ import {
      * Create driving lesson order
      * Learner books hours (slots optional)
      */
-    @Post('create')
+  @Post('create')
     async createOrder(
-      @Req() req :any,
+      @Req() @CurrentUser() currentUser: JwtPayload,
       @Body() dto: CreateOrderDto,
     ) {
-      const learnerId = req.user.id?"694ffb3d8e69b406722df4bf":"694ffb3d8e69b406722df4bf"; // from JWT
+      const learnerId = currentUser.sub; // from JWT
   
       return this.ordersService.createOrder(learnerId, dto);
     }

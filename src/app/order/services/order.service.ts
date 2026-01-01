@@ -30,9 +30,8 @@ export class OrderService {
     learnerId: string,
     dto: CreateOrderDto,
   ) {
-    const instructor = await this.instructorProfileModel.findById(
-      dto.instructorId,
-    );
+    const instructor = await this.instructorProfileModel.findOne({userId: new Types.ObjectId(dto.instructorId)});
+    
   
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
@@ -66,7 +65,7 @@ export class OrderService {
   
     const order = await this.orderModel.create({
       learnerId,
-      instructorId: instructor._id,
+      instructorId: instructor.userId,
       totalHours: dto.totalHours,
       vehicleType: dto.vehicleType,
       pricePerHour,
