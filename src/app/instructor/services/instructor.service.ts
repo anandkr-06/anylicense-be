@@ -31,6 +31,7 @@ import {AvailabilityWeekDto} from '../dto/week.dto'
 import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto'
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'; 
 import { CreateOrderDto } from '../dto/create-order.dto';
+import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 
 @Injectable()
 export class InstructorService {
@@ -41,8 +42,54 @@ export class InstructorService {
     private readonly userDbService: UserDbService,
     private readonly packageDbService: PackageDbService,
     @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
+    @InjectModel(Order.name) 
+            private readonly orderModel: Model<OrderDocument>,
   ) {}
 
+  async getInstructorBookedSlots(userId: string) {
+    const instructor = await this.instructorProfileModel.findOne({ userId });
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
+  
+    const bookedSlots = [];
+  
+    for (const week of instructor.availability.weeks) {
+      for (const day of week.days) {
+        for (const slot of day.slots) {
+          if (slot.isBooked && slot.bookingId) {
+            bookedSlots.push({
+              date: day.date,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              bookingId: slot.bookingId,
+            });
+          }
+        }
+      }
+    }
+  
+    return bookedSlots;
+  }
+  
+  async getOrdersForInstructor(userId: string) {
+    const instructor = await this.instructorProfileModel.findOne({
+      userId,
+    });
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
+  
+    return this.orderModel
+      .find({ instructorId: instructor._id })
+      .populate('learnerId', 'fullName profileImage')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  
   private generateDays(startDate: string, endDate: string): AvailabilityDay[] {
     const days: AvailabilityDay[] = [];
   

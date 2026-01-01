@@ -139,46 +139,11 @@ export class OrderService {
   
     throw new BadRequestException('Slot not found in availability');
   }
-  
-  
-  // private attachBookingId(
-  //   instructor: InstructorProfileDocument,
-  //   slot: {
-  //     date: string;
-  //     startTime: string;
-  //     endTime: string;
-  //   },
-  //   orderId: Types.ObjectId,
-  // ) {
-  //   for (const week of instructor.availability.weeks) {
-  //     const day = week.days.find(d => d.date === slot.date);
-  //     if (!day) continue;
-  
-  //     const matchedSlot = day.slots.find(
-  //       s =>
-  //         s.startTime === slot.startTime &&
-  //         s.endTime === slot.endTime &&
-  //         !s.isBooked,
-  //     );
-  
-  //     if (!matchedSlot) {
-  //       throw new BadRequestException(
-  //         `Slot ${slot.startTime}-${slot.endTime} already booked`,
-  //       );
-  //     }
-  
-  //     matchedSlot.isBooked = true;
-  //     matchedSlot.bookingId = orderId;
-  //     return;
-  //   }
-  
-  //   throw new BadRequestException('Slot not found in availability');
-  // }
-  
-
   private async getUser(userPublicId: string) {
     const user = await this.userDbService.findByPublicId(userPublicId);
 
     return user;
   }
+
+
 }
