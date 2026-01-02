@@ -34,6 +34,19 @@ import { Public } from '@common/decorators/public.decorator';
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}
 
+  @Get('orders')
+  getInstructorOrders(
+    @Req() @CurrentUser() currentUser: JwtPayload
+  ) {
+    return this.instructorService.getOrdersForInstructor(currentUser.sub);
+  }
+  @Get('booked-slots')
+  getInstructorBookedSlots(
+    @Req() @CurrentUser() currentUser: JwtPayload
+  ) {
+    return this.instructorService.getOrdersForInstructor(currentUser.sub);
+  }
+  
 @Public()
 @Get(':instructorId/available-slots')
 getAvailableSlots(

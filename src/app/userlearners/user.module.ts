@@ -5,7 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { DbModule } from '@common/db/ db.module';
 import { LearnerController } from './controllers/learner.controller';
 import { LearnerService } from './services/leaner.service';
-
+import { Order, OrderSchema } from '@common/db/schemas/order.schema';
 @Module({
   imports: [
     JwtModule.register({
@@ -14,6 +14,7 @@ import { LearnerService } from './services/leaner.service';
     }),
     MongooseModule.forFeature([
       { name: Learner.name, schema: LearnerSchema },
+      { name: Order.name, schema: OrderSchema },
     ]),
     DbModule,
   ],

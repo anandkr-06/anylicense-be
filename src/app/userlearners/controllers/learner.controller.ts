@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Put, Get } from '@nestjs/common';
+import { Body, Controller, Post, Req, Put, Get, Param } from '@nestjs/common';
 import { Public } from '@common/decorators/public.decorator';
 import { LearnerService } from '../services/leaner.service';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
@@ -8,10 +8,35 @@ import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
-
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { JwtPayload } from '@interfaces/user.interface';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 @Controller('learner')
 export class LearnerController {
-  constructor(private learnerService: LearnerService) {}
+  constructor(private learnerService: LearnerService
+
+  ) {}
+  
+//Order history for learner
+
+    @Get('orders')
+    @UseGuards(JwtAuthGuard)
+    getLearnerOrders(
+      @Req() @CurrentUser() currentUser: JwtPayload,
+    ) {
+      return this.learnerService.getOrdersForLearner(currentUser.sub);
+    }
+
+    @Get('orders/:orderId/slots')
+getLearnerBookedSlots(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+  @Param('orderId') orderId: string,
+) {
+  return this.learnerService.getLearnerBookedSlots(currentUser.sub, orderId);
+}
+
+
 
   @Public()
   @Post('register/self')

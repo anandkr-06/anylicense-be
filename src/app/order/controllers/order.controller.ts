@@ -4,6 +4,7 @@ import {
     Post,
     Req,
     UseGuards,
+    Get
   } from '@nestjs/common';
   import { OrderService } from '../services/order.service';
   import { CreateOrderDto } from '../dto/create-order.dto';
@@ -29,5 +30,6 @@ import { JwtPayload } from '@interfaces/user.interface';
   
       return this.ordersService.createOrder(learnerId, dto);
     }
+   
   }
   

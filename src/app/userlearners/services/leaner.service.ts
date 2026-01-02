@@ -15,6 +15,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { Logger } from 'nestjs-pino';
 import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
+import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 
 
 @Injectable()
@@ -24,7 +25,36 @@ export class LearnerService {
     private learnerModel: Model<LearnerDocument>,
     private jwtService: JwtService,
     private readonly logger: Logger,
-  ) {}
+    @InjectModel(Order.name) 
+        private readonly orderModel: Model<OrderDocument>,
+  ) {} 
+
+
+  async getOrdersForLearner(learnerId: string) {
+    return this.orderModel
+      .find({ learnerId })
+      .populate('instructorId', 'fullName profileImage')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async getLearnerBookedSlots(learnerId: string, orderId: string) {
+    const order = await this.orderModel.findOne({
+      _id: orderId,
+      learnerId,
+    });
+  
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+  
+    return {
+      orderId: order._id,
+      bookedSlots: order.bookedSlots,
+    };
+  }
+
+  
   async registerSelf(payload: SelfLeanerRegisterDto) {
     return this.createLearner(payload);
   }
