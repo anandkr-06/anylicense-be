@@ -16,7 +16,7 @@ import * as crypto from 'crypto';
 import { Logger } from 'nestjs-pino';
 import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
-
+import { NotificationService } from 'modules/notifications/notification.service';
 
 @Injectable()
 export class LearnerService {
@@ -25,22 +25,40 @@ export class LearnerService {
     private learnerModel: Model<LearnerDocument>,
     private jwtService: JwtService,
     private readonly logger: Logger,
+    private readonly notificationService: NotificationService,
     @InjectModel(Order.name) 
         private readonly orderModel: Model<OrderDocument>,
+
   ) {} 
-
-
+  
   async getOrdersForLearner(learnerId: string) {
+    try {
+      await this.notificationService.testMail();
+    } catch (e) {
+      this.logger.error('Email failed but continuing', e);
+    }
+  
     return this.orderModel
       .find({ learnerId })
       .populate('instructorId', 'fullName profileImage')
       .sort({ createdAt: -1 })
       .lean();
   }
+  
+  
 
-  async getLearnerBookedSlots(learnerId: string, orderId: string) {
+  // async getOrdersForLearner(learnerId: string) {
+  //   await this.notificationService.testMail();
+  //   return this.orderModel
+  //     .find({ learnerId })
+  //     .populate('instructorId', 'fullName profileImage')
+  //     .sort({ createdAt: -1 })
+  //     .lean();
+  // }
+
+  async getLearnerBookedSlots(learnerId: string) {
     const order = await this.orderModel.findOne({
-      _id: orderId,
+      // _id: orderId,
       learnerId,
     });
   
@@ -48,10 +66,14 @@ export class LearnerService {
       throw new NotFoundException('Order not found');
     }
   
-    return {
-      orderId: order._id,
-      bookedSlots: order.bookedSlots,
-    };
+    return order;
+    // return {
+    //   orderId: order._id,
+    //   bookedSlots: order.bookedSlots,
+    //   perHourRate: order.pricePerHour,
+    //   totalHours: order.totalHours,
+    //   totalAmount: order.totalAmount
+    // };
   }
 
   
