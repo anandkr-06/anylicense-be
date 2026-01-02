@@ -33,6 +33,9 @@ import { CheckAvailabilityDto } from '../dto/check-availability.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 
+
+
+
 @Injectable()
 export class InstructorService {
   constructor(
@@ -74,22 +77,22 @@ export class InstructorService {
   }
   
   async getOrdersForInstructor(userId: string) {
-    const instructor = await this.instructorProfileModel.findOne({
-      userId,
-    });
+    const instructor = await this.instructorProfileModel.findOne({userId: new Types.ObjectId(userId)});
   
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
   
     return this.orderModel
-      .find({ instructorId: instructor._id })
+      .find({ instructorId: instructor.userId })
       .populate('learnerId', 'fullName profileImage')
       .sort({ createdAt: -1 })
       .lean();
-  }
 
   
+
+  }
+
   private generateDays(startDate: string, endDate: string): AvailabilityDay[] {
     const days: AvailabilityDay[] = [];
   

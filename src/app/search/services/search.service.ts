@@ -162,7 +162,8 @@ async getInstructorProfile(instructorId: string) {
         description: '$user.description',
         languagesKnown: '$user.languagesKnown',
         proficientLanguages: '$user.proficientLanguages',
-        vehicles: 1
+        vehicles: 1,
+        serviceAreas: 1,
       }
     }
   ]);

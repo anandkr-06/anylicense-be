@@ -81,8 +81,15 @@ export class OrderService {
       }
       await instructor.save();
     }
-    // return {orderId: order._id.toString() };
-    return order;
+    return {orderId: order._id.toString(),
+    totalAmount: totalAmount,
+    pricePerHour: pricePerHour,
+    totalHours: dto.totalHours,
+  bookedSlots: bookedSlots,
+  success: true,
+        message: 'Order created successfully',
+     };
+    //return order;
   }
   
 

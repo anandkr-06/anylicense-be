@@ -6,6 +6,8 @@ import { DbModule } from '@common/db/ db.module';
 import { LearnerController } from './controllers/learner.controller';
 import { LearnerService } from './services/leaner.service';
 import { Order, OrderSchema } from '@common/db/schemas/order.schema';
+import { NotificationModule } from 'modules/notifications/notification.module';
+
 @Module({
   imports: [
     JwtModule.register({
@@ -17,9 +19,10 @@ import { Order, OrderSchema } from '@common/db/schemas/order.schema';
       { name: Order.name, schema: OrderSchema },
     ]),
     DbModule,
+    NotificationModule,
   ],
   controllers: [LearnerController],
-  providers: [LearnerService],
-  exports: [LearnerService],
+  providers: [LearnerService,  ],
+  exports: [LearnerService, ],
 })
 export class UserLearnersModule {}

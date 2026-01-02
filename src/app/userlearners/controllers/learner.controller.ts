@@ -28,12 +28,12 @@ export class LearnerController {
       return this.learnerService.getOrdersForLearner(currentUser.sub);
     }
 
-    @Get('orders/:orderId/slots')
+    @Get('orders/slots')
 getLearnerBookedSlots(
   @Req() @CurrentUser() currentUser: JwtPayload,
-  @Param('orderId') orderId: string,
+  // @Param('orderId') orderId: string,
 ) {
-  return this.learnerService.getLearnerBookedSlots(currentUser.sub, orderId);
+  return this.learnerService.getLearnerBookedSlots(currentUser.sub);
 }
 
 
