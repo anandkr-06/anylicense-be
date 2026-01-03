@@ -11,9 +11,11 @@ import { Request } from 'express';
 
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { Payment, PaymentDocument } from '@common/db/schemas/payment.schema';
-import { InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas/instructor-profile.schema';
 import { LearnerDocument } from '@common/db/schemas/learner.schema';
+import { Public } from '@common/decorators/public.decorator';
 
+@Public()
 @Controller('webhooks/stripe')
 export class StripeWebhookController {
   private stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
@@ -27,10 +29,9 @@ export class StripeWebhookController {
 
     @InjectModel(Payment.name)
     private readonly paymentModel: Model<PaymentDocument>,
-
-    @InjectModel('InstructorProfile')
-    private readonly instructorProfileModel: Model<InstructorProfileDocument>,
-
+    
+    @InjectModel(InstructorProfile.name)
+    private instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel('Learner')
     private readonly learnerModel: Model<LearnerDocument>,
   ) {}
@@ -58,79 +59,135 @@ export class StripeWebhookController {
     await instructor.save();
   }
 
+  // @Post()
+  // async handleWebhook(
+  //   @Req() req: Request,
+  //   @Headers('stripe-signature') signature: string,
+  // ) {
+  //   let event: Stripe.Event;
+
+  //   try {
+  //     event = this.stripe.webhooks.constructEvent(
+  //       req.body,
+  //       signature,
+  //       process.env['STRIPE_WEBHOOK_SECRET']!,
+  //     );
+  //   } catch (err) {
+  //     //console.error('Webhook signature verification failed', err.message);
+  //     return { received: false };
+  //   }
+
+  //   // ✅ PAYMENT SUCCESS
+  //   if (event.type === 'payment_intent.succeeded') {
+  //     const intent = event.data.object as Stripe.PaymentIntent;
+  //     const orderId = intent.metadata['orderId'];
+
+  //     // idempotency check
+  //     const payment = await this.paymentModel.findOne({
+  //       stripePaymentIntentId: intent.id,
+  //     });
+
+  //     if (payment?.status === 'SUCCESS') {
+  //       return { received: true };
+  //     }
+
+  //     await this.paymentModel.findOneAndUpdate(
+  //       { stripePaymentIntentId: intent.id },
+  //       {
+  //         status: 'SUCCESS',
+  //         stripeChargeId: intent.latest_charge,
+  //       },
+  //     );
+
+  //     await this.orderModel.findByIdAndUpdate(orderId, {
+  //       status: 'CONFIRMED',
+  //       paymentStatus: 'PAID',
+  //     });
+  //   }
+
+  //   // ❌ PAYMENT FAILED
+  //   if (event.type === 'payment_intent.payment_failed') {
+  //     const intent = event.data.object as Stripe.PaymentIntent;
+  //     const orderId = new Types.ObjectId(intent.metadata['orderId']);
+
+  //     await this.paymentModel.findOneAndUpdate(
+  //       { stripePaymentIntentId: intent.id },
+  //       { status: 'FAILED' },
+  //     );
+
+  //     const order = await this.orderModel.findById(orderId);
+
+  //     // 💰 REFUND WALLET IF USED
+  //     if (order?.walletUsed && order.walletUsed > 0) {
+  //       await this.learnerModel.findByIdAndUpdate(order.learnerId, {
+  //         $inc: { walletBalance: order.walletUsed },
+  //       });
+  //     }
+
+  //     await this.orderModel.findByIdAndUpdate(orderId, {
+  //       status: 'CANCELLED',
+  //       paymentStatus: 'FAILED',
+  //     });
+
+  //     await this.unlockSlots(orderId);
+  //   }
+
+  //   return { received: true };
+  // }
+  
   @Post()
-  async handleWebhook(
-    @Req() req: Request,
-    @Headers('stripe-signature') signature: string,
-  ) {
-    let event: Stripe.Event;
+async handleWebhook(
+  @Req() req: Request,
+  @Headers('stripe-signature') signature: string,
+) {
+  //const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!); // ✅ no apiVersion
+  const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
+    // apiVersion: '2024-06-20',
+    apiVersion: '2025-12-15.clover',
+  });
 
-    try {
-      event = this.stripe.webhooks.constructEvent(
-        req.body,
-        signature,
-        process.env['STRIPE_WEBHOOK_SECRET']!,
-      );
-    } catch (err) {
-      //console.error('Webhook signature verification failed', err.message);
-      return { received: false };
-    }
+  const event = stripe.webhooks.constructEvent(
+    req.body, // MUST be raw buffer
+    signature,
+    process.env['STRIPE_WEBHOOK_SECRET']!,
+  );
 
-    // ✅ PAYMENT SUCCESS
-    if (event.type === 'payment_intent.succeeded') {
-      const intent = event.data.object as Stripe.PaymentIntent;
-      const orderId = intent.metadata['orderId'];
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object as Stripe.PaymentIntent;
 
-      // idempotency check
-      const payment = await this.paymentModel.findOne({
-        stripePaymentIntentId: intent.id,
-      });
+    await this.paymentModel.findOneAndUpdate(
+      { stripePaymentIntentId: intent.id },
+      {
+        status: 'SUCCESS',
+        stripeChargeId: intent.latest_charge,
+      },
+    );
 
-      if (payment?.status === 'SUCCESS') {
-        return { received: true };
-      }
-
-      await this.paymentModel.findOneAndUpdate(
-        { stripePaymentIntentId: intent.id },
-        {
-          status: 'SUCCESS',
-          stripeChargeId: intent.latest_charge,
-        },
-      );
-
-      await this.orderModel.findByIdAndUpdate(orderId, {
-        status: 'CONFIRMED',
-        paymentStatus: 'PAID',
-      });
-    }
-
-    // ❌ PAYMENT FAILED
-    if (event.type === 'payment_intent.payment_failed') {
-      const intent = event.data.object as Stripe.PaymentIntent;
-      const orderId = new Types.ObjectId(intent.metadata['orderId']);
-
-      await this.paymentModel.findOneAndUpdate(
-        { stripePaymentIntentId: intent.id },
-        { status: 'FAILED' },
-      );
-
-      const order = await this.orderModel.findById(orderId);
-
-      // 💰 REFUND WALLET IF USED
-      if (order?.walletUsed && order.walletUsed > 0) {
-        await this.learnerModel.findByIdAndUpdate(order.learnerId, {
-          $inc: { walletBalance: order.walletUsed },
-        });
-      }
-
-      await this.orderModel.findByIdAndUpdate(orderId, {
-        status: 'CANCELLED',
-        paymentStatus: 'FAILED',
-      });
-
-      await this.unlockSlots(orderId);
-    }
-
-    return { received: true };
+    await this.orderModel.findByIdAndUpdate(
+      intent.metadata['orderId'],
+      { status: 'CONFIRMED' },
+    );
   }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    const intent = event.data.object as Stripe.PaymentIntent;
+
+    await this.paymentModel.findOneAndUpdate(
+      { stripePaymentIntentId: intent.id },
+      { status: 'FAILED' },
+    );
+
+    await this.orderModel.findByIdAndUpdate(
+      intent.metadata['orderId'],
+      { status: 'CANCELLED' },
+    );
+
+    await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
+  }
+
+  return { received: true };
+}
+
+
+
 }
