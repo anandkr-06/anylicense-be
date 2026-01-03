@@ -62,7 +62,7 @@ export class StripeService {
       throw new NotFoundException('Order not found');
     }
   
-    if (order.status !== 'PENDING') {
+    if (order.status !== 'PENDING_PAYMENT') {
       throw new BadRequestException(
         `Cannot create payment for order status ${order.status}`,
       );
@@ -70,7 +70,7 @@ export class StripeService {
   
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount: Math.round(order.totalAmount * 100), // INR → paise
-      currency: 'inr',
+      currency: 'AUD',
       automatic_payment_methods: { enabled: true },
       metadata: {
         orderId: order._id.toString(),
