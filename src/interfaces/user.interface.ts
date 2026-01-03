@@ -18,7 +18,7 @@ export interface UserResponse {
   lastName: string | undefined;
   fullName: string;
   initials: string;
-
+  state: string;
 
 
   profileImage: string | null;

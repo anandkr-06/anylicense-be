@@ -21,8 +21,7 @@ export class UserResponseBuilder {
       fullName: `${this._user.firstName ?? ''} ${this._user.lastName ?? ''}`.trim(),
       initials: this.getInitials(),
   
-      // address: this._user.address ?? [],
-      // packages: this._user.packages ?? [],
+      state: this._user.state ?? '',
 
       profileImage: this._user.profileImage ?? null,
   

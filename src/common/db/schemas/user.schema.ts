@@ -38,7 +38,7 @@ export class User {
   @Prop({ type: String, default: null })
   profileImage?: string | null;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   public dob!: string;
 
   
@@ -48,6 +48,10 @@ export class User {
   @Prop({ required: false, trim: true })
   
   public postCode!: string;
+
+  @Prop({ required: true, trim: true })
+  
+  public state!: string;
 
   @Prop({ default: [] })
   public serviceArea?: Array<string>;

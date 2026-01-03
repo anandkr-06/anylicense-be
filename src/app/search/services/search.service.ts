@@ -859,7 +859,7 @@ profile = profiles.map(p =>
       instructorExperienceYears: user.instructorExperienceYears ?? 0,
       isMemberOfDrivingAssociation: user.isMemberOfDrivingAssociation ?? false,
       transmissionType: user.transmissionType ?? null,
-  
+      state: user.state ?? null,
       profile,
     };
   }
