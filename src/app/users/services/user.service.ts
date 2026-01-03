@@ -74,7 +74,8 @@ export class UserService {
         postCode: dto.postCode,
         isTncApproved: dto.isTncApproved,
         isNotificationSent: dto.isNotificationSent,
-        isActive: true
+        isActive: true,
+        state: dto.state
       });
 
       await this.instructorProfileModel.create({
@@ -226,6 +227,7 @@ export class UserService {
       isMemberOfDrivingAssociation: user.isMemberOfDrivingAssociation,
       transmissionType: user.transmissionType,  
       profile: [],
+      state: user.state,
       
 
     };

@@ -31,6 +31,10 @@ export class RegisterUserDto {
   @IsEnum(UserGender)
   public gender?: UserGender;
 
+  @IsNotEmpty()
+  @IsString()
+  state!: string;
+
   @IsString()
   @IsOptional()
   public dob?: string;
