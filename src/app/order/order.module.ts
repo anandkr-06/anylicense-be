@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../../common/db/schemas/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { AddressModule } from '@app/address/address.module';
+import { LeanerModule } from '@app/leaner/leaner.module'; 
 import { InstructorModule } from '@app/instructor/instructor.module';
 import { DbModule } from '@common/db/ db.module';
 import { Package, PackageSchema } from '@common/db/schemas/package.schema';
@@ -13,6 +14,7 @@ import { OrdersController } from './controllers/order.controller';
 import { OrderService } from './services/order.service'; 
 import { Slot, SlotSchema } from '@common/db/schemas/slot.schema';
 import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
 
 
 @Module({
@@ -31,10 +33,12 @@ import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/in
         schema: InstructorProfileSchema,
       },
       { name: Order.name, schema: OrderSchema },
+      { name: Learner.name, schema: LearnerSchema },
     ]),
     AddressModule,
     DbModule,
     InstructorModule,
+    LeanerModule,
   ],
   controllers: [OrdersController],
   providers: [OrderService, UserDbService],

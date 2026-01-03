@@ -38,7 +38,29 @@ import {
     @IsNumber()
     @Min(1)
     totalHours!: number; // 5, 10, 12...
-  
+
+    @IsOptional()
+    @IsNumber()
+    @Min(1)
+    coupons!: number; // coupon code value
+    
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    couponValue!: number; // coupon discount value
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    platformCharge!: number; // platform charge value
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    discount!: number; // discount value
+
+
+    
     /** 
      * Optional slot booking
      * If not provided → instructor & learner schedule later

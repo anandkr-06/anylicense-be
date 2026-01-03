@@ -70,6 +70,9 @@ export class Learner {
 
   @Prop({ trim: true })
   profileImage?: string;
+
+  @Prop({ required: false, default: 0 })
+  walletBalance!: number;
 }
 
 export const LearnerSchema = SchemaFactory.createForClass(Learner);

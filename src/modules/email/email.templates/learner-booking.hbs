@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Booking Confirmed</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f6f8fb;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+    .header {
+      background: #1e88e5;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 24px;
+      color: #333333;
+    }
+    .content p {
+      line-height: 1.6;
+      margin: 10px 0;
+    }
+    .details {
+      margin-top: 20px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .details h3 {
+      margin-top: 0;
+      color: #1e88e5;
+    }
+    .details table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .details td {
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .details td:first-child {
+      font-weight: bold;
+      color: #555;
+      width: 40%;
+    }
+    .footer {
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      background: #fafafa;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: #1e88e5;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>🎉 Booking Confirmed</h2>
+    </div>
+
+    <div class="content">
+      <p>Hi <strong>{{learnerName}}</strong>,</p>
+
+      <p>
+        Your driving lesson booking has been <strong>successfully confirmed</strong>.
+        Here are the details of your booking:
+      </p>
+
+      <div class="details">
+        <h3>📋 Booking Details</h3>
+        <table>
+          <tr>
+            <td>Instructor</td>
+            <td>{{instructorName}}</td>
+          </tr>
+          <tr>
+            <td>Vehicle Type</td>
+            <td>{{vehicleType}}</td>
+          </tr>
+          <tr>
+            <td>Lesson Date</td>
+            <td>{{date}}</td>
+          </tr>
+          <tr>
+            <td>Time Slot</td>
+            <td>{{startTime}} – {{endTime}}</td>
+          </tr>
+          <tr>
+            <td>Total Hours</td>
+            <td>{{totalHours}}</td>
+          </tr>
+          <tr>
+            <td>Total Amount</td>
+            <td>₹{{totalAmount}}</td>
+          </tr>
+          <tr>
+            <td>Booking ID</td>
+            <td>{{orderId}}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p>
+        Please be available at least <strong>10 minutes</strong> before your lesson starts.
+        If you need to reschedule or cancel, you can do so from your dashboard.
+      </p>
+
+      {{#if dashboardUrl}}
+      <a href="{{dashboardUrl}}" class="btn">View My Bookings</a>
+      {{/if}}
+    </div>
+
+    <div class="footer">
+      <p>
+        © {{year}} AnyLicense. All rights reserved.
+      </p>
+      <p>
+        Need help? Contact us at
+        <a href="mailto:support@anylicense.com">support@anylicense.com</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

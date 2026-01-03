@@ -32,11 +32,11 @@ export class LearnerService {
   ) {} 
   
   async getOrdersForLearner(learnerId: string) {
-    try {
-      await this.notificationService.testMail();
-    } catch (e) {
-      this.logger.error('Email failed but continuing', e);
-    }
+    // try {
+    //   await this.notificationService.testMail();
+    // } catch (e) {
+    //   this.logger.error('Email failed but continuing', e);
+    // }
   
     return this.orderModel
       .find({ learnerId })
@@ -58,7 +58,6 @@ export class LearnerService {
 
   async getLearnerBookedSlots(learnerId: string) {
     const order = await this.orderModel.findOne({
-      // _id: orderId,
       learnerId,
     });
   
@@ -67,13 +66,7 @@ export class LearnerService {
     }
   
     return order;
-    // return {
-    //   orderId: order._id,
-    //   bookedSlots: order.bookedSlots,
-    //   perHourRate: order.pricePerHour,
-    //   totalHours: order.totalHours,
-    //   totalAmount: order.totalAmount
-    // };
+    
   }
 
   

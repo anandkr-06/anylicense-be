@@ -89,7 +89,7 @@ export class StripeService {
     return {
       clientSecret: paymentIntent.client_secret,
       amount: order.totalAmount,
-      currency: 'INR',
+      currency: 'AUD',
     };
   }
   
