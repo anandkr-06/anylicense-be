@@ -232,7 +232,7 @@ export class InstructorService {
 
   async appendWeek(
     userId: string,
-    { startDate, endDate }: { startDate: string; endDate: string }
+    { startDate, endDate, days }: { startDate: string; endDate: string, days: any[] }
   ) {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -251,22 +251,22 @@ export class InstructorService {
     const weekId = `${startDate}_${endDate}`;
   
     // 🔹 generate days
-    const days = [];
-    const current = new Date(start);
+    // const days = [];
+    // const current = new Date(start);
   
-    while (current <= end) {
-      days.push({
-        date: current.toISOString().split('T')[0],
-        slots: [],
-      });
-      current.setDate(current.getDate() + 1);
-    }
+    // while (current <= end) {
+    //   days.push({
+    //     date: current.toISOString().split('T')[0],
+    //     slots: [],
+    //   });
+    //   current.setDate(current.getDate() + 1);
+    // }
   
     const week = {
       weekId,
       startDate,
       endDate,
-      days,
+      days: days,
     };
   
     // 🔒 atomic append (NO overwrite, NO duplicate)

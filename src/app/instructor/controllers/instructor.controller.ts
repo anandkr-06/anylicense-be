@@ -73,7 +73,7 @@ getAvailableSlots(
  @Post('availability/week')
  addWeek(
   @Req() @CurrentUser() currentUser: JwtPayload,
-   @Body() body: { startDate: string; endDate: string }
+   @Body() body: { startDate: string; endDate: string, days: any[] }
  ) {
    return this.instructorService.appendWeek(
     currentUser.sub,

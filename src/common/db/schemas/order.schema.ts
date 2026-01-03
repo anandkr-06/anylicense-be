@@ -20,6 +20,28 @@ export class Order {
   @Prop({ required: true })
   pricePerHour!: number;
 
+  @Prop({ required: false, default: 0 })
+  discount!: number;
+
+  @Prop({ required: false, default: 0 })
+  platformCharge!: number;
+
+  @Prop({ required: false })
+  coupons!: string;
+
+  @Prop({ required: false, default: 0 })
+  couponValue!: number;
+
+  @Prop({ required: true, default: 0 })
+  walletUsed!: number;        // amount
+  
+  @Prop({ required: true, default: 0 })
+  payableAmount!: number;    // remaining amount after wallet
+
+  @Prop({ enum: ['NOT_REQUIRED', 'PENDING', 'PAID'], required: true })
+  paymentStatus!: 'NOT_REQUIRED' | 'PENDING' | 'PAID';
+
+
   @Prop({ required: true })
   totalAmount!: number;
 
@@ -40,8 +62,8 @@ export class Order {
   }[];
 
   @Prop({
-    enum: ['PENDING', 'CONFIRMED', 'CANCELLED'],
-    default: 'PENDING',
+    enum: ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED'],
+    default: 'PENDING_PAYMENT',
   })
   status!: string;
 }
