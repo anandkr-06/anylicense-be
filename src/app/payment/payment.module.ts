@@ -9,7 +9,10 @@ import { UserSchema, User } from '@common/db/schemas/user.schema';
 import { PaymentController } from './controllers/payment.controller'; 
 import { StripeService } from './services/payment.service'; 
 import { OrdersModule } from '@app/order/order.module';
-
+import { StripeWebhookController } from './controllers/webhook.controller';
+import {InstructorModule} from '@app/instructor/instructor.module';
+import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
 
 @Module({
   imports: [
@@ -21,11 +24,18 @@ import { OrdersModule } from '@app/order/order.module';
       { name: Payment.name, schema: PaymentSchema },
       { name: Order.name, schema: OrderSchema },
       { name: User.name, schema: UserSchema },
+      {
+        name: InstructorProfile.name,
+        schema: InstructorProfileSchema,
+      },
+      { name: Learner.name, schema: LearnerSchema },
     ]),
     DbModule,
     OrdersModule,
+    InstructorModule
+    
   ],
-  controllers: [PaymentController],
+  controllers: [PaymentController,StripeWebhookController],
   providers: [StripeService, UserDbService],
   exports: [StripeService],
 })
