@@ -69,7 +69,7 @@ export class StripeService {
     }
   
     const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(order.totalAmount * 100), // INR → paise
+      amount: Math.round(order.totalAmount * 100), // AUD → paise
       currency: 'AUD',
       automatic_payment_methods: { enabled: true },
       metadata: {
@@ -88,7 +88,7 @@ export class StripeService {
   
     return {
       clientSecret: paymentIntent.client_secret,
-      amount: order.totalAmount,
+      amount: Math.round(order.totalAmount * 100),
       currency: 'AUD',
     };
   }
