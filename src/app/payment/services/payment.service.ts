@@ -81,7 +81,7 @@ export class StripeService {
   
     await this.paymentModel.create({
       orderId: order._id,
-      amount: order.totalAmount,
+      amount: Math.round(order.totalAmount * 100),
       stripePaymentIntentId: paymentIntent.id,
       status: 'INITIATED',
     });
