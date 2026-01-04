@@ -135,78 +135,60 @@ export class StripeWebhookController {
   //   return { received: true };
   // }
   
+
+
   @Post()
-handleWebhook(
+async handleWebhook(
   @Req() req: Request,
   @Headers('stripe-signature') signature: string,
 ) {
-  console.log('Is buffer:', Buffer.isBuffer(req.body));
-  console.log('Body length:', req.body?.length);
-  console.log('Signature exists:', !!signature);
+  //const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!); // ✅ no apiVersion
+  const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
+    // apiVersion: '2024-06-20',
+    apiVersion: '2025-12-15.clover',
+  });
 
-  const event = this.stripe.webhooks.constructEvent(
-    req.body,
+  const event = stripe.webhooks.constructEvent(
+    req.body, // MUST be raw buffer
     signature,
     process.env['STRIPE_WEBHOOK_SECRET']!,
   );
 
-  console.log('Stripe event:', event.type);
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object as Stripe.PaymentIntent;
+
+    await this.paymentModel.findOneAndUpdate(
+      { stripePaymentIntentId: intent.id },
+      {
+        status: 'SUCCESS',
+        stripeChargeId: intent.latest_charge,
+      },
+    );
+
+    await this.orderModel.findByIdAndUpdate(
+      intent.metadata['orderId'],
+      { status: 'CONFIRMED' },
+    );
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    const intent = event.data.object as Stripe.PaymentIntent;
+
+    await this.paymentModel.findOneAndUpdate(
+      { stripePaymentIntentId: intent.id },
+      { status: 'FAILED' },
+    );
+
+    await this.orderModel.findByIdAndUpdate(
+      intent.metadata['orderId'],
+      { status: 'CANCELLED' },
+    );
+
+    await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
+  }
+
   return { received: true };
 }
-
-
-//   @Post()
-// async handleWebhook(
-//   @Req() req: Request,
-//   @Headers('stripe-signature') signature: string,
-// ) {
-//   //const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!); // ✅ no apiVersion
-//   const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
-//     // apiVersion: '2024-06-20',
-//     apiVersion: '2025-12-15.clover',
-//   });
-
-//   const event = stripe.webhooks.constructEvent(
-//     req.body, // MUST be raw buffer
-//     signature,
-//     process.env['STRIPE_WEBHOOK_SECRET']!,
-//   );
-
-//   if (event.type === 'payment_intent.succeeded') {
-//     const intent = event.data.object as Stripe.PaymentIntent;
-
-//     await this.paymentModel.findOneAndUpdate(
-//       { stripePaymentIntentId: intent.id },
-//       {
-//         status: 'SUCCESS',
-//         stripeChargeId: intent.latest_charge,
-//       },
-//     );
-
-//     await this.orderModel.findByIdAndUpdate(
-//       intent.metadata['orderId'],
-//       { status: 'CONFIRMED' },
-//     );
-//   }
-
-//   if (event.type === 'payment_intent.payment_failed') {
-//     const intent = event.data.object as Stripe.PaymentIntent;
-
-//     await this.paymentModel.findOneAndUpdate(
-//       { stripePaymentIntentId: intent.id },
-//       { status: 'FAILED' },
-//     );
-
-//     await this.orderModel.findByIdAndUpdate(
-//       intent.metadata['orderId'],
-//       { status: 'CANCELLED' },
-//     );
-
-//     await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
-//   }
-
-//   return { received: true };
-// }
 
 
 
