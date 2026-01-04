@@ -3,18 +3,20 @@ import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false, // 🔥 REQUIRED
+  });
 
-  // 🔥 MUST be first — before prefix, pipes, guards
+  // 🔥 Stripe webhook MUST be raw
   app.use(
     '/api/webhooks/stripe',
     bodyParser.raw({ type: 'application/json' }),
   );
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // ✅ JSON for rest of app
+  app.use(bodyParser.json());
 
-  // Normal app stuff
+  app.setGlobalPrefix('api');
   app.enableCors({ origin: '*' });
 
   await app.listen(3001);
