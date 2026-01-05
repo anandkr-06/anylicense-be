@@ -40,6 +40,21 @@ export class Slot {
   @Prop({ default: false })
 isBooked?: boolean;
 
+// ✅ Pickup location PER SLOT
+@Prop({
+  type: {
+    pickupAddress: { type: String, required: true },
+    suburb: { type: String, required: true },
+    state: { type: String, required: true },
+  },
+  required: true,
+})
+pickupLocation!: {
+  pickupAddress: string;
+  suburb: string;
+  state: string;
+};
+
 @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
 bookingId?: Types.ObjectId;
 
