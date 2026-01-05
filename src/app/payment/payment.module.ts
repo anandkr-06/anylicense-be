@@ -13,6 +13,7 @@ import { StripeWebhookController } from './controllers/webhook.controller';
 import {InstructorModule} from '@app/instructor/instructor.module';
 import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
 import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
+import { WalletModule } from '@app/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
     ]),
     DbModule,
     OrdersModule,
-    InstructorModule
+    InstructorModule,
+    WalletModule,
     
   ],
   controllers: [PaymentController,StripeWebhookController],
