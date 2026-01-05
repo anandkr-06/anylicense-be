@@ -23,7 +23,21 @@ import {
     @IsNotEmpty()
     @IsString()
     endTime!: string; // HH:mm
+  
+    // 🔥 PICKUP PER SLOT
+    @IsNotEmpty()
+    @IsString()
+    pickupAddress!: string;
+  
+    @IsNotEmpty()
+    @IsString()
+    suburb!: string;
+  
+    @IsNotEmpty()
+    @IsString()
+    state!: string;
   }
+  
   
   export class CreateOrderDto {
     @IsNotEmpty()
@@ -37,33 +51,42 @@ import {
     @IsNotEmpty()
     @IsNumber()
     @Min(1)
-    totalHours!: number; // 5, 10, 12...
-
-    @IsOptional()
+    totalHours!: number;
+  
+    // 🔐 CALCULATED AMOUNT (validated)
+    @IsNotEmpty()
     @IsNumber()
-    @Min(1)
-    coupons!: number; // coupon code value
-    
+    @Min(0)
+    totalAmount!: number;
+  
+    // 💰 WALLET INTENT
+    @IsOptional()
+    useWallet?: boolean;
+  
+    // 🎟 COUPON
+    @IsOptional()
+    @IsString()
+    couponCode?: string;
+  
     @IsOptional()
     @IsNumber()
     @Min(0)
-    couponValue!: number; // coupon discount value
-
+    couponValue?: number;
+  
+    // 🧾 PLATFORM
     @IsOptional()
     @IsNumber()
     @Min(0)
-    platformCharge!: number; // platform charge value
-
+    platformCharge?: number;
+  
     @IsOptional()
     @IsNumber()
     @Min(0)
-    discount!: number; // discount value
-
-
-    
-    /** 
+    discount?: number;
+  
+    /**
      * Optional slot booking
-     * If not provided → instructor & learner schedule later
+     * If absent → wallet credit + later scheduling
      */
     @IsOptional()
     @IsArray()
@@ -71,4 +94,5 @@ import {
     @Type(() => SlotDto)
     slots?: SlotDto[];
   }
+  
   

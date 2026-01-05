@@ -23,6 +23,15 @@ import {
     @IsNotEmpty()
     @IsString()
     endTime!: string; // HH:mm
+    // 🔥 NEW FIELDS
+  @IsString()
+  pickupAddress!: string;
+
+  @IsString()
+  suburb!: string;
+
+  @IsString()
+  state!: string;
   }
   
   export class CreateOrderDto {

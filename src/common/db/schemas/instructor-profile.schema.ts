@@ -146,6 +146,17 @@ export class TimeSlot {
     
     @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
     bookingId?: Types.ObjectId;
+  pickupAddress?: string;
+ 
+    //   // 🔥 NEW FIELDS
+  // @Prop()
+  // pickupAddress?: string;
+
+  // @Prop()
+  // suburb?: string;
+
+  // @Prop()
+  // state?: string;
 }
 
 @Schema({ _id: false })
