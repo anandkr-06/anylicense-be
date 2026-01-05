@@ -92,11 +92,11 @@ export class OrderService {
       usedAmount = usedHours * vehicle.pricePerHour;
 
 
-      if (usedAmount > totalAmount) {
-        throw new BadRequestException(
-          'Slot amount exceeds total order amount',
-        );
-      }
+      // if (usedAmount > totalAmount) {
+      //   throw new BadRequestException(
+      //     'Slot amount exceeds total order amount',
+      //   );
+      // }
     }
 
 
