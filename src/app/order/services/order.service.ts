@@ -7,6 +7,7 @@ import { InjectModel, Virtual } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 import { UserDbService } from '@common/db/services/user.db.service';
+import { WalletService } from '@app/wallet/services/wallet.service';
 
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import {
@@ -21,12 +22,14 @@ import {
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Logger } from 'nestjs-pino';
 import { PLATFORM_CHARGE } from '@constant/packages';
+import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 
 
 @Injectable()
 export class OrderService {
   constructor(
     private readonly userDbService: UserDbService,
+    private readonly walletService: WalletService,
 
     @InjectModel(InstructorProfile.name)
     private readonly instructorProfileModel: Model<InstructorProfileDocument>,
@@ -176,6 +179,14 @@ export class OrderService {
         })) ?? [],
     });
 
+
+    await this.walletService.creditWallet(
+      learnerId,
+      walletCredit,
+      WalletTxnSource.ORDER,
+      order._id,
+    );
+    
     // =====================================================
     // BOOK SLOTS IN INSTRUCTOR AVAILABILITY
     // =====================================================
