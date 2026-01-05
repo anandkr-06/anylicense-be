@@ -11,6 +11,9 @@ import { Payment,PaymentDocument } from '@common/db/schemas/payment.schema';
 import { InjectModel } from '@nestjs/mongoose';
 
 import Stripe from 'stripe';
+import { MetadataScanner } from '@nestjs/core';
+import { platform } from 'os';
+import { PLATFORM_CHARGE } from '@constant/packages';
 
 @Injectable()
 export class StripeService {
@@ -90,6 +93,17 @@ export class StripeService {
       clientSecret: paymentIntent.client_secret,
       amount: Math.round(order.totalAmount * 100),
       currency: 'AUD',
+      metadata:{
+        orderId: order._id.toString(),
+        learnerId: order.learnerId.toString(),
+        coupons: order.coupons || '',
+        walletUsed: order.walletUsed || 0,
+        platformCharge: PLATFORM_CHARGE,
+        discount: order.discount || 0,
+        couponValue: order.couponValue || 0,
+        vehicleType: order.vehicleType || '',
+        pricePerHour: order.pricePerHour || 0,
+      }
     };
   }
   
