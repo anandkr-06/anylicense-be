@@ -8,11 +8,12 @@ import {
   Req,
   UseGuards,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
-import { WalletTransaction, WalletTransactionDocument } from '@common/db/schemas/wallet-transaction.schema';
+import { WalletTransaction } from '@common/db/schemas/wallet-transaction.schema';
 import { Learner, LearnerDocument } from '@common/db/schemas/learner.schema';
 import { JwtPayload } from '@interfaces/user.interface';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
@@ -23,12 +24,13 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 export class WalletController {
   constructor(
     @InjectModel(WalletTransaction.name)
-    private readonly walletTxnModel: Model<WalletTransactionDocument>,
+    private readonly walletTxnModel: Model<WalletTransaction>,
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
   ) {}
 
+  
   // =====================================================
   // GET WALLET BALANCE
   // =====================================================
@@ -86,15 +88,19 @@ export class WalletController {
     @Req() @CurrentUser() currentUser: JwtPayload,
     @Param('id') txnId: string,
   ) {
+    if (!Types.ObjectId.isValid(txnId)) {
+      throw new BadRequestException('Invalid transaction id');
+    }
+  
     const txn = await this.walletTxnModel.findOne({
-      _id: txnId,
-      learnerId: currentUser.sub,
+      _id: new Types.ObjectId(txnId),
+      learnerId: new Types.ObjectId(currentUser.sub),
     });
-
+  
     if (!txn) {
       throw new NotFoundException('Transaction not found');
     }
-
+  
     return txn;
   }
 

@@ -41,6 +41,7 @@ export class StripeWebhookController {
     private readonly learnerModel: Model<LearnerDocument>,
     
     private readonly walletService: WalletService, // ✅ correct
+    
   ) {}
 
   private async unlockSlots(orderId: Types.ObjectId) {
@@ -68,19 +69,67 @@ export class StripeWebhookController {
 
  
 
-  @Post()
+//   @Post()
+// async handleWebhook(
+//   @Req() req: Request,
+//   @Headers('stripe-signature') signature: string,
+// ) {
+//   //const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!); // ✅ no apiVersion
+//   const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
+//     // apiVersion: '2024-06-20',
+//     apiVersion: '2025-12-15.clover',
+//   });
+
+//   const event = stripe.webhooks.constructEvent(
+//     req.body, // MUST be raw buffer
+//     signature,
+//     process.env['STRIPE_WEBHOOK_SECRET']!,
+//   );
+
+//   if (event.type === 'payment_intent.succeeded') {
+//     const intent = event.data.object as Stripe.PaymentIntent;
+
+//     await this.paymentModel.findOneAndUpdate(
+//       { stripePaymentIntentId: intent.id },
+//       {
+//         status: 'SUCCESS',
+//         stripeChargeId: intent.latest_charge,
+//       },
+//     );
+
+//     await this.orderModel.findByIdAndUpdate(
+//       intent.metadata['orderId'],
+//       { status: 'CONFIRMED' },
+//     );
+//   }
+
+//   if (event.type === 'payment_intent.payment_failed') {
+//     const intent = event.data.object as Stripe.PaymentIntent;
+
+//     await this.paymentModel.findOneAndUpdate(
+//       { stripePaymentIntentId: intent.id },
+//       { status: 'FAILED' },
+//     );
+
+//     await this.orderModel.findByIdAndUpdate(
+//       intent.metadata['orderId'],
+//       { status: 'CANCELLED' },
+//     );
+    
+    
+//     await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
+//   }
+  
+//   return { received: true };
+// }
+
+@Post()
 async handleWebhook(
   @Req() req: Request,
   @Headers('stripe-signature') signature: string,
 ) {
-  //const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!); // ✅ no apiVersion
-  const stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
-    // apiVersion: '2024-06-20',
-    apiVersion: '2025-12-15.clover',
-  });
-
-  const event = stripe.webhooks.constructEvent(
-    req.body, // MUST be raw buffer
+  const event = this.stripe.webhooks.constructEvent(
+    req.body,
     signature,
     process.env['STRIPE_WEBHOOK_SECRET']!,
   );
@@ -115,6 +164,24 @@ async handleWebhook(
       { status: 'CANCELLED' },
     );
 
+    await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
+  }
+
+  // ✅ ADD THIS BLOCK
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+
+    const payment = await this.paymentModel.findOne({
+      stripeChargeId: charge.id,
+    });
+    if (!payment) return { received: true };
+
+    const order = await this.orderModel.findById(payment.orderId);
+    if (!order || !order.walletUsed || order.walletUsed <= 0) {
+      return { received: true };
+    }
+
+    // ✅ THIS IS THE ONLY PLACE YOU CALL WALLET
     await this.walletService.creditWallet(
       order.learnerId,
       order.walletUsed,
@@ -122,9 +189,12 @@ async handleWebhook(
       order._id,
       `stripe-refund-${event.id}`,
     );
-    
-    
-    await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
+
+    await this.orderModel.findByIdAndUpdate(order._id, {
+      status: 'REFUNDED',
+    });
+
+    await this.unlockSlots(order._id);
   }
 
   return { received: true };

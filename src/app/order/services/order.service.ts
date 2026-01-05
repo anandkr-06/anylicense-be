@@ -22,14 +22,16 @@ import {
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Logger } from 'nestjs-pino';
 import { PLATFORM_CHARGE } from '@constant/packages';
-import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
+import { WalletTransaction, WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
+
 
 
 @Injectable()
 export class OrderService {
+  walletService: any;
   constructor(
     private readonly userDbService: UserDbService,
-    private readonly walletService: WalletService,
+    // private readonly walletService: WalletService,
 
     @InjectModel(InstructorProfile.name)
     private readonly instructorProfileModel: Model<InstructorProfileDocument>,
@@ -40,6 +42,9 @@ export class OrderService {
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
     private readonly logger: Logger,
+
+
+
   ) { }
 
   // =====================================================
@@ -178,14 +183,6 @@ export class OrderService {
           },
         })) ?? [],
     });
-
-
-    await this.walletService.creditWallet(
-      learnerId,
-      walletCredit,
-      WalletTxnSource.ORDER,
-      order._id,
-    );
     
     // =====================================================
     // BOOK SLOTS IN INSTRUCTOR AVAILABILITY
@@ -202,11 +199,23 @@ export class OrderService {
     // =====================================================
     // CREDIT WALLET IF NEEDED
     // =====================================================
-    if (walletCredit > 0) {
-      await this.learnerModel.findByIdAndUpdate(learnerId, {
-        $inc: { walletBalance: walletCredit },
-      });
+    // if (walletCredit > 0) {
+    //   await this.learnerModel.findByIdAndUpdate(learnerId, {
+    //     $inc: { walletBalance: walletCredit },
+    //   });
+    // }
+    if (usedAmount > 0) {
+      await this.walletService.debitWallet(
+        learnerId,
+        usedAmount,
+        WalletTxnSource.ORDER,
+        order._id,
+        `ORDER_WALLET_DEBIT_${order._id}`,
+      );
     }
+    
+
+    
 
     return order;
   }

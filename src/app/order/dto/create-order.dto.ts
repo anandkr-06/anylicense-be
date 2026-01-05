@@ -93,6 +93,7 @@ import {
     @ValidateNested({ each: true })
     @Type(() => SlotDto)
     slots?: SlotDto[];
+    learnerId: string | undefined;
   }
   
   

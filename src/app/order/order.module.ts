@@ -15,6 +15,7 @@ import { OrderService } from './services/order.service';
 import { Slot, SlotSchema } from '@common/db/schemas/slot.schema';
 import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
 import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
+import { WalletModule } from '@app/wallet/wallet.module';
 
 
 @Module({
@@ -39,6 +40,7 @@ import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
     DbModule,
     InstructorModule,
     LeanerModule,
+    WalletModule, // ✅ ADD THIS
   ],
   controllers: [OrdersController],
   providers: [OrderService, UserDbService],

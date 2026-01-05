@@ -30,14 +30,16 @@ export class WalletTransaction {
   @Prop({ required: true, min: 0 })
   amount!: number;
 
+  // ✅ REQUIRED FOR LEDGER
   @Prop({ required: true })
   balanceAfter!: number;
 
   @Prop({ enum: WalletTxnSource, required: true })
   source!: WalletTxnSource;
 
+  // 🔁 BUSINESS REFERENCE (orderId, paymentId)
   @Prop({ type: Types.ObjectId })
-  referenceId?: Types.ObjectId; // orderId / paymentId
+  referenceEntityId?: Types.ObjectId;
 
   @Prop()
   description?: string;
@@ -45,10 +47,14 @@ export class WalletTransaction {
   @Prop({ enum: WalletTxnStatus, default: WalletTxnStatus.COMPLETED })
   status!: WalletTxnStatus;
 
-  @Prop({ unique: true, sparse: true })
+  // 🔐 STRIPE / ORDER IDEMPOTENCY
+  @Prop({ type: String, unique: true, sparse: true })
   idempotencyKey?: string;
 }
 
-export type WalletTransactionDocument = WalletTransaction & Document;
 export const WalletTransactionSchema =
   SchemaFactory.createForClass(WalletTransaction);
+
+// 🔒 STRONG INDEXES
+WalletTransactionSchema.index({ learnerId: 1, createdAt: -1 });
+

@@ -23,6 +23,7 @@ import { SearchModule } from '@app/search/search.module';
 import { UserLearnersModule } from '@app/userlearners/user.module';
 import {OrdersModule} from '@app/order/order.module'
 import { PaymentsModule } from '@app/payment/payment.module';
+import { WalletModule } from '@app/wallet/wallet.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { PaymentsModule } from '@app/payment/payment.module';
     SearchModule,
     OrdersModule,
     PaymentsModule,
+    WalletModule,
   ],
   providers: [
     GlobalExceptionFilter,

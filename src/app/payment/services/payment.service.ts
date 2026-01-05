@@ -30,34 +30,6 @@ export class StripeService {
     });
   }
 
-  // async createPaymentIntent(orderId: string) {
-  //   const order = await this.orderModel.findById(orderId);
-
-  //   if (!order || order.status !== 'PENDING_PAYMENT') {
-  //     throw new BadRequestException('Invalid order');
-  //   }
-
-  //   const paymentIntent = await this.stripe.paymentIntents.create({
-  //     amount: order.totalAmount * 100, // paise
-  //     currency: 'inr',
-  //     metadata: {
-  //       orderId: order._id.toString(),
-  //     },
-  //   });
-
-  //   await this.paymentModel.create({
-  //     orderId: order._id,
-  //     amount: order.totalAmount,
-  //     stripePaymentIntentId: paymentIntent.id,
-  //     status: 'INITIATED',
-  //   });
-
-  //   return {
-  //     clientSecret: paymentIntent.client_secret,
-  //     amount: order.totalAmount,
-  //     currency: 'INR',
-  //   };
-  // }
   async createPaymentIntent(orderId: string) {
     const order = await this.orderModel.findById(orderId);
   
