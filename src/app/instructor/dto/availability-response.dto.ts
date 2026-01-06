@@ -6,6 +6,10 @@ export class SlotResponseDto {
   startTime!: string;
   endTime!: string;
   isBooked!: boolean;
+  bookingId?: string;
+  // pickupAddress?: string;
+  // suburb?: string;
+  // state?: string;
 }
 export class DayAvailabilityResponseDto {
   date!: string;
