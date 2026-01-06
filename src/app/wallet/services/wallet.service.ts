@@ -21,11 +21,10 @@ export class WalletService {
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
   ) {}
-  
+
   async isTxnExists(idempotencyKey: string): Promise<boolean> {
-    return !!(await this.walletTxnModel.findOne({ idempotencyKey }));
+    return !!(await this.walletTxnModel.exists({ idempotencyKey }));
   }
-  
 
   async creditWallet(
     learnerId: Types.ObjectId | string,
@@ -35,36 +34,36 @@ export class WalletService {
     idempotencyKey: string,
   ) {
     if (amount <= 0) return;
-  
+
     // 🔒 Idempotency
     if (await this.isTxnExists(idempotencyKey)) return;
-  
+
     const learner = await this.learnerModel.findById(learnerId);
-    if (!learner) {
-      throw new Error('Learner not found');
-    }
-  
+    if (!learner) throw new NotFoundException('Learner not found');
+
     const newBalance = learner.walletBalance + amount;
-  
-    // 1️⃣ Create ledger entry
+    
+    
+    // ✅ Create ledger FIRST (authoritative record)
+   
     await this.walletTxnModel.create({
       learnerId: learner._id,
       type: WalletTxnType.CREDIT,
       amount,
       balanceAfter: newBalance,
-      source,
+      source: WalletTxnSource.STRIPE, // ✅ NOW VALID
       referenceEntityId: orderId,
       idempotencyKey,
+      status: WalletTxnStatus.COMPLETED, // ✅ CORRECT
     });
-  
-    // 2️⃣ Update actual balance
+
+    // ✅ Update wallet balance
     await this.learnerModel.updateOne(
       { _id: learner._id },
       { $inc: { walletBalance: amount } },
     );
   }
-  
-  
+
   async debitWallet(
     learnerId: Types.ObjectId | string,
     amount: number,
@@ -73,16 +72,16 @@ export class WalletService {
     idempotencyKey: string,
   ) {
     if (amount <= 0) return;
-  
+
     if (await this.isTxnExists(idempotencyKey)) return;
-  
+
     const learner = await this.learnerModel.findById(learnerId);
     if (!learner || learner.walletBalance < amount) {
       throw new Error('Insufficient wallet balance');
     }
-  
+
     const newBalance = learner.walletBalance - amount;
-  
+
     await this.walletTxnModel.create({
       learnerId: learner._id,
       type: WalletTxnType.DEBIT,
@@ -91,35 +90,12 @@ export class WalletService {
       source,
       referenceEntityId: orderId,
       idempotencyKey,
+      status: WalletTxnStatus.COMPLETED, // 🔥 REQUIRED
     });
-  
+
     await this.learnerModel.updateOne(
       { _id: learner._id },
       { $inc: { walletBalance: -amount } },
     );
   }
-  
-  
-  async reverseTransaction(txnId: Types.ObjectId) {
-    const txn = await this.walletTxnModel.findById(txnId);
-    if (!txn || txn.status === WalletTxnStatus.REVERSED) return;
-  
-    const learner = await this.learnerModel.findById(txn.learnerId);
-    if (!learner) return;
-  
-    if (txn.type === WalletTxnType.DEBIT) {
-      learner.walletBalance += txn.amount;
-    } else {
-      learner.walletBalance -= txn.amount;
-    }
-  
-    await learner.save();
-  
-    txn.status = WalletTxnStatus.REVERSED;
-    await txn.save();
-  }
-
-  
-
 }
-
