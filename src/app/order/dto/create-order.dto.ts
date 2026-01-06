@@ -10,6 +10,7 @@ import {
     Min,
   } from 'class-validator';
   import { Type } from 'class-transformer';
+
   
   export class SlotDto {
     @IsNotEmpty()
@@ -62,7 +63,10 @@ import {
     // 💰 WALLET INTENT
     @IsOptional()
     useWallet?: boolean;
-  
+    @IsOptional()
+    @IsNumber()  @Min(0)
+    walletUsed?: number; // ✅ ADD THIS
+
     // 🎟 COUPON
     @IsOptional()
     @IsString()
