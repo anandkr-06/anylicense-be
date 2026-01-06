@@ -3,11 +3,17 @@ import { Types } from 'mongoose';
 
 export class TimeSlotDto {
   @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  @Matches(
+    /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i,
+    { message: 'Time must be in hh:mm AM/PM format' },
+  )
   startTime!: string;
 
   @IsString()
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  @Matches(
+    /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i,
+    { message: 'Time must be in hh:mm AM/PM format' },
+  )
   endTime!: string;
 
   @IsBoolean()
