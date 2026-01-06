@@ -32,8 +32,9 @@ import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'; 
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
+import { amPmTo24, convertTo24Hour, toAmPm } from '@constant/slots';
 
-
+import { CreateDaySlotDto } from '../dto/create-slot.dto';
 
 
 @Injectable()
@@ -114,26 +115,30 @@ export class InstructorService {
   }
   
   private findSlot(
-    instructor: InstructorProfileDocument,
+    instructor: InstructorProfile,
     reqSlot: {
       date: string;
       startTime: string;
       endTime: string;
     },
-  ): TimeSlot | undefined {
-    for (const week of instructor.availability.weeks) {
-      const day = week.days.find(d => d.date === reqSlot.date);
-      if (!day) continue;
+  ) {
+    for (const week of instructor.availability?.weeks || []) {
+      for (const day of week.days) {
+        if (day.date !== reqSlot.date) continue;
   
-      return day.slots.find(
-        slot =>
-          slot.startTime === reqSlot.startTime &&
-          slot.endTime === reqSlot.endTime,
-      );
+        return day.slots.find(
+          slot =>
+            slot.startTime === reqSlot.startTime &&
+            slot.endTime === reqSlot.endTime,
+        );
+      }
     }
   
-    return undefined;
+    return null;
   }
+  
+  
+  
   
 
   private getTodayISODate(): string {
@@ -145,7 +150,7 @@ export class InstructorService {
     timeOfDay?: 'AM' | 'PM',
   ) {
     const instructor = await this.instructorProfileModel
-      .findOne({userId: new Types.ObjectId(instructorId)})
+      .findOne({ userId: new Types.ObjectId(instructorId) })
       .lean<InstructorProfile>();
   
     if (!instructor) {
@@ -153,23 +158,28 @@ export class InstructorService {
     }
   
     const today = this.getTodayISODate();
-  
     const result = [];
   
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         if (day.date < today) continue;
   
-        const validSlots = day.slots.filter(slot => {
-          if (slot.isBooked) return false;
+        const validSlots = day.slots
+          .filter(slot => {
+            if (slot.isBooked) return false;
   
-          if (timeOfDay) {
-            const hour = Number(slot.startTime.split(':')[0]);
-            return timeOfDay === 'AM' ? hour < 12 : hour >= 12;
-          }
+            if (timeOfDay) {
+              const hour = Number(slot.startTime.split(':')[0]);
+              return timeOfDay === 'AM' ? hour < 12 : hour >= 12;
+            }
   
-          return true;
-        });
+            return true;
+          })
+          .map(slot => ({
+            ...slot,
+            startTime: toAmPm(slot.startTime),
+            endTime: toAmPm(slot.endTime),
+          }));
   
         if (validSlots.length) {
           result.push({
@@ -184,56 +194,142 @@ export class InstructorService {
   }
   
   
+  
 
     
 
-  async checkAvailability(
-    instructorId: string,
-    dto: CheckAvailabilityDto,
-  ) {
-    const instructor = await this.instructorProfileModel.findOne({userId: new Types.ObjectId(instructorId)});
+  // async checkAvailability(
+  //   instructorId: string,
+  //   dto: CheckAvailabilityDto,
+  // ) {
+  //   const instructor = await this.instructorProfileModel.findOne({
+  //     userId: new Types.ObjectId(instructorId),
+  //   });
   
-    if (!instructor) {
-      throw new NotFoundException(`${instructorId}'Instructor not found'`);
-    }
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
   
-    // // Vehicle validation
-    // const vehicle = instructor.vehicles[dto.vehicleType];
-    // if (!vehicle?.hasVehicle) {
-    //   throw new BadRequestException('Vehicle not available');
-    // }
+  //   // 🔥 Normalize AM/PM → 24h
+  //   const normalizedSlots = dto.slots.map(slot => ({
+  //     ...slot,
+  //     startTime: amPmTo24(slot.startTime),
+  //     endTime: amPmTo24(slot.endTime),
+  //   }));
     
+
   
-    for (const reqSlot of dto.slots) {
-      const slot = this.findSlot(instructor, reqSlot);
+  //   for (const reqSlot of normalizedSlots) {
+  //     const slot = this.findSlot(instructor, reqSlot);
   
-      if (!slot) {
-        return {
-          available: false,
-          message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
-        };
-      }
+  //     if (!slot) {
+  //       return {
+  //         available: false,
+  //         message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime} ${JSON.stringify(dto.slots, null, 2)}`,
+  //       };
+  //     }
   
-      if (slot.isBooked) {
-        return {
-          available: false,
-          message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
-        };
-      }
-    }
+  //     if (slot.isBooked) {
+  //       return {
+  //         available: false,
+  //         message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
+  //       };
+  //     }
+  //   }
   
-    return {
-      available: true,
-      validSlots: dto.slots.length,
-      message: 'All requested slots are available',
-    };
+  //   return {
+  //     available: true,
+  //     validSlots: normalizedSlots.length,
+  //     message: 'All requested slots are available',
+  //   };
+  // }
+  
+  
+async checkAvailability(
+  instructorId: string,
+  dto: CheckAvailabilityDto,
+) {
+  const instructor = await this.instructorProfileModel.findOne({
+    userId: new Types.ObjectId(instructorId),
+  });
+
+  if (!instructor) {
+    throw new NotFoundException('Instructor not found');
   }
-  
+
+  // 🔥 helper → AM/PM or 24h → minutes
+  const toMinutes = (time: string): number => {
+    const t = amPmTo24(time); // must return HH:mm
+    const [h, m] = t.split(':').map(Number);
+    if (h === undefined || m === undefined) {
+      throw new BadRequestException('Invalid time format');
+    }
+    return h * 60 + m;
+  };
+
+  for (const reqSlot of dto.slots) {
+    const reqStart = toMinutes(reqSlot.startTime);
+    const reqEnd = toMinutes(reqSlot.endTime);
+
+    let matchedSlot = null;
+
+    for (const week of instructor.availability?.weeks || []) {
+      for (const day of week.days) {
+        if (day.date !== reqSlot.date) continue;
+
+        for (const slot of day.slots) {
+          const dbStart = toMinutes(slot.startTime);
+          const dbEnd = toMinutes(slot.endTime);
+
+          if (dbStart === reqStart && dbEnd === reqEnd) {
+            matchedSlot = slot;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!matchedSlot) {
+      return {
+        available: false,
+        message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
+      };
+    }
+
+    if (matchedSlot.isBooked) {
+      return {
+        available: false,
+        message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
+      };
+    }
+  }
+
+  return {
+    available: true,
+    validSlots: dto.slots.length,
+    message: 'All requested slots are available',
+  };
+}
+
 
   async appendWeek(
     userId: string,
-    { startDate, endDate, days }: { startDate: string; endDate: string, days: any[] }
+    {
+      startDate,
+      endDate,
+      days,
+    }: {
+      startDate: string;
+      endDate: string;
+      days: {
+        date: string;
+        slots: { startTime: string; endTime: string }[];
+      }[];
+    },
   ) {
+    // --------------------------------------------------
+    // 1️⃣ Date validations
+    // --------------------------------------------------
     const start = new Date(startDate);
     const end = new Date(endDate);
   
@@ -250,26 +346,63 @@ export class InstructorService {
   
     const weekId = `${startDate}_${endDate}`;
   
-    // 🔹 generate days
-    // const days = [];
-    // const current = new Date(start);
+    // --------------------------------------------------
+    // 2️⃣ Normalize days & slots
+    // --------------------------------------------------
+    const normalizedDays = days.map(day => {
+      const convertedSlots = day.slots.map(slot => {
+        const start = convertTo24Hour(slot.startTime);
+        const end = convertTo24Hour(slot.endTime);
   
-    // while (current <= end) {
-    //   days.push({
-    //     date: current.toISOString().split('T')[0],
-    //     slots: [],
-    //   });
-    //   current.setDate(current.getDate() + 1);
-    // }
+        if (start >= end) {
+          throw new BadRequestException(
+            `Invalid slot time ${slot.startTime} - ${slot.endTime} on ${day.date}`,
+          );
+        }
   
+        return {
+          startTime: start,
+          endTime: end,
+          isBooked: false,
+          bookingId: undefined,
+        };
+      });
+  
+      // 🧠 sort & overlap check
+      const sortedSlots = convertedSlots.sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      );
+  
+      for (let i = 1; i < sortedSlots.length; i++) {
+        const prev = sortedSlots[i - 1];
+        const curr = sortedSlots[i];
+  
+        if (curr && prev && curr.startTime < prev.endTime) {
+          throw new BadRequestException(
+            `Overlapping slots on ${day.date}`,
+          );
+        }
+      }
+  
+      return {
+        date: day.date,
+        slots: sortedSlots,
+      };
+    });
+  
+    // --------------------------------------------------
+    // 3️⃣ Build week object
+    // --------------------------------------------------
     const week = {
       weekId,
       startDate,
       endDate,
-      days: days,
+      days: normalizedDays,
     };
   
-    // 🔒 atomic append (NO overwrite, NO duplicate)
+    // --------------------------------------------------
+    // 4️⃣ Atomic append (no overwrite, no overlap)
+    // --------------------------------------------------
     const result = await this.instructorProfileModel.findOneAndUpdate(
       {
         userId: new Types.ObjectId(userId),
@@ -277,7 +410,7 @@ export class InstructorService {
         // prevent duplicate weekId
         'availability.weeks.weekId': { $ne: weekId },
   
-        // prevent overlapping ranges
+        // prevent overlapping date ranges
         'availability.weeks': {
           $not: {
             $elemMatch: {
@@ -292,7 +425,7 @@ export class InstructorService {
           'availability.weeks': week,
         },
       },
-      { new: true }
+      { new: true },
     );
   
     if (!result) {
@@ -301,11 +434,28 @@ export class InstructorService {
       );
     }
   
+    // return {
+    //   message: 'Week added successfully',
+    //   week,
+    // };
     return {
       message: 'Week added successfully',
-      week,
+      week: {
+        weekId,
+        startDate,
+        endDate,
+        days: normalizedDays.map(day => ({
+          date: day.date,
+          slots: day.slots.map(slot => ({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isBooked: slot.isBooked ?? false,
+          })),
+        })),
+      },
     };
   }
+  
   
   
   
@@ -353,79 +503,314 @@ export class InstructorService {
 
 
 // 2️⃣ UPDATE WHOLE WEEK
+
 async updateWeek(
   userId: string,
   weekId: string,
-  body: AvailabilityWeekDto
+  body: AvailabilityWeekDto,
 ) {
-
   if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
     throw new BadRequestException('Invalid weekId format');
   }
-  
-  const profile = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(userId) });
+
+  const profile = await this.instructorProfileModel.findOne({
+    userId: new Types.ObjectId(userId),
+  });
+
   if (!profile) throw new NotFoundException('Instructor not found');
 
-  const index = profile.availability.weeks.findIndex(
-    w => w.weekId === weekId
-  );
+  const week = profile.availability.weeks.find(w => w.weekId === weekId);
+  if (!week) throw new NotFoundException('Week not found');
 
-  if (index === -1) {
-    throw new NotFoundException('Week not found');
+  // ❌ prevent changing date range
+  if (
+    body.startDate !== week.startDate ||
+    body.endDate !== week.endDate
+  ) {
+    throw new BadRequestException(
+      'Week date range cannot be changed. Create a new week instead.',
+    );
   }
 
-  profile.availability.weeks[index] = {
-    ...body,
-    weekId
-  };
+  // ✅ normalize + validate slots
+  for (const day of body.days) {
+    day.slots = this.normalizeAndValidateSlots(day.slots);
+  }
+
+  week.days = body.days;
 
   await profile.save();
 
-  return { message: 'Week updated successfully' };
+  return { message: 'Week slots updated successfully' };
 }
 
-async updateDaySlots(
-    userId: string,
-    weekId: string,
-    body: { date: string; slots: any[] }
-  ) {
-    if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
-      throw new BadRequestException('Invalid weekId format');
+private normalizeAndValidateSlots(slots: any[]) {
+  const normalized = slots.map(slot => ({
+    ...slot,
+    startTime: convertTo24Hour(slot.startTime),
+    endTime: convertTo24Hour(slot.endTime),
+  }));
+
+  const sorted = normalized.sort((a, b) =>
+    a.startTime.localeCompare(b.startTime),
+  );
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].startTime < sorted[i - 1].endTime) {
+      throw new BadRequestException('Slots are overlapping');
     }
-    const profile = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(userId) });
-    if (!profile) throw new NotFoundException('Instructor not found');
-
-    const week = profile.availability.weeks.find(
-      w => w.weekId === weekId
-    );
-
-    if (!week) {
-      throw new NotFoundException('Week not found');
-    }
-
-    const day = week.days.find(d => d.date === body.date);
-
-    if (!day) {
-      throw new BadRequestException('Date not in selected week');
-    }
-
-    day.slots = body.slots;
-    await profile.save();
-
-    return { message: 'Day slots updated successfully' };
   }
+
+  return sorted;
+}
+
+// async updateWeek(
+//   userId: string,
+//   weekId: string,
+//   body: AvailabilityWeekDto,
+// ) {
+//   // -----------------------------------------------------
+//   // 1️⃣ Validate weekId
+//   // -----------------------------------------------------
+//   if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
+//     throw new BadRequestException('Invalid weekId format');
+//   }
+
+//   // -----------------------------------------------------
+//   // 2️⃣ Fetch instructor profile
+//   // -----------------------------------------------------
+//   const profile = await this.instructorProfileModel.findOne({
+//     userId: new Types.ObjectId(userId),
+//   });
+//   if (!profile) {
+//     throw new NotFoundException('Instructor not found');
+//   }
+
+//   const index = profile.availability.weeks.findIndex(
+//     w => w.weekId === weekId,
+//   );
+
+//   if (index === -1) {
+//     throw new NotFoundException('Week not found');
+//   }
+
+//   // -----------------------------------------------------
+//   // 3️⃣ Normalize & validate week slots
+//   // -----------------------------------------------------
+//   const normalizedWeek = {
+//     ...body,
+//     weekId,
+//     days: body.days.map(day => {
+//       if (!day.slots?.length) return day;
+
+//       // 🚫 Prevent editing booked slots
+//       const existingDay = profile.availability?.weeks[index]?.days.find(
+//         d => d.date === day.date,
+//       );
+
+//       if (existingDay?.slots.some(s => s.isBooked)) {
+//         throw new BadRequestException(
+//           `Cannot modify booked slots on ${day.date}`,
+//         );
+//       }
+
+//       // Convert & validate slots
+//       const convertedSlots = day.slots.map(slot => {
+//         const start = convertTo24Hour(slot.startTime);
+//         const end = convertTo24Hour(slot.endTime);
+      
+//         if (start >= end) {
+//           throw new BadRequestException(
+//             `Invalid slot time ${slot.startTime} - ${slot.endTime}`,
+//           );
+//         }
+      
+//         return {
+//           startTime: start,
+//           endTime: end,
+//           isBooked: false,
+//           bookingId: undefined,
+//         };
+//       });
+      
+
+//       // Overlap check (per day)
+//       const sortedSlots = convertedSlots.sort(
+//         (a, b) => a.startTime.localeCompare(b.startTime),
+//       );
+      
+
+//       for (let i = 1; i < sortedSlots.length; i++) {
+//         const prev = sortedSlots[i - 1];
+//         if (!prev) {
+//           throw new BadRequestException('Previous slot is undefined');
+//         }
+//         const curr = sortedSlots[i];
+//         if (!curr) {
+//           throw new BadRequestException('Current slot is undefined');
+//         }
+      
+//         if (curr.startTime < prev.endTime) {
+//           throw new BadRequestException(
+//             `Overlapping slots on ${day.date}`,
+//           );
+//         }
+//       }
+      
+
+//       return {
+//         ...day,
+//         slots: sortedSlots,
+//       };
+//     }),
+//   };
+
+//   // -----------------------------------------------------
+//   // 4️⃣ Save updated week
+//   // -----------------------------------------------------
+//   profile.availability.weeks[index] = normalizedWeek;
+//   await profile.save();
+
+//   return { message: 'Week updated successfully' };
+// }
+
+
+async updateDaySlots(
+  userId: string,
+  weekId: string,
+  body: { date: string; slots: { startTime: string; endTime: string }[] },
+) {
+  // -----------------------------------------------------
+  // 1️⃣ Validate weekId format
+  // -----------------------------------------------------
+  if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
+    throw new BadRequestException('Invalid weekId format');
+  }
+
+  // -----------------------------------------------------
+  // 2️⃣ Fetch instructor profile
+  // -----------------------------------------------------
+  const profile = await this.instructorProfileModel.findOne({
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!profile) {
+    throw new NotFoundException('Instructor not found');
+  }
+
+  // -----------------------------------------------------
+  // 3️⃣ Find week & day
+  // -----------------------------------------------------
+  const week = profile.availability.weeks.find(w => w.weekId === weekId);
+  if (!week) {
+    throw new NotFoundException('Week not found');
+  }
+
+  const day = week.days.find(d => d.date === body.date);
+  if (!day) {
+    throw new BadRequestException('Date not in selected week');
+  }
+
+  // -----------------------------------------------------
+  // 4️⃣ Prevent updating booked slots
+  // -----------------------------------------------------
+  if (day.slots.some(s => s.isBooked)) {
+    throw new BadRequestException(
+      'Cannot modify slots that are already booked',
+    );
+  }
+
+  // -----------------------------------------------------
+  // 5️⃣ Convert AM/PM → 24-hour & validate slots
+  // -----------------------------------------------------
+  const convertedSlots = body.slots.map(slot => {
+    const start = convertTo24Hour(slot.startTime);
+    const end = convertTo24Hour(slot.endTime);
+  
+    if (start >= end) {
+      throw new BadRequestException(
+        `Invalid slot time: ${slot.startTime} - ${slot.endTime}`,
+      );
+    }
+  
+    return {
+      startTime: start,
+      endTime: end,
+      isBooked: false,
+      bookingId: undefined,
+    };
+  });
+  
+
+  // -----------------------------------------------------
+  // 6️⃣ Prevent overlapping slots
+  // -----------------------------------------------------
+  const sortedSlots = convertedSlots.sort(
+    (a, b) => a.startTime.localeCompare(b.startTime),
+  );
+  
+
+  for (let i = 1; i < sortedSlots.length; i++) {
+    const prev = sortedSlots[i - 1];
+    const curr = sortedSlots[i];
+  
+    if (curr && prev && curr.startTime < prev.endTime) {
+      throw new BadRequestException('Slots are overlapping');
+    }
+  }
+  
+
+  // -----------------------------------------------------
+  // 7️⃣ Update day slots
+  // -----------------------------------------------------
+  day.slots = sortedSlots;
+  await profile.save();
+
+  return { message: 'Day slots updated successfully' };
+}
+
+
+
+
+  
 
 // 4️⃣ GET AVAILABILITY
 async getAvailability(userId: string) {
   const profile = await this.instructorProfileModel.findOne(
     { userId: new Types.ObjectId(userId) },
     { availability: 1 }
-  );
+  ).lean();
 
   if (!profile) throw new NotFoundException('Instructor not found');
 
-  return profile.availability;
+  const availability = profile.availability;
+
+  return {
+    ...availability,
+    weeks: availability.weeks.map(week => ({
+      ...week,
+      days: week.days.map(day => ({
+        ...day,
+        slots: day.slots.map(slot => ({
+          ...slot,
+          startTime: toAmPm(slot.startTime),
+          endTime: toAmPm(slot.endTime),
+        })),
+      })),
+    })),
+  };
 }
+
+// async getAvailability(userId: string) {
+//   const profile = await this.instructorProfileModel.findOne(
+//     { userId: new Types.ObjectId(userId) },
+//     { availability: 1 }
+//   );
+
+//   if (!profile) throw new NotFoundException('Instructor not found');
+
+//   return profile.availability;
+// }
 
 async updateServiceAreas(
   userId: string,
@@ -891,3 +1276,5 @@ async updatePrivateVehicle(
     return new UserResponseBuilder(user).build();
   }
 }
+
+

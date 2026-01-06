@@ -28,6 +28,10 @@ import { AvailabilityWeekDto } from '../dto/week.dto';
 import  {CreateAvailabilityWeekDto} from '../dto/create-availability-week.dto'
 import {CheckAvailabilityDto} from '../dto/check-availability.dto'
 import { Public } from '@common/decorators/public.decorator';
+import {
+  WeekAvailabilityResponseDto,
+} from '../dto/availability-response.dto';
+
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
 //@Controller('instructor/v1')
@@ -71,15 +75,28 @@ getAvailableSlots(
   }
 
  @Post('availability/week')
- addWeek(
-  @Req() @CurrentUser() currentUser: JwtPayload,
-   @Body() body: { startDate: string; endDate: string, days: any[] }
- ) {
-   return this.instructorService.appendWeek(
-    currentUser.sub,
-     body
-   );
- }
+ async addWeek(
+  @CurrentUser() currentUser: JwtPayload,
+  @Body() body: {
+    startDate: string;
+    endDate: string;
+    days: any[];
+  },
+): Promise<{
+  message: string;
+  week: WeekAvailabilityResponseDto;
+}> {
+  return this.instructorService.appendWeek(currentUser.sub, body);
+}
+//  addWeek(
+//   @Req() @CurrentUser() currentUser: JwtPayload,
+//    @Body() body: { startDate: string; endDate: string, days: any[] }
+//  ) {
+//    return this.instructorService.appendWeek(
+//     currentUser.sub,
+//      body
+//    );
+//  }
 
  // 2️⃣ Update whole week
  @Patch('availability/week/:weekId')

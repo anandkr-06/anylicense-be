@@ -32,18 +32,20 @@ export class LearnerService {
   ) {} 
   
   async getOrdersForLearner(learnerId: string) {
-    // try {
-    //   await this.notificationService.testMail();
-    // } catch (e) {
-    //   this.logger.error('Email failed but continuing', e);
-    // }
-  
     return this.orderModel
       .find({ learnerId })
-      .populate('instructorId', 'fullName profileImage')
+      .populate({
+        path: 'instructorId',           // User
+        select: 'fullName profileImage',
+        populate: {
+          path: 'users',    // nested profile ref
+          select: 'experience rating vehicles serviceAreas',
+        },
+      })
       .sort({ createdAt: -1 })
       .lean();
   }
+  
   
   
 

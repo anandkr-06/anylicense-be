@@ -11,3 +11,4 @@ export class AvailabilityDayDto {
     @Type(() => TimeSlotDto)
     slots!: TimeSlotDto[];
   }
+
