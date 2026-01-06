@@ -44,6 +44,8 @@ export class OrderService {
   ) {}
 
   async createOrder(learnerId: string, dto: CreateOrderDto) {
+    const walletUsed = dto.walletUsed ?? 0; // ✅ DEFINE IT
+
     // 1️⃣ Fetch instructor
     const instructor = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(dto.instructorId),
@@ -193,13 +195,23 @@ export class OrderService {
 
     // 9️⃣ Wallet debit
     if (usedHours * pricePerHour > 0) {
-      await this.walletService.debitWallet(
-        learnerId,
-        usedHours * pricePerHour,
-        WalletTxnSource.ORDER,
-        order._id,
-        `ORDER_WALLET_DEBIT_${order._id}`,
-      );
+      // await this.walletService.debitWallet(
+      //   learnerId,
+      //   usedHours * pricePerHour,
+      //   WalletTxnSource.ORDER,
+      //   order._id,
+      //   `ORDER_WALLET_DEBIT_${order._id}`,
+      // );
+      if (walletUsed && walletUsed > 0) {
+        await this.walletService.debitWallet(
+          learnerId,
+          walletUsed,
+          WalletTxnSource.ORDER,
+          order._id,
+          `wallet-debit-${order._id}`,
+        );
+      }
+      
     }
 
     return order;

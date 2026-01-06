@@ -13,5 +13,6 @@ export class CreateOrderDto {
       startTime: string;
       endTime: string;
     }[];
+    walletUsed?: number; // ✅ ADD THIS
   }
   
