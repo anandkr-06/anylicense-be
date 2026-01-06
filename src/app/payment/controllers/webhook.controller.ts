@@ -137,6 +137,7 @@ async handleWebhook(
   if (event.type === 'payment_intent.succeeded') {
     const intent = event.data.object as Stripe.PaymentIntent;
 
+    // 1️⃣ Update payment
     await this.paymentModel.findOneAndUpdate(
       { stripePaymentIntentId: intent.id },
       {
@@ -145,9 +146,22 @@ async handleWebhook(
       },
     );
 
-    await this.orderModel.findByIdAndUpdate(
+    // 2️⃣ Update order
+    const order = await this.orderModel.findByIdAndUpdate(
       intent.metadata['orderId'],
       { status: 'CONFIRMED' },
+      { new: true },
+    );
+
+    if (!order) return { received: true };
+
+    // 3️⃣ CREDIT WALLET (THIS WAS MISSING 🔥)
+    await this.walletService.creditWallet(
+      order.learnerId,
+      intent.amount_received / 100,
+      WalletTxnSource.ORDER,
+      order._id,
+      intent.id, // idempotency key
     );
   }
 
@@ -167,7 +181,6 @@ async handleWebhook(
     await this.unlockSlots(new Types.ObjectId(intent.metadata['orderId']));
   }
 
-  // ✅ ADD THIS BLOCK
   if (event.type === 'charge.refunded') {
     const charge = event.data.object as Stripe.Charge;
 
@@ -181,11 +194,10 @@ async handleWebhook(
       return { received: true };
     }
 
-    // ✅ THIS IS THE ONLY PLACE YOU CALL WALLET
     await this.walletService.creditWallet(
       order.learnerId,
       order.walletUsed,
-      WalletTxnSource.STRIPE_REFUND,
+      WalletTxnSource.STRIPE,
       order._id,
       `stripe-refund-${event.id}`,
     );
@@ -199,6 +211,7 @@ async handleWebhook(
 
   return { received: true };
 }
+
 
 
 

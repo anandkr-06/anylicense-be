@@ -11,8 +11,10 @@ export enum WalletTxnSource {
   REFUND = 'REFUND',
   PROMO = 'PROMO',
   ADMIN = 'ADMIN',
+  STRIPE = 'STRIPE',              // ✅ ADD THIS
   STRIPE_REFUND = 'STRIPE_REFUND',
 }
+
 
 export enum WalletTxnStatus {
   COMPLETED = 'COMPLETED',
@@ -57,4 +59,9 @@ export const WalletTransactionSchema =
 
 // 🔒 STRONG INDEXES
 WalletTransactionSchema.index({ learnerId: 1, createdAt: -1 });
+WalletTransactionSchema.index(
+  { idempotencyKey: 1 },
+  { unique: true, sparse: true },
+);
+
 
