@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { string } from 'joi';
 import { Document, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -41,19 +42,28 @@ export class Slot {
 isBooked?: boolean;
 
 // ✅ Pickup location PER SLOT
-@Prop({
-  type: {
-    pickupAddress: { type: String, required: true },
-    suburb: { type: String, required: true },
-    state: { type: String, required: true },
-  },
-  required: true,
-})
-pickupLocation!: {
-  pickupAddress: string;
-  suburb: string;
-  state: string;
-};
+// @Prop({
+//   type: {
+//     pickupAddress: { type: String, required: true },
+//     suburb: { type: String, required: true },
+//     state: { type: String, required: true },
+//   },
+//   required: true,
+// })
+// pickupLocation!: {
+//   pickupAddress: string;
+//   suburb: string;
+//   state: string;
+// };
+
+@Prop({ type: String, default: null })
+pickupAddress!: string;
+
+@Prop({ type: String, default: null })
+  suburb!: string;
+
+  @Prop({ type: String, default: null })
+  state!: string;
 
 @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
 bookingId?: Types.ObjectId;

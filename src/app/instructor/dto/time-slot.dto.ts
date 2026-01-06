@@ -20,5 +20,14 @@ export class TimeSlotDto {
   isBooked?: boolean = false;
 
   bookingId?: Types.ObjectId;
+ 
+  // @IsString()
+  // pickupAddress?: string;
+
+  // @IsString()
+  // suburb?: string;
+
+  // @IsString()
+  // state?: string;
 }
 
