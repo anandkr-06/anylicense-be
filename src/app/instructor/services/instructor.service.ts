@@ -32,7 +32,7 @@ import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'; 
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
-import { amPmTo24, convertTo24Hour, toAmPm } from '@constant/slots';
+import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration } from '@constant/slots';
 
 import { CreateDaySlotDto } from '../dto/create-slot.dto';
 
@@ -350,16 +350,38 @@ async checkAvailability(
     // 2️⃣ Normalize days & slots
     // --------------------------------------------------
     const normalizedDays = days.map(day => {
+      // const convertedSlots = day.slots.map(slot => {
+      //   const start = convertTo24Hour(slot.startTime);
+      //   const end = convertTo24Hour(slot.endTime);
+  
+      //   if (start >= end) {
+      //     throw new BadRequestException(
+      //       `Invalid slot time ${slot.startTime} - ${slot.endTime} on ${day.date}`,
+      //     );
+      //   }
+  
+      //   return {
+      //     startTime: start,
+      //     endTime: end,
+      //     isBooked: false,
+      //     bookingId: undefined,
+      //   };
+      // });
+  
+      // 🧠 sort & overlap check
       const convertedSlots = day.slots.map(slot => {
         const start = convertTo24Hour(slot.startTime);
         const end = convertTo24Hour(slot.endTime);
-  
+      
         if (start >= end) {
           throw new BadRequestException(
             `Invalid slot time ${slot.startTime} - ${slot.endTime} on ${day.date}`,
           );
         }
-  
+      
+        // 🔥 Duration validation
+        validateSlotDuration(start, end, day.date);
+      
         return {
           startTime: start,
           endTime: end,
@@ -367,22 +389,43 @@ async checkAvailability(
           bookingId: undefined,
         };
       });
-  
-      // 🧠 sort & overlap check
+      
       const sortedSlots = convertedSlots.sort((a, b) =>
         a.startTime.localeCompare(b.startTime),
       );
-  
+      
       for (let i = 1; i < sortedSlots.length; i++) {
         const prev = sortedSlots[i - 1];
         const curr = sortedSlots[i];
-  
-        if (curr && prev && curr.startTime < prev.endTime) {
+      
+        if (!prev || !curr) continue; // ⚠️ Type guard
+      
+        // ❌ overlap check
+        if (curr.startTime < prev.endTime) {
           throw new BadRequestException(
             `Overlapping slots on ${day.date}`,
           );
         }
+      
+        // ⏱️ 30-minute gap validation
+        const prevEndMinutes =
+          Number(prev.endTime.slice(0, 2)) * 60 +
+          Number(prev.endTime.slice(3));
+      
+        const currStartMinutes =
+          Number(curr.startTime.slice(0, 2)) * 60 +
+          Number(curr.startTime.slice(3));
+      
+        const gap = currStartMinutes - prevEndMinutes;
+      
+        if (gap < 30) {
+          throw new BadRequestException(
+            `Minimum 30 minutes gap required between slots on ${day.date}`,
+          );
+        }
       }
+      
+      
   
       return {
         date: day.date,
@@ -517,12 +560,19 @@ async updateWeek(
     userId: new Types.ObjectId(userId),
   });
 
-  if (!profile) throw new NotFoundException('Instructor not found');
+  if (!profile) {
+    throw new NotFoundException('Instructor not found');
+  }
 
-  const week = profile.availability.weeks.find(w => w.weekId === weekId);
-  if (!week) throw new NotFoundException('Week not found');
+  const week = profile.availability.weeks.find(
+    w => w.weekId === weekId,
+  );
 
-  // ❌ prevent changing date range
+  if (!week) {
+    throw new NotFoundException('Week not found');
+  }
+
+  // ❌ Prevent date range change
   if (
     body.startDate !== week.startDate ||
     body.endDate !== week.endDate
@@ -532,9 +582,12 @@ async updateWeek(
     );
   }
 
-  // ✅ normalize + validate slots
+  // ✅ Normalize + validate slots (same rules as appendWeek)
   for (const day of body.days) {
-    day.slots = this.normalizeAndValidateSlots(day.slots);
+    day.slots = normalizeAndValidateSlots(
+      day.slots,
+      day.date,
+    );
   }
 
   week.days = body.days;
@@ -544,25 +597,26 @@ async updateWeek(
   return { message: 'Week slots updated successfully' };
 }
 
-private normalizeAndValidateSlots(slots: any[]) {
-  const normalized = slots.map(slot => ({
-    ...slot,
-    startTime: convertTo24Hour(slot.startTime),
-    endTime: convertTo24Hour(slot.endTime),
-  }));
 
-  const sorted = normalized.sort((a, b) =>
-    a.startTime.localeCompare(b.startTime),
-  );
+// private normalizeAndValidateSlots(slots: any[]) {
+//   const normalized = slots.map(slot => ({
+//     ...slot,
+//     startTime: convertTo24Hour(slot.startTime),
+//     endTime: convertTo24Hour(slot.endTime),
+//   }));
 
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].startTime < sorted[i - 1].endTime) {
-      throw new BadRequestException('Slots are overlapping');
-    }
-  }
+//   const sorted = normalized.sort((a, b) =>
+//     a.startTime.localeCompare(b.startTime),
+//   );
 
-  return sorted;
-}
+//   for (let i = 1; i < sorted.length; i++) {
+//     if (sorted[i].startTime < sorted[i - 1].endTime) {
+//       throw new BadRequestException('Slots are overlapping');
+//     }
+//   }
+
+//   return sorted;
+// }
 
 // async updateWeek(
 //   userId: string,
@@ -678,10 +732,13 @@ private normalizeAndValidateSlots(slots: any[]) {
 async updateDaySlots(
   userId: string,
   weekId: string,
-  body: { date: string; slots: { startTime: string; endTime: string }[] },
+  body: {
+    date: string;
+    slots: { startTime: string; endTime: string }[];
+  },
 ) {
   // -----------------------------------------------------
-  // 1️⃣ Validate weekId format
+  // 1️⃣ Validate weekId
   // -----------------------------------------------------
   if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
     throw new BadRequestException('Invalid weekId format');
@@ -701,7 +758,9 @@ async updateDaySlots(
   // -----------------------------------------------------
   // 3️⃣ Find week & day
   // -----------------------------------------------------
-  const week = profile.availability.weeks.find(w => w.weekId === weekId);
+  const week = profile.availability.weeks.find(
+    w => w.weekId === weekId,
+  );
   if (!week) {
     throw new NotFoundException('Week not found');
   }
@@ -712,62 +771,34 @@ async updateDaySlots(
   }
 
   // -----------------------------------------------------
-  // 4️⃣ Prevent updating booked slots
+  // 4️⃣ Prevent modifying booked slots
   // -----------------------------------------------------
-  if (day.slots.some(s => s.isBooked)) {
+  if (day.slots.some(slot => slot.isBooked)) {
     throw new BadRequestException(
       'Cannot modify slots that are already booked',
     );
   }
 
   // -----------------------------------------------------
-  // 5️⃣ Convert AM/PM → 24-hour & validate slots
+  // 5️⃣ Normalize + validate slots
+  //    ✔ AM/PM (upper/lower)
+  //    ✔ 24h format
+  //    ✔ Duration: 1h, 2h, 2.5h
+  //    ✔ No overlaps
   // -----------------------------------------------------
-  const convertedSlots = body.slots.map(slot => {
-    const start = convertTo24Hour(slot.startTime);
-    const end = convertTo24Hour(slot.endTime);
-  
-    if (start >= end) {
-      throw new BadRequestException(
-        `Invalid slot time: ${slot.startTime} - ${slot.endTime}`,
-      );
-    }
-  
-    return {
-      startTime: start,
-      endTime: end,
-      isBooked: false,
-      bookingId: undefined,
-    };
-  });
-  
-
-  // -----------------------------------------------------
-  // 6️⃣ Prevent overlapping slots
-  // -----------------------------------------------------
-  const sortedSlots = convertedSlots.sort(
-    (a, b) => a.startTime.localeCompare(b.startTime),
+  day.slots = normalizeAndValidateSlots(
+    body.slots,
+    body.date,
   );
-  
-
-  for (let i = 1; i < sortedSlots.length; i++) {
-    const prev = sortedSlots[i - 1];
-    const curr = sortedSlots[i];
-  
-    if (curr && prev && curr.startTime < prev.endTime) {
-      throw new BadRequestException('Slots are overlapping');
-    }
-  }
-  
 
   // -----------------------------------------------------
-  // 7️⃣ Update day slots
+  // 6️⃣ Save
   // -----------------------------------------------------
-  day.slots = sortedSlots;
   await profile.save();
 
   return { message: 'Day slots updated successfully' };
 }
+
 
 
 
