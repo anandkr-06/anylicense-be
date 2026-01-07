@@ -85,7 +85,7 @@ export class InstructorService {
     }
   
     return this.orderModel
-      .find({ instructorId:  new Types.ObjectId(userId) })
+      .find({ instructorId: instructor.userId })
       .populate('learnerId', 'fullName profileImage')
       .sort({ createdAt: -1 })
       .lean();
