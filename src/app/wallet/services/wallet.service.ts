@@ -1,4 +1,4 @@
-import { Injectable,  NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -11,6 +11,8 @@ import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { WalletTxnStatus, WalletTxnType } from '@common/db/schemas/wallet-transaction.schema';
 import { WalletTransaction, WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
+import Stripe from 'stripe';
+import { StripeCardMeta } from '@common/stripe/stripe.types';
 
 @Injectable()
 export class WalletService {
@@ -20,43 +22,89 @@ export class WalletService {
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
-  ) {}
+  ) { }
 
   async isTxnExists(idempotencyKey: string): Promise<boolean> {
     return !!(await this.walletTxnModel.exists({ idempotencyKey }));
   }
 
+  // async creditWallet(
+  //   learnerId: Types.ObjectId | string,
+  //   amount: number,
+  //   source: WalletTxnSource,
+  //   orderId: Types.ObjectId,
+  //   idempotencyKey: string,
+  // ) {
+  //   if (amount <= 0) return;
+
+  //   // 🔒 Idempotency
+  //   if (await this.isTxnExists(idempotencyKey)) return;
+
+  //   const learner = await this.learnerModel.findById(learnerId);
+  //   if (!learner) throw new NotFoundException('Learner not found');
+
+  //   const newBalance = learner.walletBalance + amount;
+
+
+  //   // ✅ Create ledger FIRST (authoritative record)
+
+  //   await this.walletTxnModel.create({
+  //     learnerId: learner._id,
+  //     type: WalletTxnType.CREDIT,
+  //     amount,
+  //     balanceAfter: newBalance,
+  //     source: WalletTxnSource.STRIPE, // ✅ NOW VALID
+  //     referenceEntityId: orderId,
+  //     idempotencyKey,
+  //     status: WalletTxnStatus.COMPLETED, // ✅ CORRECT
+  //   });
+
+  //   // ✅ Update wallet balance
+  //   await this.learnerModel.updateOne(
+  //     { _id: learner._id },
+  //     { $inc: { walletBalance: amount } },
+  //   );
+  // }
+
   async creditWallet(
-    learnerId: Types.ObjectId | string,
+    learnerId: Types.ObjectId,
     amount: number,
     source: WalletTxnSource,
-    orderId: Types.ObjectId,
+    orderId: Types.ObjectId | null, // ✅ allow null
     idempotencyKey: string,
-  ) {
+    cardMeta?: StripeCardMeta,
+  )
+   {
     if (amount <= 0) return;
-
+  
     // 🔒 Idempotency
     if (await this.isTxnExists(idempotencyKey)) return;
-
+  
     const learner = await this.learnerModel.findById(learnerId);
     if (!learner) throw new NotFoundException('Learner not found');
-
+  
     const newBalance = learner.walletBalance + amount;
-    
-    
-    // ✅ Create ledger FIRST (authoritative record)
-   
+  
+    // ✅ Create ledger FIRST
     await this.walletTxnModel.create({
       learnerId: learner._id,
       type: WalletTxnType.CREDIT,
       amount,
       balanceAfter: newBalance,
-      source: WalletTxnSource.STRIPE, // ✅ NOW VALID
+      source,
       referenceEntityId: orderId,
       idempotencyKey,
-      status: WalletTxnStatus.COMPLETED, // ✅ CORRECT
+      status: WalletTxnStatus.COMPLETED,
+  
+      // 💳 Card info (optional)
+      cardBrand: cardMeta?.brand,
+      cardLast4: cardMeta?.last4,
+      cardExpMonth: cardMeta?.expMonth,
+      cardExpYear: cardMeta?.expYear,
+      stripePaymentIntentId: cardMeta?.paymentIntentId,
+      stripeChargeId: cardMeta?.chargeId,
     });
-
+  
     // ✅ Update wallet balance
     await this.learnerModel.updateOne(
       { _id: learner._id },
@@ -64,6 +112,7 @@ export class WalletService {
     );
   }
 
+  
   async debitWallet(
     learnerId: Types.ObjectId | string,
     amount: number,

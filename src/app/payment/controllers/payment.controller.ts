@@ -1,22 +1,37 @@
-import {
-    Body,
-    Controller,
-    Post,
-    Req,
-    UseGuards,
-    Param
-  } from '@nestjs/common';
-  import { StripeService } from '../services/payment.service';
-  import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-  
-  @Controller('payments')
+import { Body, Controller, Post, Param, BadRequestException } from '@nestjs/common';
+import { StripeService } from '../services/payment.service';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { JwtPayload } from '@interfaces/user.interface';
+
+@Controller('payments')
 export class PaymentController {
   constructor(private readonly stripeService: StripeService) {}
 
+  /* ---------------------------------
+     ORDER PAYMENT
+  ---------------------------------- */
   @Post('stripe/:orderId')
-  async createStripePayment(
-    @Param('orderId') orderId: string,
+  async createStripePayment(@Param('orderId') orderId: string) {
+    if (!orderId) {
+      throw new BadRequestException('Order ID is required');
+    }
+    return this.stripeService.createOrderPaymentIntent(orderId);
+  }
+
+  /* ---------------------------------
+     WALLET TOP-UP
+     Body: { learnerId: string, amount: number }
+  ---------------------------------- */
+  @Post('wallet/topup')
+  async createWalletTopup(
+   @CurrentUser() currentUser: JwtPayload,
+    @Body('amount') amount: number,
   ) {
-    return this.stripeService.createPaymentIntent(orderId);
+    const learnerId = currentUser.sub;
+    if (!learnerId || !amount || amount <= 0) {
+      throw new BadRequestException('Learner ID and valid amount are required');
+    }
+
+    return this.stripeService.createWalletTopupIntent(learnerId, amount);
   }
 }
