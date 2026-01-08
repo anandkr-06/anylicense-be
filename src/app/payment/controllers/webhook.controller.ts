@@ -44,7 +44,7 @@ export class StripeWebhookController {
     private readonly learnerModel: Model<LearnerDocument>,
 
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   /* -------------------------------------------
      UNLOCK SLOTS
@@ -103,27 +103,25 @@ export class StripeWebhookController {
 
       if (!intent.latest_charge) return { received: true };
 
+      // ✅ Retrieve charge ONCE
       const charge = await this.stripe.charges.retrieve(
         intent.latest_charge as string,
       );
-
       const card = charge.payment_method_details?.card;
+
+      const cardMeta: StripeCardMeta = {
+        brand: card?.brand ?? undefined,
+        last4: card?.last4 ?? undefined,
+        expMonth: card?.exp_month ?? undefined,
+        expYear: card?.exp_year ?? undefined,
+        paymentIntentId: intent.id,
+        chargeId: charge.id,
+      };
 
       /* -------- WALLET TOP-UP -------- */
       if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
-        const learnerObjectId = new Types.ObjectId(metadata.learnerId);
-
-        const cardMeta: StripeCardMeta = {
-          brand: card?.brand ?? undefined,
-          last4: card?.last4 ?? undefined,
-          expMonth: card?.exp_month ?? undefined,
-          expYear: card?.exp_year ?? undefined,
-          paymentIntentId: intent.id,
-          chargeId: charge.id,
-        };
-
         await this.walletService.creditWallet(
-          learnerObjectId,
+          new Types.ObjectId(metadata.learnerId),
           intent.amount_received / 100,
           WalletTxnSource.STRIPE,
           null,
@@ -135,48 +133,31 @@ export class StripeWebhookController {
       }
 
       /* -------- ORDER PAYMENT -------- */
-      if (metadata.purpose === 'ORDER_PAYMENT') {
-        if (!metadata.orderId || !metadata.learnerId) return { received: true };
-      
+      if (metadata.purpose === 'ORDER_PAYMENT' && metadata.orderId && metadata.learnerId) {
         const orderId = new Types.ObjectId(metadata.orderId);
-        const learnerId = new Types.ObjectId(metadata.learnerId);
-      
-        // 1️⃣ Update order status
+
         const order = await this.orderModel.findByIdAndUpdate(
           orderId,
           { status: 'CONFIRMED' },
           { new: true },
         );
         if (!order) return { received: true };
-      
-        // 2️⃣ Retrieve charge to get card info
-        if (!intent.latest_charge) return { received: true };
-        const charge = await this.stripe.charges.retrieve(intent.latest_charge as string);
-        const card = charge.payment_method_details?.card;
-      
-        const cardMeta: StripeCardMeta = {
-          brand: card?.brand ?? undefined,
-          last4: card?.last4 ?? undefined,
-          expMonth: card?.exp_month ?? undefined,
-          expYear: card?.exp_year ?? undefined,
-          paymentIntentId: intent.id,
-          chargeId: charge.id,
-        };
-      
-        // 3️⃣ Credit wallet with card info
+
         await this.walletService.creditWallet(
-          learnerId,
+          new Types.ObjectId(metadata.learnerId),
           intent.amount_received / 100,
-          WalletTxnSource.ORDER,
+          WalletTxnSource.STRIPE, // ✅ FIXED
           orderId,
-          intent.id, // idempotency key
+          intent.id,
           cardMeta,
         );
-      
+
         return { received: true };
       }
     }
-      
+
+
+
 
     /* -------------------------------------------
        PAYMENT FAILED
@@ -206,29 +187,42 @@ export class StripeWebhookController {
     -------------------------------------------- */
     if (event.type === 'charge.refunded') {
       const charge = event.data.object as Stripe.Charge;
-
+    
       const payment = await this.paymentModel.findOne({
         stripeChargeId: charge.id,
       });
       if (!payment) return { received: true };
-
+    
       const order = await this.orderModel.findById(payment.orderId);
       if (!order) return { received: true };
-
+    
+      const card = charge.payment_method_details?.card;
+    
+      const cardMeta: StripeCardMeta = {
+        brand: card?.brand ?? undefined,
+        last4: card?.last4 ?? undefined,
+        expMonth: card?.exp_month ?? undefined,
+        expYear: card?.exp_year ?? undefined,
+        paymentIntentId: payment.stripePaymentIntentId!,
+        chargeId: charge.id,
+      };
+    
       await this.walletService.creditWallet(
         order.learnerId,
         charge.amount_refunded / 100,
         WalletTxnSource.STRIPE_REFUND,
         order._id,
         `refund-${charge.id}`,
+        cardMeta,
       );
-
+    
       await this.orderModel.findByIdAndUpdate(order._id, {
         status: 'REFUNDED',
       });
-
+    
       await this.unlockSlots(order._id);
     }
+    
 
     return { received: true };
   }
