@@ -135,15 +135,36 @@ export class StripeWebhookController {
       }
 
       /* -------- ORDER PAYMENT -------- */
-      if (metadata.purpose === 'ORDER_PAYMENT' && metadata.orderId) {
+      if (metadata.purpose === 'ORDER_PAYMENT') {
+        if (!metadata.orderId || !metadata.learnerId) return { received: true };
+      
         const orderId = new Types.ObjectId(metadata.orderId);
-
-        await this.orderModel.findByIdAndUpdate(orderId, {
-          status: 'CONFIRMED',
-        });
-
+        const learnerId = new Types.ObjectId(metadata.learnerId);
+      
+        // 1️⃣ Update order status
+        const order = await this.orderModel.findByIdAndUpdate(
+          orderId,
+          { status: 'CONFIRMED' },
+          { new: true },
+        );
+        if (!order) return { received: true };
+      
+        // 2️⃣ Credit wallet (if order.amount > 0)
+        await this.walletService.creditWallet(
+          learnerId,
+          intent.amount_received / 100,
+          WalletTxnSource.ORDER,
+          orderId,
+          intent.id, // idempotency key
+          {
+            paymentIntentId: intent.id,
+            chargeId: intent.latest_charge as string,
+          },
+        );
+      
         return { received: true };
       }
+      
     }
 
     /* -------------------------------------------
