@@ -149,23 +149,34 @@ export class StripeWebhookController {
         );
         if (!order) return { received: true };
       
-        // 2️⃣ Credit wallet (if order.amount > 0)
+        // 2️⃣ Retrieve charge to get card info
+        if (!intent.latest_charge) return { received: true };
+        const charge = await this.stripe.charges.retrieve(intent.latest_charge as string);
+        const card = charge.payment_method_details?.card;
+      
+        const cardMeta: StripeCardMeta = {
+          brand: card?.brand ?? undefined,
+          last4: card?.last4 ?? undefined,
+          expMonth: card?.exp_month ?? undefined,
+          expYear: card?.exp_year ?? undefined,
+          paymentIntentId: intent.id,
+          chargeId: charge.id,
+        };
+      
+        // 3️⃣ Credit wallet with card info
         await this.walletService.creditWallet(
           learnerId,
           intent.amount_received / 100,
           WalletTxnSource.ORDER,
           orderId,
           intent.id, // idempotency key
-          {
-            paymentIntentId: intent.id,
-            chargeId: intent.latest_charge as string,
-          },
+          cardMeta,
         );
       
         return { received: true };
       }
-      
     }
+      
 
     /* -------------------------------------------
        PAYMENT FAILED
