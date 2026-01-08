@@ -1,19 +1,22 @@
 import {
   BadRequestException,
   Injectable,
-  UnauthorizedException, NotFoundException
+  NotFoundException,
 } from '@nestjs/common';
-import { Model, Types } from 'mongoose';
-
-import { Order,OrderDocument } from '@common/db/schemas/order.schema';
-import { Payment,PaymentDocument } from '@common/db/schemas/payment.schema';
-
 import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 import Stripe from 'stripe';
-import { MetadataScanner } from '@nestjs/core';
-import { platform } from 'os';
-import { PLATFORM_CHARGE } from '@constant/packages';
+
+import { Order, OrderDocument } from '@common/db/schemas/order.schema';
+import { Payment, PaymentDocument } from '@common/db/schemas/payment.schema';
+
+export type StripeIntentMetadata = {
+  purpose: 'ORDER_PAYMENT' | 'WALLET_TOPUP';
+  orderId?: string;
+  learnerId: string;
+  instructorId?: string;
+};
 
 @Injectable()
 export class StripeService {
@@ -21,64 +24,86 @@ export class StripeService {
 
   constructor(
     @InjectModel(Payment.name)
-    private paymentModel: Model<Payment>,
+    private readonly paymentModel: Model<PaymentDocument>,
+
     @InjectModel(Order.name)
-    private orderModel: Model<Order>,
+    private readonly orderModel: Model<OrderDocument>,
   ) {
     this.stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
       apiVersion: '2025-12-15.clover',
     });
   }
 
-  async createPaymentIntent(orderId: string) {
+  /* -----------------------------
+     CREATE ORDER PAYMENT INTENT
+  ------------------------------ */
+  async createOrderPaymentIntent(orderId: string) {
     const order = await this.orderModel.findById(orderId);
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     if (order.status !== 'PENDING_PAYMENT') {
       throw new BadRequestException(
         `Cannot create payment for order status ${order.status}`,
       );
     }
-  
+
+    const metadata: StripeIntentMetadata = {
+      purpose: 'ORDER_PAYMENT',
+      orderId: order._id.toString(),
+      learnerId: order.learnerId.toString(),
+      instructorId: order.instructorId.toString(),
+    };
+
     const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(order.totalAmount * 100), // AUD → paise
+      amount: Math.round(order.totalAmount * 100), // Convert to cents
       currency: 'AUD',
       automatic_payment_methods: { enabled: true },
-      metadata: {
-        orderId: order._id.toString(),
-        learnerId: order.learnerId.toString(),
-        instructorId: order.instructorId.toString(),
-      },
+      metadata,
     });
-  
+
     await this.paymentModel.create({
       orderId: order._id,
       amount: Math.round(order.totalAmount * 100),
       stripePaymentIntentId: paymentIntent.id,
       status: 'INITIATED',
     });
-  
+
     return {
       clientSecret: paymentIntent.client_secret,
-      amount: Math.round(order.totalAmount * 100),
+      amount: order.totalAmount,
       currency: 'AUD',
-      metadata:{
-        orderId: order._id.toString(),
-        learnerId: order.learnerId.toString(),
-        coupons: order.coupons || '',
-        walletUsed: order.walletUsed || 0,
-        platformCharge: PLATFORM_CHARGE,
-        discount: order.discount || 0,
-        couponValue: order.couponValue || 0,
-        vehicleType: order.vehicleType || '',
-        pricePerHour: order.pricePerHour || 0,
-      }
+      metadata,
     };
   }
-  
-  
-}
 
+  /* -----------------------------
+     CREATE WALLET TOP-UP INTENT
+  ------------------------------ */
+  async createWalletTopupIntent(learnerId: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid amount');
+    }
+
+    const metadata: StripeIntentMetadata = {
+      purpose: 'WALLET_TOPUP',
+      learnerId,
+    };
+
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'AUD',
+      automatic_payment_methods: { enabled: true },
+      metadata,
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      amount,
+      currency: 'AUD',
+      metadata,
+    };
+  }
+}

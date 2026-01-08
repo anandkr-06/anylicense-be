@@ -52,6 +52,25 @@ export class WalletTransaction {
   // 🔐 STRIPE / ORDER IDEMPOTENCY
   @Prop({ type: String, unique: true, sparse: true })
   idempotencyKey?: string;
+
+   // 💳 CARD INFO (SAFE TO STORE)
+   @Prop()
+   cardBrand?: string;      // visa, mastercard
+ 
+   @Prop()
+   cardLast4?: string;      // **** 4242
+ 
+   @Prop()
+   cardExpMonth?: number;
+ 
+   @Prop()
+   cardExpYear?: number;
+ 
+   @Prop()
+   stripePaymentIntentId?: string;
+ 
+   @Prop()
+   stripeChargeId?: string;
 }
 
 export const WalletTransactionSchema =
