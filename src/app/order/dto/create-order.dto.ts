@@ -11,6 +11,68 @@ import {
   } from 'class-validator';
   import { Type } from 'class-transformer';
 
+  export enum SlotType {
+    LESSON = 'LESSON',
+    TEST = 'TEST',
+  }
+  
+
+  export class CreateOrderDto {
+    @IsNotEmpty()
+    @IsMongoId()
+    instructorId!: string;
+  
+    @IsNotEmpty()
+    @IsEnum(['auto', 'manual'])
+    vehicleType!: 'auto' | 'manual';
+  
+    /**
+     * LESSON HOURS (optional)
+     * Required only if lesson is booked
+     */
+    @IsOptional()
+    @IsNumber()
+    @Min(1)
+    lessonHours?: number;
+  
+    /**
+     * TEST COUNT (optional)
+     * Each test = 2.5 hours
+     */
+    @IsOptional()
+    @IsNumber()
+    @Min(1)
+    testCount?: number;
+  
+    /**
+     * Slots for BOTH lesson & test
+     * Slot.type decides usage
+     */
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => SlotDto)
+    slots?: SlotDto[];
+  
+    // 💰 WALLET
+    @IsOptional()
+    useWallet?: boolean;
+  
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    walletUsed?: number;
+  
+    // 🎟 COUPON
+    @IsOptional()
+    @IsString()
+    couponCode?: string;
+  
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    couponValue?: number;
+  }
   
   export class SlotDto {
     @IsNotEmpty()
@@ -19,13 +81,17 @@ import {
   
     @IsNotEmpty()
     @IsString()
-    startTime!: string; // HH:mm
+    startTime!: string; // hh:mm AM/PM
   
     @IsNotEmpty()
     @IsString()
-    endTime!: string; // HH:mm
+    endTime!: string;
   
-    // 🔥 PICKUP PER SLOT
+    @IsNotEmpty()
+    @IsEnum(SlotType) // ✅ FIX
+    type!: SlotType;
+  
+    // pickup is required ONLY if slot exists
     @IsNotEmpty()
     @IsString()
     pickupAddress!: string;
@@ -37,67 +103,6 @@ import {
     @IsNotEmpty()
     @IsString()
     state!: string;
-  }
-  
-  
-  export class CreateOrderDto {
-    @IsNotEmpty()
-    @IsMongoId()
-    instructorId!: string;
-  
-    @IsNotEmpty()
-    @IsEnum(['auto', 'manual'])
-    vehicleType!: 'auto' | 'manual';
-  
-    @IsNotEmpty()
-    @IsNumber()
-    @Min(1)
-    totalHours!: number;
-  
-    // 🔐 CALCULATED AMOUNT (validated)
-    @IsNotEmpty()
-    @IsNumber()
-    @Min(0)
-    totalAmount!: number;
-  
-    // 💰 WALLET INTENT
-    @IsOptional()
-    useWallet?: boolean;
-    @IsOptional()
-    @IsNumber()  @Min(0)
-    walletUsed?: number; // ✅ ADD THIS
-
-    // 🎟 COUPON
-    @IsOptional()
-    @IsString()
-    couponCode?: string;
-  
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    couponValue?: number;
-  
-    // 🧾 PLATFORM
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    platformCharge?: number;
-  
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    discount?: number;
-  
-    /**
-     * Optional slot booking
-     * If absent → wallet credit + later scheduling
-     */
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => SlotDto)
-    slots?: SlotDto[];
-    learnerId: string | undefined;
   }
   
   
