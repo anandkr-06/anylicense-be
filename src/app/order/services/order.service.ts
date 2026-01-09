@@ -286,27 +286,81 @@ export class OrderService {
     },
     orderId: Types.ObjectId,
   ) {
+    const reqStart = this.toMinutes(slot.startTime);
+    const reqEnd = this.toMinutes(slot.endTime);
+  
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-
-      const matched = day.slots.find(
-        s => s.startTime === slot.startTime && s.endTime === slot.endTime && !s.isBooked,
-      );
-
-      if (!matched) continue;
-
-      matched.isBooked = true;
-      matched.bookingId = orderId;
-      matched.pickupAddress = slot.pickupAddress;
-      matched.suburb = slot.suburb;
-      matched.state = slot.state;
-
+  
+      // 1️⃣ Find a parent availability slot that CONTAINS requested slot
+      const parentSlot = day.slots.find(s => {
+        const dbStart = this.toMinutes(s.startTime);
+        const dbEnd = this.toMinutes(s.endTime);
+  
+        return reqStart >= dbStart && reqEnd <= dbEnd;
+      });
+  
+      if (!parentSlot) continue;
+  
+      // 2️⃣ Check overlap with already booked slots
+      const hasConflict = day.slots.some(s => {
+        if (!s.isBooked) return false;
+  
+        const bookedStart = this.toMinutes(s.startTime);
+        const bookedEnd = this.toMinutes(s.endTime);
+  
+        return this.overlaps(reqStart, reqEnd, bookedStart, bookedEnd);
+      });
+  
+      if (hasConflict) {
+        throw new BadRequestException(
+          `Requested slot overlaps with an existing booking on ${slot.date}`,
+        );
+      }
+  
+      // 3️⃣ Create a NEW booked slot inside availability
+      day.slots.push({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isBooked: true,
+        bookingId: orderId,
+        pickupAddress: slot.pickupAddress,
+        suburb: slot.suburb,
+        state: slot.state,
+      } as any);
+  
       return;
     }
-
-    throw new BadRequestException('Slot not found in instructor availability');
+  
+    throw new BadRequestException(
+      'Requested slot is outside instructor availability',
+    );
   }
+  
+
+  private toMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    if (
+      h === undefined ||
+      m === undefined ||
+      Number.isNaN(h) ||
+      Number.isNaN(m)
+    ) {
+      throw new BadRequestException(`Invalid time format: ${time}`);
+    }
+    return h * 60 + m;
+  }
+  
+  private overlaps(
+    aStart: number,
+    aEnd: number,
+    bStart: number,
+    bEnd: number,
+  ): boolean {
+    return Math.max(aStart, bStart) < Math.min(aEnd, bEnd);
+  }
+  
 }
 
 

@@ -74,98 +74,93 @@ export function convertTo24Hour(time: unknown): string {
 }
 
 
-export function amPmTo24(time: string): string {
-  const trimmed = time.trim();
+// export function amPmTo24(time: string): string {
+//   const trimmed = time.trim();
 
-  // already 24h
-  if (/^\d{2}:\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
+//   // already 24h
+//   if (/^\d{2}:\d{2}$/.test(trimmed)) {
+//     return trimmed;
+//   }
 
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+//   const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
 
-  if (!match) {
-    throw new BadRequestException(
-      `Invalid time format. Expected HH:MM AM/PM, got "${time}"`
-    );
-  }
+//   if (!match) {
+//     throw new BadRequestException(
+//       `Invalid time format. Expected HH:MM AM/PM, got "${time}"`
+//     );
+//   }
 
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const modifier = match[3]!.toUpperCase(); // ✅ FIX
+//   const hours = Number(match[1]);
+//   const minutes = Number(match[2]);
+//   const modifier = match[3]!.toUpperCase(); // ✅ FIX
 
-  if (hours < 1 || hours > 12) {
-    throw new BadRequestException(`Invalid hour value: ${match[1]}`);
-  }
+//   if (hours < 1 || hours > 12) {
+//     throw new BadRequestException(`Invalid hour value: ${match[1]}`);
+//   }
 
-  if (minutes < 0 || minutes > 59) {
-    throw new BadRequestException(`Invalid minute value: ${match[2]}`);
-  }
+//   if (minutes < 0 || minutes > 59) {
+//     throw new BadRequestException(`Invalid minute value: ${match[2]}`);
+//   }
 
-  let h = hours;
+//   let h = hours;
 
-  if (modifier === 'PM' && h !== 12) h += 12;
-  if (modifier === 'AM' && h === 12) h = 0;
+//   if (modifier === 'PM' && h !== 12) h += 12;
+//   if (modifier === 'AM' && h === 12) h = 0;
 
-  return `${h.toString().padStart(2, '0')}:${minutes
-    .toString()
-    .padStart(2, '0')}`;
-}
+//   return `${h.toString().padStart(2, '0')}:${minutes
+//     .toString()
+//     .padStart(2, '0')}`;
+// }
 
 export function validateSlotDuration(
   startTime: string,
   endTime: string,
   date: string,
 ) {
-  const [sh, sm] = startTime.split(':').map(Number);
-  const [eh, em] = endTime.split(':').map(Number);
-
-  if (sh == null || sm == null || eh == null || em == null) {
-    throw new BadRequestException(`Invalid time format for start or end time.`);
-  }
-
-  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) {
-    throw new BadRequestException(`Invalid time format for start or end time.`);
-  }
-
-  const startMinutes = sh * 60 + sm;
-  const endMinutes = eh * 60 + em;
+  const startMinutes =
+    Number(startTime.slice(0, 2)) * 60 + Number(startTime.slice(3));
+  const endMinutes =
+    Number(endTime.slice(0, 2)) * 60 + Number(endTime.slice(3));
 
   const duration = endMinutes - startMinutes;
 
-  const allowedDurations = [60, 120, 150];
-
-  if (!allowedDurations.includes(duration)) {
+  // ✅ Minimum 1 hour slot
+  if (duration < 60) {
     throw new BadRequestException(
-      `Invalid slot duration on ${date}. Allowed durations: 1h, 2h, 2.5h`,
+      `Slot duration must be at least 1 hour on ${date}`,
     );
   }
+
+  // ❌ No upper limit → 2 hr / 2.5 hr restriction removed
 }
+
 
 
 export function normalizeAndValidateSlots(
   slots: { startTime: string; endTime: string }[],
-  date?: string,
+  date: string,
 ) {
-  const normalized = slots.map(slot => {
+  const converted = slots.map(slot => {
     const start = convertTo24Hour(slot.startTime);
     const end = convertTo24Hour(slot.endTime);
 
     if (start >= end) {
       throw new BadRequestException(
-        `Invalid slot time ${slot.startTime} - ${slot.endTime}` +
-          (date ? ` on ${date}` : ''),
+        `Invalid slot time ${slot.startTime} - ${slot.endTime} on ${date}`,
       );
     }
 
-    // ⏱️ Allowed durations only
-    const durationMinutes =
-      (Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) -
-      (Number(start.slice(0, 2)) * 60 + Number(start.slice(3)));
+    const startMinutes =
+      Number(start.slice(0, 2)) * 60 + Number(start.slice(3));
+    const endMinutes =
+      Number(end.slice(0, 2)) * 60 + Number(end.slice(3));
 
-    if (![60, 120, 150].includes(durationMinutes)) {
+    const duration = endMinutes - startMinutes;
+
+    // ✅ Minimum 1 hour
+    if (duration < 60) {
       throw new BadRequestException(
-        `Slot duration must be 1h, 2h, or 2.5h`,
+        `Slot duration must be at least 1 hour on ${date}`,
       );
     }
 
@@ -177,33 +172,113 @@ export function normalizeAndValidateSlots(
     };
   });
 
-  // 🧠 sort slots
-  normalized.sort((a, b) =>
+  // 🧠 Sort slots
+  const sorted = converted.sort((a, b) =>
     a.startTime.localeCompare(b.startTime),
   );
 
-  // 🔒 overlap + 30 min gap validation
-  for (let i = 1; i < normalized.length; i++) {
-    const prev = normalized[i - 1];
-    const curr = normalized[i];
+  // ❌ Overlap + ⏱️ 30-minute gap
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
 
-    const prevEndMinutes =
-      prev ? Number(prev.endTime.slice(0, 2)) * 60 +
-      Number(prev.endTime.slice(3)) : 0;
+    if (!curr || !prev) {
+      throw new BadRequestException('Invalid slot data');
+    }
+    // ❌ Overlap
+    if (curr.startTime < prev.endTime) {
+      throw new BadRequestException(
+        `Overlapping slots on ${date}`,
+      );
+    }
 
-    const currStartMinutes =
-      Number(curr?.startTime.slice(0, 2) || '0') * 60 +
-      Number(curr?.startTime.slice(3) || '0');
+    const gap =
+      (Number(curr.startTime.slice(0, 2)) * 60 +
+        Number(curr.startTime.slice(3))) -
+      (Number(prev.endTime.slice(0, 2)) * 60 +
+        Number(prev.endTime.slice(3)));
 
-    const gap = currStartMinutes - prevEndMinutes;
-
+    // ⏱️ Minimum 30-minute gap
     if (gap < 30) {
       throw new BadRequestException(
-        `Minimum 30 minutes gap required between slots`,
+        `Minimum 30 minutes gap required between slots on ${date}`,
       );
     }
   }
 
-  return normalized;
+  return sorted;
 }
 
+export const splitSlotByDuration = (
+  startTime: string,
+  endTime: string,
+  durationMinutes: number,
+) => {
+  const result = [];
+
+  let start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+
+  while (start + durationMinutes <= end) {
+    result.push({
+      startTime: toTime(start),
+      endTime: toTime(start + durationMinutes),
+    });
+
+    // ✅ duration + 30 min gap
+    start += durationMinutes + 30;
+  }
+
+  return result;
+};
+
+// const toMinutes = (time: string) => {
+//   const [h, m] = time.split(':').map(Number);
+//   if(h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+//     throw new BadRequestException(`Invalid time format: ${time}`);
+//   }
+//   return h * 60 + m;
+// };
+const toMinutes = (time: string): number => {
+  const t = time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')
+    ? amPmTo24(time)   // 👈 convert only if needed
+    : time;
+
+  const [h, m] = t.split(':').map(Number);
+
+  if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+    throw new BadRequestException(`Invalid time format: ${time}`);
+  }
+
+  return h * 60 + m;
+};
+
+
+const toTime = (minutes: number) => {
+  const h = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0');
+  const m = (minutes % 60)
+    .toString()
+    .padStart(2, '0');
+  return `${h}:${m}`;
+};
+
+
+export const amPmTo24 = (time: string): string => {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+
+  if (!match) {
+    throw new BadRequestException(`Invalid time format: ${time}`);
+  }
+
+  let [, h, m, period] = match;
+  let hour = Number(h);
+  if(period === undefined) {
+    throw new BadRequestException(`Invalid time format: ${time}`);
+  }
+  if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+  if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+
+  return `${hour.toString().padStart(2, '0')}:${m}`;
+};
