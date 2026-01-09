@@ -32,7 +32,7 @@ import {AvailabilityDayDto as AvailabilityDay} from '../dto/availability-day.dto
 import { CheckAvailabilityDto } from '../dto/check-availability.dto'; 
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
-import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration } from '@constant/slots';
+import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration, splitSlotByDuration } from '@constant/slots';
 
 import { CreateDaySlotDto } from '../dto/create-slot.dto';
 
@@ -145,6 +145,7 @@ export class InstructorService {
   
   async getAvailableSlots(
     instructorId: string,
+    duration: 1 | 2 | 2.5,
     timeOfDay?: 'AM' | 'PM',
   ) {
     const instructor = await this.instructorProfileModel
@@ -156,33 +157,46 @@ export class InstructorService {
     }
   
     const today = this.getTodayISODate();
+    const durationMinutes = duration * 60;
     const result = [];
   
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         if (day.date < today) continue;
   
-        const validSlots = day.slots
-          .filter(slot => {
-            if (slot.isBooked) return false;
+        const slotsForDay = [];
   
+        for (const slot of day.slots) {
+          if (slot.isBooked) continue;
+  
+          // 🔥 Split with 30 min gap
+          const splitSlots = splitSlotByDuration(
+            slot.startTime,
+            slot.endTime,
+            durationMinutes,
+          );
+  
+          for (const s of splitSlots) {
+            const hour = Number(s.startTime.split(':')[0]);
+  
+            // AM / PM filter
             if (timeOfDay) {
-              const hour = Number(slot.startTime.split(':')[0]);
-              return timeOfDay === 'AM' ? hour < 12 : hour >= 12;
+              if (timeOfDay === 'AM' && hour >= 12) continue;
+              if (timeOfDay === 'PM' && hour < 12) continue;
             }
   
-            return true;
-          })
-          .map(slot => ({
-            ...slot,
-            startTime: toAmPm(slot.startTime),
-            endTime: toAmPm(slot.endTime),
-          }));
+            slotsForDay.push({
+              startTime: toAmPm(s.startTime),
+              endTime: toAmPm(s.endTime),
+              duration,
+            });
+          }
+        }
   
-        if (validSlots.length) {
+        if (slotsForDay.length) {
           result.push({
             date: day.date,
-            slots: validSlots,
+            slots: slotsForDay,
           });
         }
       }
@@ -193,121 +207,147 @@ export class InstructorService {
   
   
   
-
-    
-
-  // async checkAvailability(
-  //   instructorId: string,
-  //   dto: CheckAvailabilityDto,
-  // ) {
-  //   const instructor = await this.instructorProfileModel.findOne({
-  //     userId: new Types.ObjectId(instructorId),
-  //   });
-  
-  //   if (!instructor) {
-  //     throw new NotFoundException('Instructor not found');
-  //   }
-  
-  //   // 🔥 Normalize AM/PM → 24h
-  //   const normalizedSlots = dto.slots.map(slot => ({
-  //     ...slot,
-  //     startTime: amPmTo24(slot.startTime),
-  //     endTime: amPmTo24(slot.endTime),
-  //   }));
-    
-
-  
-  //   for (const reqSlot of normalizedSlots) {
-  //     const slot = this.findSlot(instructor, reqSlot);
-  
-  //     if (!slot) {
-  //       return {
-  //         available: false,
-  //         message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime} ${JSON.stringify(dto.slots, null, 2)}`,
-  //       };
-  //     }
-  
-  //     if (slot.isBooked) {
-  //       return {
-  //         available: false,
-  //         message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
-  //       };
-  //     }
-  //   }
-  
-  //   return {
-  //     available: true,
-  //     validSlots: normalizedSlots.length,
-  //     message: 'All requested slots are available',
-  //   };
-  // }
   
   
-async checkAvailability(
-  instructorId: string,
-  dto: CheckAvailabilityDto,
-) {
-  const instructor = await this.instructorProfileModel.findOne({
-    userId: new Types.ObjectId(instructorId),
-  });
-
-  if (!instructor) {
-    throw new NotFoundException('Instructor not found');
-  }
-
-  // 🔥 helper → AM/PM or 24h → minutes
-  const toMinutes = (time: string): number => {
-    const t = amPmTo24(time); // must return HH:mm
-    const [h, m] = t.split(':').map(Number);
-    if (h === undefined || m === undefined) {
-      throw new BadRequestException('Invalid time format');
+  
+  async checkAvailability(
+    instructorId: string,
+    dto: CheckAvailabilityDto,
+  ) {
+    const instructor = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(instructorId),
+    });
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
     }
-    return h * 60 + m;
-  };
-
-  for (const reqSlot of dto.slots) {
-    const reqStart = toMinutes(reqSlot.startTime);
-    const reqEnd = toMinutes(reqSlot.endTime);
-
-    let matchedSlot = null;
-
-    for (const week of instructor.availability?.weeks || []) {
-      for (const day of week.days) {
-        if (day.date !== reqSlot.date) continue;
-
-        for (const slot of day.slots) {
-          const dbStart = toMinutes(slot.startTime);
-          const dbEnd = toMinutes(slot.endTime);
-
-          if (dbStart === reqStart && dbEnd === reqEnd) {
-            matchedSlot = slot;
-            break;
+  
+    // 🔥 helper → AM/PM or 24h → minutes
+    const toMinutes = (time: string): number => {
+      const t = time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')
+        ? amPmTo24(time)   // 👈 convert only if needed
+        : time;
+    
+      const [h, m] = t.split(':').map(Number);
+    
+      if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+        throw new BadRequestException(`Invalid time format: ${time}`);
+      }
+    
+      return h * 60 + m;
+    };
+    
+  
+    // ---------------------------------------------------
+    // 1️⃣ Group requested slots by date
+    // ---------------------------------------------------
+    const slotsByDate = new Map<
+      string,
+      { start: number; end: number; raw: any }[]
+    >();
+  
+    for (const slot of dto.slots) {
+      const start = toMinutes(slot.startTime);
+      const end = toMinutes(slot.endTime);
+  
+      if (start >= end) {
+        throw new BadRequestException(
+          `Invalid slot time ${slot.startTime} - ${slot.endTime}`,
+        );
+      }
+  
+      if (!slotsByDate.has(slot.date)) {
+        slotsByDate.set(slot.date, []);
+      }
+  
+      slotsByDate.get(slot.date)!.push({
+        start,
+        end,
+        raw: slot,
+      });
+    }
+  
+    // ---------------------------------------------------
+    // 2️⃣ Validate each day independently
+    // ---------------------------------------------------
+    for (const [date, slots] of slotsByDate.entries()) {
+      // ⏱ sort slots by start time
+      slots.sort((a, b) => a.start - b.start);
+  
+      // 🔥 30-minute gap & overlap validation
+      for (let i = 1; i < slots.length; i++) {
+        const prev = slots[i - 1];
+        const curr = slots[i];
+        if (!curr || !prev) continue; // ⚠️ Type guard
+        
+        // ❌ overlap
+        if (curr.start < prev.end) {
+          return {
+            available: false,
+            message: `Overlapping slots on ${date}`,
+          };
+        }
+  
+        // ❌ less than 30 min gap
+        const gap = curr.start - prev.end;
+        if (gap < 30) {
+          return {
+            available: false,
+            message: `Minimum 30 minutes gap required between slots on ${date}`,
+          };
+        }
+      }
+  
+      // ---------------------------------------------------
+      // 3️⃣ Check against instructor availability
+      // ---------------------------------------------------
+      for (const req of slots) {
+        let matchedSlot = null;
+  
+        for (const week of instructor.availability?.weeks || []) {
+          for (const day of week.days) {
+            if (day.date !== date) continue;
+  
+            for (const slot of day.slots) {
+              const dbStart = toMinutes(slot.startTime);
+              const dbEnd = toMinutes(slot.endTime);
+  
+              // ✅ containment check
+              if (req.start >= dbStart && req.end <= dbEnd) {
+                matchedSlot = slot;
+                break;
+              }
+            }
           }
+        }
+  
+        if (!matchedSlot) {
+          return {
+            available: false,
+            message: `Requested slot is outside instructor availability on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+          };
+        }
+  
+        if (matchedSlot.isBooked) {
+          return {
+            available: false,
+            message: `Slot already booked on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+          };
         }
       }
     }
-
-    if (!matchedSlot) {
-      return {
-        available: false,
-        message: `Slot not found on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
-      };
-    }
-
-    if (matchedSlot.isBooked) {
-      return {
-        available: false,
-        message: `Slot already booked on ${reqSlot.date} ${reqSlot.startTime}-${reqSlot.endTime}`,
-      };
-    }
+  
+    // ---------------------------------------------------
+    // ✅ All checks passed
+    // ---------------------------------------------------
+    return {
+      available: true,
+      validSlots: dto.slots.length,
+      message: 'All requested slots are available',
+    };
   }
-
-  return {
-    available: true,
-    validSlots: dto.slots.length,
-    message: 'All requested slots are available',
-  };
-}
+  
+  
 
 
   async appendWeek(
@@ -377,7 +417,7 @@ async checkAvailability(
           );
         }
       
-        // 🔥 Duration validation
+        // ✅ Only minimum 1 hour validation
         validateSlotDuration(start, end, day.date);
       
         return {
@@ -387,6 +427,7 @@ async checkAvailability(
           bookingId: undefined,
         };
       });
+      
       
       const sortedSlots = convertedSlots.sort((a, b) =>
         a.startTime.localeCompare(b.startTime),
@@ -596,137 +637,6 @@ async updateWeek(
 }
 
 
-// private normalizeAndValidateSlots(slots: any[]) {
-//   const normalized = slots.map(slot => ({
-//     ...slot,
-//     startTime: convertTo24Hour(slot.startTime),
-//     endTime: convertTo24Hour(slot.endTime),
-//   }));
-
-//   const sorted = normalized.sort((a, b) =>
-//     a.startTime.localeCompare(b.startTime),
-//   );
-
-//   for (let i = 1; i < sorted.length; i++) {
-//     if (sorted[i].startTime < sorted[i - 1].endTime) {
-//       throw new BadRequestException('Slots are overlapping');
-//     }
-//   }
-
-//   return sorted;
-// }
-
-// async updateWeek(
-//   userId: string,
-//   weekId: string,
-//   body: AvailabilityWeekDto,
-// ) {
-//   // -----------------------------------------------------
-//   // 1️⃣ Validate weekId
-//   // -----------------------------------------------------
-//   if (!/^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/.test(weekId)) {
-//     throw new BadRequestException('Invalid weekId format');
-//   }
-
-//   // -----------------------------------------------------
-//   // 2️⃣ Fetch instructor profile
-//   // -----------------------------------------------------
-//   const profile = await this.instructorProfileModel.findOne({
-//     userId: new Types.ObjectId(userId),
-//   });
-//   if (!profile) {
-//     throw new NotFoundException('Instructor not found');
-//   }
-
-//   const index = profile.availability.weeks.findIndex(
-//     w => w.weekId === weekId,
-//   );
-
-//   if (index === -1) {
-//     throw new NotFoundException('Week not found');
-//   }
-
-//   // -----------------------------------------------------
-//   // 3️⃣ Normalize & validate week slots
-//   // -----------------------------------------------------
-//   const normalizedWeek = {
-//     ...body,
-//     weekId,
-//     days: body.days.map(day => {
-//       if (!day.slots?.length) return day;
-
-//       // 🚫 Prevent editing booked slots
-//       const existingDay = profile.availability?.weeks[index]?.days.find(
-//         d => d.date === day.date,
-//       );
-
-//       if (existingDay?.slots.some(s => s.isBooked)) {
-//         throw new BadRequestException(
-//           `Cannot modify booked slots on ${day.date}`,
-//         );
-//       }
-
-//       // Convert & validate slots
-//       const convertedSlots = day.slots.map(slot => {
-//         const start = convertTo24Hour(slot.startTime);
-//         const end = convertTo24Hour(slot.endTime);
-      
-//         if (start >= end) {
-//           throw new BadRequestException(
-//             `Invalid slot time ${slot.startTime} - ${slot.endTime}`,
-//           );
-//         }
-      
-//         return {
-//           startTime: start,
-//           endTime: end,
-//           isBooked: false,
-//           bookingId: undefined,
-//         };
-//       });
-      
-
-//       // Overlap check (per day)
-//       const sortedSlots = convertedSlots.sort(
-//         (a, b) => a.startTime.localeCompare(b.startTime),
-//       );
-      
-
-//       for (let i = 1; i < sortedSlots.length; i++) {
-//         const prev = sortedSlots[i - 1];
-//         if (!prev) {
-//           throw new BadRequestException('Previous slot is undefined');
-//         }
-//         const curr = sortedSlots[i];
-//         if (!curr) {
-//           throw new BadRequestException('Current slot is undefined');
-//         }
-      
-//         if (curr.startTime < prev.endTime) {
-//           throw new BadRequestException(
-//             `Overlapping slots on ${day.date}`,
-//           );
-//         }
-//       }
-      
-
-//       return {
-//         ...day,
-//         slots: sortedSlots,
-//       };
-//     }),
-//   };
-
-//   // -----------------------------------------------------
-//   // 4️⃣ Save updated week
-//   // -----------------------------------------------------
-//   profile.availability.weeks[index] = normalizedWeek;
-//   await profile.save();
-
-//   return { message: 'Week updated successfully' };
-// }
-
-
 async updateDaySlots(
   userId: string,
   weekId: string,
@@ -778,11 +688,12 @@ async updateDaySlots(
   }
 
   // -----------------------------------------------------
-  // 5️⃣ Normalize + validate slots
-  //    ✔ AM/PM (upper/lower)
-  //    ✔ 24h format
-  //    ✔ Duration: 1h, 2h, 2.5h
+  // 5️⃣ Normalize + validate slots (SAME RULES)
+  //    ✔ AM/PM → 24h
+  //    ✔ Minimum duration: 1 hour
   //    ✔ No overlaps
+  //    ✔ Minimum 30-minute gap
+  //    ✔ No max duration restriction
   // -----------------------------------------------------
   day.slots = normalizeAndValidateSlots(
     body.slots,
@@ -796,6 +707,7 @@ async updateDaySlots(
 
   return { message: 'Day slots updated successfully' };
 }
+
 
 
 
@@ -829,17 +741,6 @@ async getAvailability(userId: string) {
     })),
   };
 }
-
-// async getAvailability(userId: string) {
-//   const profile = await this.instructorProfileModel.findOne(
-//     { userId: new Types.ObjectId(userId) },
-//     { availability: 1 }
-//   );
-
-//   if (!profile) throw new NotFoundException('Instructor not found');
-
-//   return profile.availability;
-// }
 
 async updateServiceAreas(
   userId: string,
@@ -1184,122 +1085,6 @@ async updatePrivateVehicle(
     }
   }
 
-  // public async updateFinancial(
-  //   currentUser: JwtPayload,
-  //   dto: UpdateInstructorFinancialDto,
-  // ) {
-  //   const user = await this.userModel
-  //     .findOne({
-  //       publicId: currentUser.publicId,
-  //       role: UserRole.INSTRUCTOR,
-  //     })
-  //     .exec();
-
-  //   if (!user) {
-  //     throw new BadRequestException('No Instructor found');
-  //   }
-  //   try {
-  //     if (!user.financialDetail) {
-  //       user.financialDetail = {};
-  //     }
-
-  //     if (dto.bankName !== undefined)
-  //       user.financialDetail.bankName = dto.bankName;
-
-  //     if (dto.accountHolderName !== undefined)
-  //       user.financialDetail.accountHolderName = dto.accountHolderName;
-
-  //     let accountNo = '';
-  //     if (dto.accountNumber !== undefined) {
-  //       user.financialDetail.accountNumber = this.cryptoHelper.encrypt(
-  //         dto.accountNumber,
-  //       );
-  //       accountNo = this.cryptoHelper.decrypt(
-  //         user.financialDetail.accountNumber,
-  //       );
-  //     }
-
-  //     if (dto.bsbNumber !== undefined)
-  //       user.financialDetail.bsbNumber = dto.bsbNumber;
-
-  //     if (dto.abnNumber !== undefined)
-  //       user.financialDetail.abnNumber = dto.abnNumber;
-
-  //     if (dto.businessName !== undefined)
-  //       user.financialDetail.businessName = dto.businessName;
-
-  //     await user.save();
-
-  //     return successResponse({
-  //       financialDetail: {
-  //         bankName: user.financialDetail.bankName,
-  //         accountHolderName: user.financialDetail.accountHolderName,
-  //         accountNumber: accountNo,
-  //         bsbNumber: user.financialDetail.bsbNumber,
-  //         abnNumber: user.financialDetail.abnNumber,
-  //         businessName: user.financialDetail.businessName,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     if (error instanceof HttpException) throw error;
-  //     throw new BadRequestException((error as Error).message);
-  //   }
-  // }
-
-  // public async updateVehicle(
-  //   currentUser: JwtPayload,
-  //   dto: UpdateInstructorVehicleDto,
-  // ) {
-  //   const user = await this.userModel
-  //     .findOne({
-  //       publicId: currentUser.publicId,
-  //       role: UserRole.INSTRUCTOR,
-  //     })
-  //     .exec();
-
-  //   if (!user) {
-  //     throw new BadRequestException('No Instructor found');
-  //   }
-
-  //   if (dto.vehicles.length > 2) {
-  //     throw new BadRequestException(
-  //       'Only AUTO and MANUAL vehicles are allowed',
-  //     );
-  //   }
-
-  //   try {
-  //     // --- Replace vehicles atomically
-  //     user.vehicles = dto.vehicles.map((v) => ({
-  //       registrationNumber: v.registrationNumber,
-  //       licenceCategory: v.licenceCategory,
-  //       make: v.make,
-  //       model: v.model,
-  //       color: v.color,
-  //       year: v.year,
-  //       transmissionType: v.transmissionType,
-  //       ancapSafetyRating: v.ancapSafetyRating,
-  //       hasDualControls: v.hasDualControls ?? false,
-  //     }));
-
-  //     await user.save();
-  //     return successResponse({
-  //       vehicles: user.vehicles.map((v) => ({
-  //         registrationNumber: v.registrationNumber,
-  //         licenceCategory: v.licenceCategory,
-  //         make: v.make,
-  //         model: v.model,
-  //         color: v.color,
-  //         year: v.year,
-  //         transmissionType: v.transmissionType,
-  //         ancapSafetyRating: v.ancapSafetyRating,
-  //         hasDualControls: v.hasDualControls,
-  //       })),
-  //     });
-  //   } catch (error) {
-  //     if (error instanceof HttpException) throw error;
-  //     throw new BadRequestException((error as Error).message);
-  //   }
-  // }
 
   private _buildUserRespons(user: UserDocument): UserResponse {
     return new UserResponseBuilder(user).build();

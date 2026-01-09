@@ -55,10 +55,12 @@ export class InstructorController {
 @Get(':instructorId/available-slots')
 getAvailableSlots(
   @Param('instructorId') instructorId: string,
+  @Query('duration') duration: 1 | 2 | 2.5,
   @Query('timeOfDay') timeOfDay?: 'AM' | 'PM',
 ) {
   return this.instructorService.getAvailableSlots(
     instructorId,
+    duration,
     timeOfDay,
   );
 }
