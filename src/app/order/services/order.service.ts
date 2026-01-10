@@ -250,9 +250,20 @@ const finalStripeAmount = Math.max(totalAmount - walletUsed, 0);
     // =====================================================
     // 8️⃣ Order Create
     // =====================================================
+
+    const instructorProfile = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(dto.instructorId),
+    });
+    
+    if (!instructorProfile) {
+      throw new BadRequestException('Instructor profile not found');
+    }
+
     const order = await this.orderModel.create({
-      learnerId,
-      instructorId: dto.instructorId,
+      // learnerId,
+      learnerId: new Types.ObjectId(learnerId),
+      // instructorId: dto.instructorId,
+      instructorId: instructorProfile._id,
       vehicleType: dto.vehicleType,
   
       lessonHours,

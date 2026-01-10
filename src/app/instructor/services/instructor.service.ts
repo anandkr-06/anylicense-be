@@ -78,19 +78,39 @@ export class InstructorService {
   }
   
   async getOrdersForInstructor(userId: string) {
-    const instructor = await this.instructorProfileModel.findOne({userId: new Types.ObjectId(userId)});
+    const instructor = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
   
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
   
-    return this.orderModel
-      .find({ instructorId: instructor.userId.toString() })
-      .populate('learnerId', 'fullName profileImage')
-      .sort({ createdAt: -1 })
-      .lean();
+    const orders = await this.orderModel
+  .find({ instructorId: instructor._id })
+  .populate({
+    path: 'learnerId',
+    select: 'firstName lastName email profileImage',
+  })
+  .sort({ createdAt: -1 })
+  .lean();
+
+// flatten learner info
+return orders.map(order => {
+  const { learnerId, ...rest } = order;
+  return {
+    ...rest,
+    learner: learnerId || null, // only keep 'learner'
+  };
+});
 
   }
+  
+  
+  
+  
+  
+  
 
   private generateDays(startDate: string, endDate: string): AvailabilityDay[] {
     const days: AvailabilityDay[] = [];
