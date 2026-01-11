@@ -11,6 +11,9 @@ export class Order {
   // 🔹 existing fields (unchanged)
   @Prop({ type: Types.ObjectId, ref: 'Learner', required: true })
   learnerId!: Types.ObjectId;
+  @Prop({ type: Number, default: 0 })
+  walletCredited!: number;
+
 
 
   @Prop({ type: Types.ObjectId, ref: 'InstructorProfile', required: true })
@@ -19,6 +22,10 @@ export class Order {
 
   @Prop({ required: true })
   totalHours!: number;
+
+  @Prop({ required: false, default: 0 })
+  walletCreditAfterBooking!: number;
+
 
   @Prop({ required: true })
   vehicleType!: 'auto' | 'manual';
