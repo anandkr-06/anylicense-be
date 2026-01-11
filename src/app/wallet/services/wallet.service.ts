@@ -114,10 +114,10 @@ export class WalletService {
 
   
   async debitWallet(
-    learnerId: Types.ObjectId | string,
+    learnerId: Types.ObjectId,
     amount: number,
     source: WalletTxnSource,
-    orderId: Types.ObjectId,
+    orderId: Types.ObjectId | null,
     idempotencyKey: string,
   ) {
     if (amount <= 0) return;

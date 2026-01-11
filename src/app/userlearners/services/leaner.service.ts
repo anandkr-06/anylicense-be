@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException,  BadRequestExcept
   ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Learner, LearnerDocument } from '@common/db/schemas/learner.schema';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
 import { SomeOneLeanerRegisterDto } from '../dto/someone-else-register.dto';
@@ -33,13 +33,14 @@ export class LearnerService {
   
   async getOrdersForLearner(learnerId: string) {
     return this.orderModel
-      .find({ learnerId })
+      .find({ learnerId: new Types.ObjectId(learnerId) })
       .populate({
-        path: 'instructorId',           // User
-        select: 'fullName profileImage',
+        path: 'instructorId', // InstructorProfile
+        select: 'rating vehicles',
         populate: {
-          path: 'users',    // nested profile ref
-          select: 'experience rating vehicles serviceAreas',
+          path: 'userId', // User
+          model: 'User',
+          select: 'firstName lastName profileImage',
         },
       })
       .sort({ createdAt: -1 })
@@ -47,8 +48,6 @@ export class LearnerService {
   }
   
   
-  
-
   // async getOrdersForLearner(learnerId: string) {
   //   await this.notificationService.testMail();
   //   return this.orderModel

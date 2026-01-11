@@ -13,6 +13,7 @@ export enum WalletTxnSource {
   ADMIN = 'ADMIN',
   STRIPE = 'STRIPE',              // ✅ ADD THIS
   STRIPE_REFUND = 'STRIPE_REFUND',
+  ORDER_REMAINING = 'ORDER_REMAINING',
 }
 
 

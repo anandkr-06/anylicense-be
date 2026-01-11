@@ -9,14 +9,23 @@ import { v4 as uuidv4 } from 'uuid';
 export class Order {
 
   // 🔹 existing fields (unchanged)
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Learner', required: true })
   learnerId!: Types.ObjectId;
+  @Prop({ type: Number, default: 0 })
+  walletCredited!: number;
+
+
 
   @Prop({ type: Types.ObjectId, ref: 'InstructorProfile', required: true })
   instructorId!: Types.ObjectId;
+  
 
   @Prop({ required: true })
   totalHours!: number;
+
+  @Prop({ required: false, default: 0 })
+  walletCreditAfterBooking!: number;
+
 
   @Prop({ required: true })
   vehicleType!: 'auto' | 'manual';

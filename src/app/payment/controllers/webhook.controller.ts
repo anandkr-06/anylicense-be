@@ -133,27 +133,41 @@ export class StripeWebhookController {
       }
 
       /* -------- ORDER PAYMENT -------- */
-      if (metadata.purpose === 'ORDER_PAYMENT' && metadata.orderId && metadata.learnerId) {
-        const orderId = new Types.ObjectId(metadata.orderId);
+      /* -------- ORDER PAYMENT -------- */
+if (
+  metadata.purpose === 'ORDER_PAYMENT' &&
+  metadata.orderId &&
+  metadata.learnerId
+) {
+  
+  const orderId = new Types.ObjectId(metadata.orderId);
 
-        const order = await this.orderModel.findByIdAndUpdate(
-          orderId,
-          { status: 'CONFIRMED' },
-          { new: true },
-        );
-        if (!order) return { received: true };
+  const order = await this.orderModel.findByIdAndUpdate(
+    orderId,
+    {
+      status: 'CONFIRMED',
+      paymentStatus: 'PAID',
+    },
+    { new: true },
+  );
 
-        await this.walletService.creditWallet(
-          new Types.ObjectId(metadata.learnerId),
-          intent.amount_received / 100,
-          WalletTxnSource.STRIPE, // ✅ FIXED
-          orderId,
-          intent.id,
-          cardMeta,
-        );
+  if (!order) return { received: true };
 
-        return { received: true };
-      }
+  // ✅ CREDIT ONLY REMAINING PREPAID VALUE
+  if (order.walletCreditAfterBooking > 0) {
+    await this.walletService.creditWallet(
+      order.learnerId,
+      order.walletCreditAfterBooking,
+      WalletTxnSource.ORDER_REMAINING,
+      order._id,
+      intent.id,
+      cardMeta,
+    );
+  }
+
+  return { received: true };
+}
+
     }
 
 

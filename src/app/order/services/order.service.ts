@@ -91,14 +91,15 @@ export class OrderService {
       throw new BadRequestException('Vehicle not available');
     }
   
-    const pricePerHour = vehicle.pricePerHour;
+    const vehiclePrice = vehicle.pricePerHour;
+    const vehicleTestPrice = vehicle.testPricePerHour;
   
     // =====================================================
     // 3️⃣ Normalize Slots
     // =====================================================
     const normalizedSlots: NormalizedSlot[] = (dto.slots ?? []).map(s => ({
       date: s.date,
-      type: s.type, // SlotType enum ✔
+      type: s.type,
       startTime: this.amPmTo24(s.startTime),
       endTime: this.amPmTo24(s.endTime),
       pickupAddress: s.pickupAddress,
@@ -123,24 +124,6 @@ export class OrderService {
     }
   
     // ⏱️ 30-minute gap rule (same date)
-    // const sorted = [...normalizedSlots].sort(
-    //   (a, b) => this.toMinutes(a.startTime) - this.toMinutes(b.startTime),
-    // );
-  
-    // for (let i = 1; i < sorted.length; i++) {
-    //   if (sorted[i].date !== sorted[i - 1].date) continue;
-  
-    //   const gap =
-    //     this.toMinutes(sorted[i].startTime) -
-    //     this.toMinutes(sorted[i - 1].endTime);
-  
-    //   if (gap < 30) {
-    //     throw new BadRequestException(
-    //       `Minimum 30 minutes gap required on ${sorted[i].date}`,
-    //     );
-    //   }
-    // }
-
     const sorted: NormalizedSlot[] = [...normalizedSlots].sort(
       (a, b) => this.toMinutes(a.startTime) - this.toMinutes(b.startTime),
     );
@@ -149,9 +132,7 @@ export class OrderService {
       const current = sorted[i];
       const previous = sorted[i - 1];
     
-      if (!current || !previous) {
-        continue; // satisfies TS + runtime safety
-      }
+      if (!current || !previous) continue; // ✅ TS + runtime safety
     
       if (current.date !== previous.date) continue;
     
@@ -189,34 +170,112 @@ export class OrderService {
     const remainingHours = totalHours - usedHours;
   
     // =====================================================
-    // 6️⃣ Amount Calculation (SERVER-OWNED)
+    // 6️⃣ Base Amount (NO discounts yet)
     // =====================================================
-    let totalAmount = totalHours * pricePerHour;
+    let lessonAmount = 0;
+    let testAmount = 0;
   
-    if (totalHours >= 5 && totalHours < 10) totalAmount *= 0.9;
-    if (totalHours >= 10) totalAmount *= 0.85;
+    if (lessonHours > 0) {
+      lessonAmount = lessonHours * vehiclePrice;
+    }
   
-    if (dto.couponValue) totalAmount -= dto.couponValue;
+    if (dto.testCount && dto.testCount > 0 && vehicleTestPrice) {
+      testAmount = dto.testCount * vehicleTestPrice;
+    }
   
-    totalAmount += PLATFORM_CHARGE;
-    totalAmount = Math.max(0, totalAmount);
-  
-    // =====================================================
-    // 7️⃣ Wallet Split
-    // =====================================================
-    const learner = await this.learnerModel.findById(learnerId);
-    if (!learner) throw new NotFoundException('Learner not found');
-  
-    const walletUsed = Math.min(learner.walletBalance, totalAmount);
-    const stripeAmount = totalAmount - walletUsed;
+    const learnerValueAmount = lessonAmount + testAmount;
   
     // =====================================================
-    // 8️⃣ Order Create
+    // 7️⃣ Learner & Discounts
+    // =====================================================
+    const learnerObjectId = new Types.ObjectId(learnerId);
+    const learner = await this.learnerModel.findById(learnerObjectId);
+  
+    if (!learner) {
+      throw new NotFoundException('Learner not found');
+    }
+  
+    let discount = 0;
+    let couponDiscount = 0;
+  
+    if (lessonHours >= 5 && lessonHours < 10) {
+      discount = lessonAmount * 0.1;
+    }
+  
+    if (lessonHours >= 10) {
+      discount = lessonAmount * 0.15;
+    }
+  
+    if (dto.couponValue) {
+      couponDiscount = Math.min(
+        dto.couponValue,
+        learnerValueAmount - discount,
+      );
+    }
+  
+    // =====================================================
+    // 8️⃣ Wallet → Stripe Split (CORRECT ORDER)
+    // =====================================================
+    const learnerPayable = Math.max(
+      learnerValueAmount - discount - couponDiscount,
+      0,
+    );
+  
+    const walletUsed = Math.min(
+      learner.walletBalance,
+      learnerPayable,
+    );
+  
+    const stripeForValue = Math.max(
+      learnerPayable - walletUsed,
+      0,
+    );
+  
+    const platformCharge =
+      stripeForValue > 0 ? PLATFORM_CHARGE : 0;
+  
+    const totalAmount = learnerPayable + platformCharge;
+  
+    const finalStripeAmount = Math.max(
+      totalAmount - walletUsed,
+      0,
+    );
+  
+    // =====================================================
+    // 9️⃣ Consumed Amount
+    // =====================================================
+    let consumedAmount = 0;
+  
+    for (const slot of normalizedSlots) {
+      const duration = this.validateSlotDuration(
+        slot.startTime,
+        slot.endTime,
+        slot.type,
+      );
+  
+      if (slot.type === 'LESSON') {
+        consumedAmount += duration * vehiclePrice;
+      }
+  
+      if (slot.type === 'TEST' && vehicleTestPrice) {
+        consumedAmount += vehicleTestPrice;
+      }
+    }
+  
+    const walletCreditAfterBooking =
+      learnerValueAmount - consumedAmount;
+  
+    // =====================================================
+    // 🔟 Order Create
     // =====================================================
     const order = await this.orderModel.create({
-      learnerId,
-      instructorId: dto.instructorId,
+      learnerId: learnerObjectId,
+      instructorId: instructor._id,
       vehicleType: dto.vehicleType,
+  
+      learnerValueAmount,
+      consumedAmount,
+      walletCreditAfterBooking,
   
       lessonHours,
       testHours,
@@ -225,21 +284,29 @@ export class OrderService {
       usedHours,
       remainingHours,
   
-      pricePerHour,
+      pricePerHour: vehiclePrice,
       totalAmount,
   
       walletUsed,
-      stripeAmount,
+      stripeAmount: finalStripeAmount,
   
-      bookingMode: normalizedSlots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS',
+      bookingMode: normalizedSlots.length
+        ? 'WITH_SLOTS'
+        : 'WITHOUT_SLOTS',
+  
       scheduleStatus: !normalizedSlots.length
         ? 'UNSCHEDULED'
         : remainingHours === 0
         ? 'FULLY_SCHEDULED'
         : 'PARTIALLY_SCHEDULED',
   
-      status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
-      paymentStatus: stripeAmount === 0 ? 'PAID' : 'PENDING',
+      status: finalStripeAmount === 0
+        ? 'CONFIRMED'
+        : 'PENDING_PAYMENT',
+  
+      paymentStatus: finalStripeAmount === 0
+        ? 'PAID'
+        : 'PENDING',
   
       bookedSlots: normalizedSlots.map(s => ({
         date: s.date,
@@ -253,12 +320,12 @@ export class OrderService {
         },
       })),
   
-      platformCharge: PLATFORM_CHARGE,
-      discount: dto.couponValue ?? 0,
+      platformCharge,
+      discount: discount + couponDiscount,
     });
   
     // =====================================================
-    // 9️⃣ Attach Booked Slots
+    // 1️⃣1️⃣ Attach Slots
     // =====================================================
     for (const slot of normalizedSlots) {
       this.attachBookingByRange(instructor, slot, order._id);
@@ -269,11 +336,11 @@ export class OrderService {
     }
   
     // =====================================================
-    // 🔟 Wallet Debit
+    // 1️⃣2️⃣ Wallet Debit (ONLY wallet-only orders)
     // =====================================================
-    if (walletUsed > 0) {
+    if (walletUsed > 0 && finalStripeAmount === 0) {
       await this.walletService.debitWallet(
-        learnerId,
+        learnerObjectId,
         walletUsed,
         WalletTxnSource.ORDER,
         order._id,
@@ -283,6 +350,7 @@ export class OrderService {
   
     return order;
   }
+  
   
   
 
