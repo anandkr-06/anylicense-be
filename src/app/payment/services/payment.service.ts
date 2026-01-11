@@ -73,7 +73,7 @@ export class StripeService {
 
     return {
       clientSecret: paymentIntent.client_secret,
-      amount: order.totalAmount,
+      amount: Math.round(order.totalAmount * 100),
       currency: 'AUD',
       metadata,
     };
