@@ -57,6 +57,13 @@ export class Order {
   @Prop({ required: true })
   totalAmount!: number;
 
+  @Prop({ required: true, default:0 })
+  stripeAmount!: number;
+
+  @Prop({ required: true, default:0 })
+  consumedAmount!:number;
+
+
   // 🔥 UPDATED slots (append-only)
   @Prop({
     type: [
