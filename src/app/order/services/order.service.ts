@@ -244,26 +244,57 @@ export class OrderService {
     // =====================================================
     // 9️⃣ Consumed Amount
     // =====================================================
-    let consumedAmount = 0;
+    // let consumedAmount = 0;
   
-    for (const slot of normalizedSlots) {
-      const duration = this.validateSlotDuration(
-        slot.startTime,
-        slot.endTime,
-        slot.type,
-      );
+    // for (const slot of normalizedSlots) {
+    //   const duration = this.validateSlotDuration(
+    //     slot.startTime,
+    //     slot.endTime,
+    //     slot.type,
+    //   );
   
-      if (slot.type === 'LESSON') {
-        consumedAmount += duration * vehiclePrice;
-      }
+    //   if (slot.type === 'LESSON') {
+    //     consumedAmount += duration * vehiclePrice;
+    //   }
   
-      if (slot.type === 'TEST' && vehicleTestPrice) {
-        consumedAmount += vehicleTestPrice;
-      }
-    }
+    //   if (slot.type === 'TEST' && vehicleTestPrice) {
+    //     consumedAmount += vehicleTestPrice;
+    //   }
+    // }
   
-    const walletCreditAfterBooking =
-      learnerValueAmount - consumedAmount;
+    // const walletCreditAfterBooking =
+    //   learnerValueAmount - consumedAmount;
+
+    // =====================================================
+// 9️⃣ Consumed Amount (ONLY booked slots)
+// =====================================================
+let consumedAmount = 0;
+
+for (const slot of normalizedSlots) {
+  const duration = this.validateSlotDuration(
+    slot.startTime,
+    slot.endTime,
+    slot.type,
+  );
+
+  if (slot.type === 'LESSON') {
+    consumedAmount += duration * vehiclePrice;
+  }
+
+  if (slot.type === 'TEST' && vehicleTestPrice) {
+    // Test is always fixed price (2.5 hrs)
+    consumedAmount += vehicleTestPrice;
+  }
+}
+
+// If no slots booked, nothing is consumed yet
+if (normalizedSlots.length === 0) {
+  consumedAmount = 0;
+}
+
+const walletCreditAfterBooking =
+  learnerValueAmount - consumedAmount;
+
   
     // =====================================================
     // 🔟 Order Create
