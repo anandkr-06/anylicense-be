@@ -71,18 +71,18 @@ export class OrderService {
     learnerId: string,
     dto: CreateOrderDto,
   ): Promise<OrderDocument> {
-  
+
     // =====================================================
     // 1️⃣ Instructor
     // =====================================================
     const instructor = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(dto.instructorId),
     });
-  
+
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
-  
+
     // =====================================================
     // 2️⃣ Vehicle & Pricing
     // =====================================================
@@ -90,10 +90,10 @@ export class OrderService {
     if (!vehicle?.hasVehicle || typeof vehicle.pricePerHour !== 'number') {
       throw new BadRequestException('Vehicle not available');
     }
-  
+
     const vehiclePrice = vehicle.pricePerHour;
     const vehicleTestPrice = vehicle.testPricePerHour;
-  
+
     // =====================================================
     // 3️⃣ Normalize Slots
     // =====================================================
@@ -106,113 +106,141 @@ export class OrderService {
       suburb: s.suburb,
       state: s.state,
     }));
-  
+
     // =====================================================
     // 4️⃣ Slot Validation
     // =====================================================
     let usedHours = 0;
-  
+
     for (const slot of normalizedSlots) {
       const duration = this.validateSlotDuration(
         slot.startTime,
         slot.endTime,
         slot.type,
       );
-  
+
       this.validateSlotAvailability(instructor, slot);
       usedHours += duration;
     }
-  
+
     // ⏱️ 30-minute gap rule (same date)
     const sorted: NormalizedSlot[] = [...normalizedSlots].sort(
       (a, b) => this.toMinutes(a.startTime) - this.toMinutes(b.startTime),
     );
-    
+
     for (let i = 1; i < sorted.length; i++) {
       const current = sorted[i];
       const previous = sorted[i - 1];
-    
+
       if (!current || !previous) continue; // ✅ TS + runtime safety
-    
+
       if (current.date !== previous.date) continue;
-    
+
       const gap =
         this.toMinutes(current.startTime) -
         this.toMinutes(previous.endTime);
-    
+
       if (gap < 30) {
         throw new BadRequestException(
           `Minimum 30 minutes gap required on ${current.date}`,
         );
       }
     }
-    
-  
+
+
     // =====================================================
     // 5️⃣ Hours Calculation
     // =====================================================
     const lessonHours = dto.lessonHours ?? 0;
     const testHours = (dto.testCount ?? 0) * 2.5;
     const totalHours = lessonHours + testHours;
-  
+
     if (totalHours === 0) {
       throw new BadRequestException(
         'At least one lesson or test must be booked',
       );
     }
-  
+
     if (usedHours > totalHours) {
       throw new BadRequestException(
         'Slot hours exceed purchased hours',
       );
     }
-  
+
     const remainingHours = totalHours - usedHours;
-  
+
     // =====================================================
     // 6️⃣ Base Amount (NO discounts yet)
     // =====================================================
     let lessonAmount = 0;
     let testAmount = 0;
-  
+
     if (lessonHours > 0) {
       lessonAmount = lessonHours * vehiclePrice;
     }
-  
+
     if (dto.testCount && dto.testCount > 0 && vehicleTestPrice) {
       testAmount = dto.testCount * vehicleTestPrice;
     }
-  
+
     const learnerValueAmount = lessonAmount + testAmount;
-  
+
     // =====================================================
     // 7️⃣ Learner & Discounts
     // =====================================================
     const learnerObjectId = new Types.ObjectId(learnerId);
     const learner = await this.learnerModel.findById(learnerObjectId);
-  
+
     if (!learner) {
       throw new NotFoundException('Learner not found');
     }
-  
+
     let discount = 0;
     let couponDiscount = 0;
-  
+
     if (lessonHours >= 5 && lessonHours < 10) {
       discount = lessonAmount * 0.1;
     }
-  
+
     if (lessonHours >= 10) {
       discount = lessonAmount * 0.15;
     }
-  
+
     if (dto.couponValue) {
       couponDiscount = Math.min(
         dto.couponValue,
         learnerValueAmount - discount,
       );
     }
-  
+
+    // =====================================================
+    // 8️⃣ Wallet → Stripe Split (CORRECT ORDER)
+    // =====================================================
+    // const learnerPayable = Math.max(
+    //   learnerValueAmount - discount - couponDiscount,
+    //   0,
+    // );
+
+    // const walletUsed = Math.min(
+    //   learner.walletBalance,
+    //   learnerPayable,
+    // );
+
+    // const stripeForValue = Math.max(
+    //   learnerPayable - walletUsed,
+    //   0,
+    // );
+
+    // const platformCharge =
+    //   stripeForValue > 0 ? PLATFORM_CHARGE : 0;
+
+    // const totalAmount = learnerPayable + platformCharge;
+
+    // const finalStripeAmount = Math.max(
+    //   totalAmount - walletUsed,
+    //   0,
+    // );
+
     // =====================================================
     // 8️⃣ Wallet → Stripe Split (CORRECT ORDER)
     // =====================================================
@@ -220,82 +248,113 @@ export class OrderService {
       learnerValueAmount - discount - couponDiscount,
       0,
     );
-  
+
     const walletUsed = Math.min(
       learner.walletBalance,
       learnerPayable,
     );
-  
+
     const stripeForValue = Math.max(
       learnerPayable - walletUsed,
       0,
     );
-  
+
+    // Platform fee ONLY if Stripe is involved
     const platformCharge =
       stripeForValue > 0 ? PLATFORM_CHARGE : 0;
-  
+
     const totalAmount = learnerPayable + platformCharge;
-  
+
     const finalStripeAmount = Math.max(
       totalAmount - walletUsed,
       0,
     );
-  
+
+
     // =====================================================
     // 9️⃣ Consumed Amount
     // =====================================================
     // let consumedAmount = 0;
-  
+
     // for (const slot of normalizedSlots) {
     //   const duration = this.validateSlotDuration(
     //     slot.startTime,
     //     slot.endTime,
     //     slot.type,
     //   );
-  
+
     //   if (slot.type === 'LESSON') {
     //     consumedAmount += duration * vehiclePrice;
     //   }
-  
+
     //   if (slot.type === 'TEST' && vehicleTestPrice) {
     //     consumedAmount += vehicleTestPrice;
     //   }
     // }
-  
+
     // const walletCreditAfterBooking =
     //   learnerValueAmount - consumedAmount;
 
     // =====================================================
-// 9️⃣ Consumed Amount (ONLY booked slots)
-// =====================================================
-let consumedAmount = 0;
+    // 9️⃣ Consumed Amount (ONLY booked slots)
+    // =====================================================
+    // let consumedAmount = 0;
 
-for (const slot of normalizedSlots) {
-  const duration = this.validateSlotDuration(
-    slot.startTime,
-    slot.endTime,
-    slot.type,
-  );
+    // for (const slot of normalizedSlots) {
+    //   const duration = this.validateSlotDuration(
+    //     slot.startTime,
+    //     slot.endTime,
+    //     slot.type,
+    //   );
 
-  if (slot.type === 'LESSON') {
-    consumedAmount += duration * vehiclePrice;
-  }
+    //   if (slot.type === 'LESSON') {
+    //     consumedAmount += duration * vehiclePrice;
+    //   }
 
-  if (slot.type === 'TEST' && vehicleTestPrice) {
-    // Test is always fixed price (2.5 hrs)
-    consumedAmount += vehicleTestPrice;
-  }
-}
+    //   if (slot.type === 'TEST' && vehicleTestPrice) {
+    //     // Test is always fixed price (2.5 hrs)
+    //     consumedAmount += vehicleTestPrice;
+    //   }
+    // }
 
-// If no slots booked, nothing is consumed yet
-if (normalizedSlots.length === 0) {
-  consumedAmount = 0;
-}
+    // // If no slots booked, nothing is consumed yet
+    // if (normalizedSlots.length === 0) {
+    //   consumedAmount = 0;
+    // }
 
-const walletCreditAfterBooking =
-  learnerValueAmount - consumedAmount;
+    // const walletCreditAfterBooking =
+    //   learnerValueAmount - consumedAmount;
 
-  
+    // =====================================================
+    // 9️⃣ Consumed Amount (ONLY booked slots)
+    // =====================================================
+    let consumedAmount = 0;
+
+    for (const slot of normalizedSlots) {
+      const duration = this.validateSlotDuration(
+        slot.startTime,
+        slot.endTime,
+        slot.type,
+      );
+
+      if (slot.type === 'LESSON') {
+        consumedAmount += duration * vehiclePrice;
+      }
+
+      if (slot.type === 'TEST' && vehicleTestPrice) {
+        // TEST is fixed price (2.5 hrs)
+        consumedAmount += vehicleTestPrice;
+      }
+    }
+
+    // Safety
+    consumedAmount = Math.min(consumedAmount, learnerValueAmount);
+
+    const walletCreditAfterBooking =
+      learnerValueAmount - consumedAmount;
+
+
+
     // =====================================================
     // 🔟 Order Create
     // =====================================================
@@ -303,42 +362,42 @@ const walletCreditAfterBooking =
       learnerId: learnerObjectId,
       instructorId: instructor._id,
       vehicleType: dto.vehicleType,
-  
+
       learnerValueAmount,
       consumedAmount,
       walletCreditAfterBooking,
-  
+
       lessonHours,
       testHours,
       totalHours,
-  
+
       usedHours,
       remainingHours,
-  
+
       pricePerHour: vehiclePrice,
       totalAmount,
-  
+
       walletUsed,
       stripeAmount: finalStripeAmount,
-  
+
       bookingMode: normalizedSlots.length
         ? 'WITH_SLOTS'
         : 'WITHOUT_SLOTS',
-  
+
       scheduleStatus: !normalizedSlots.length
         ? 'UNSCHEDULED'
         : remainingHours === 0
-        ? 'FULLY_SCHEDULED'
-        : 'PARTIALLY_SCHEDULED',
-  
+          ? 'FULLY_SCHEDULED'
+          : 'PARTIALLY_SCHEDULED',
+
       status: finalStripeAmount === 0
         ? 'CONFIRMED'
         : 'PENDING_PAYMENT',
-  
+
       paymentStatus: finalStripeAmount === 0
         ? 'PAID'
         : 'PENDING',
-  
+
       bookedSlots: normalizedSlots.map(s => ({
         date: s.date,
         startTime: s.startTime,
@@ -350,22 +409,22 @@ const walletCreditAfterBooking =
           state: s.state,
         },
       })),
-  
+
       platformCharge,
       discount: discount + couponDiscount,
     });
-  
+
     // =====================================================
     // 1️⃣1️⃣ Attach Slots
     // =====================================================
     for (const slot of normalizedSlots) {
       this.attachBookingByRange(instructor, slot, order._id);
     }
-  
+
     if (normalizedSlots.length) {
       await instructor.save();
     }
-  
+
     // =====================================================
     // 1️⃣2️⃣ Wallet Debit (ONLY wallet-only orders)
     // =====================================================
@@ -378,12 +437,12 @@ const walletCreditAfterBooking =
         `wallet-${order._id}`,
       );
     }
-  
+
     return order;
   }
-  
-  
-  
+
+
+
 
 
   // =========================================
@@ -557,50 +616,50 @@ const walletCreditAfterBooking =
   ) {
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     // 1️⃣ Find instructor availability for date
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       // 2️⃣ Check slot is INSIDE availability range
       const rangeMatched = day.slots.some(range => {
         const rangeStart = this.toMinutes(range.startTime);
         const rangeEnd = this.toMinutes(range.endTime);
-  
+
         return reqStart >= rangeStart && reqEnd <= rangeEnd;
       });
-  
+
       if (!rangeMatched) {
         throw new BadRequestException(
           `Slot ${slot.startTime}-${slot.endTime} is outside instructor availability`,
         );
       }
-  
+
       // 3️⃣ Check overlap with existing bookings
       const overlapping = day.slots.some(range => {
         if (!range.isBooked) return false;
-  
+
         const bookedStart = this.toMinutes(range.startTime);
         const bookedEnd = this.toMinutes(range.endTime);
-  
+
         return reqStart < bookedEnd && reqEnd > bookedStart;
       });
-  
+
       if (overlapping) {
         throw new BadRequestException(
           `Slot ${slot.startTime}-${slot.endTime} is already booked`,
         );
       }
-  
+
       return; // ✅ Slot valid
     }
-  
+
     throw new BadRequestException(
       `Instructor not available on ${slot.date}`,
     );
   }
-  
+
   private validateSlotDuration(
     start: string,
     end: string,
@@ -608,22 +667,22 @@ const walletCreditAfterBooking =
   ) {
     const duration =
       (this.toMinutes(end) - this.toMinutes(start)) / 60;
-  
+
     if (type === 'TEST' && duration !== 2.5) {
       throw new BadRequestException(
         'Test booking must be exactly 2.5 hours',
       );
     }
-  
+
     if (type === 'LESSON' && ![1, 2, 2.5].includes(duration)) {
       throw new BadRequestException(
         'Lesson slot must be 1, 2 or 2.5 hours',
       );
     }
-  
+
     return duration;
   }
-  
+
 
   private attachBookingByRange(
     instructor: InstructorProfileDocument,
@@ -632,40 +691,40 @@ const walletCreditAfterBooking =
   ): void {
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       // 1️⃣ Validate requested slot fits inside availability
       const insideAvailability = day.slots.some(s => {
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
         return reqStart >= sStart && reqEnd <= sEnd;
       });
-  
+
       if (!insideAvailability) {
         throw new BadRequestException(
           `Requested slot ${slot.startTime}-${slot.endTime} is outside availability`,
         );
       }
-  
+
       // 2️⃣ Check overlap with booked slots
       const conflict = day.slots.some(s => {
         if (!s.isBooked) return false;
-  
+
         const bStart = this.toMinutes(s.startTime);
         const bEnd = this.toMinutes(s.endTime);
-  
+
         return reqStart < bEnd && reqEnd > bStart;
       });
-  
+
       if (conflict) {
         throw new BadRequestException(
           `Requested slot overlaps an existing booking on ${slot.date}`,
         );
       }
-  
+
       // 3️⃣ Insert booked slot
       day.slots.push({
         startTime: slot.startTime,
@@ -677,16 +736,16 @@ const walletCreditAfterBooking =
         suburb: slot.suburb,
         state: slot.state,
       } as any);
-  
+
       return;
     }
-  
+
     throw new BadRequestException(
       `Instructor not available on ${slot.date}`,
     );
   }
-  
-  
+
+
 
 }
 
