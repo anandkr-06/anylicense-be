@@ -265,10 +265,14 @@ export class OrderService {
 
     const totalAmount = learnerPayable + platformCharge;
 
+    const payableAmount = learnerPayable;
+    const grandTotal = learnerPayable + platformCharge;
+
     const finalStripeAmount = Math.max(
-      totalAmount - walletUsed,
+      grandTotal - walletUsed,
       0,
     );
+
 
 
     // =====================================================
@@ -376,7 +380,7 @@ export class OrderService {
 
       pricePerHour: vehiclePrice,
       totalAmount,
-
+      payableAmount,
       walletUsed,
       stripeAmount: finalStripeAmount,
 
@@ -428,7 +432,7 @@ export class OrderService {
     // =====================================================
     // 1️⃣2️⃣ Wallet Debit (ONLY wallet-only orders)
     // =====================================================
-    if (walletUsed > 0 && finalStripeAmount === 0) {
+    if (walletUsed > 0) {
       await this.walletService.debitWallet(
         learnerObjectId,
         walletUsed,
@@ -437,6 +441,7 @@ export class OrderService {
         `wallet-${order._id}`,
       );
     }
+    
 
     return order;
   }
