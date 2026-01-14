@@ -24,6 +24,7 @@ import { UserLearnersModule } from '@app/userlearners/user.module';
 import {OrdersModule} from '@app/order/order.module'
 import { PaymentsModule } from '@app/payment/payment.module';
 import { WalletModule } from '@app/wallet/wallet.module';
+import { FeedbackModule } from '@app/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { WalletModule } from '@app/wallet/wallet.module';
     OrdersModule,
     PaymentsModule,
     WalletModule,
+    FeedbackModule,
   ],
   providers: [
     GlobalExceptionFilter,

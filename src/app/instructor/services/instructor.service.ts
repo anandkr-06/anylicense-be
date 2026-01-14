@@ -35,7 +35,13 @@ import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration, splitSlotByDuration } from '@constant/slots';
 
 import { CreateDaySlotDto } from '../dto/create-slot.dto';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
+type BookedSlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
 
 @Injectable()
 export class InstructorService {
@@ -48,6 +54,8 @@ export class InstructorService {
     @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel(Order.name) 
             private readonly orderModel: Model<OrderDocument>,
+            @InjectPinoLogger(InstructorService.name)
+            private readonly logger: PinoLogger,
   ) {}
 
   async getInstructorBookedSlots(userId: string) {
@@ -163,15 +171,79 @@ return orders.map(order => {
     return new Date().toISOString().slice(0, 10);
   }
   
+  // async getAvailableSlots(
+  //   instructorId: string,
+  //   duration: 1 | 2 | 2.5,
+  //   timeOfDay?: 'AM' | 'PM',
+  // ) {
+  //   const instructor = await this.instructorProfileModel
+  //     .findOne({ userId: new Types.ObjectId(instructorId) })
+  //     .lean<InstructorProfile>();
+  
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+  
+  //   const today = this.getTodayISODate();
+  //   const durationMinutes = duration * 60;
+  //   const result = [];
+  
+  //   for (const week of instructor.availability?.weeks || []) {
+  //     for (const day of week.days) {
+  //       if (day.date < today) continue;
+  
+  //       const slotsForDay = [];
+  
+  //       for (const slot of day.slots) {
+  //         if (slot.isBooked) continue;
+  
+  //         // 🔥 Split with 30 min gap
+  //         const splitSlots = splitSlotByDuration(
+  //           slot.startTime,
+  //           slot.endTime,
+  //           durationMinutes,
+  //         );
+  
+  //         for (const s of splitSlots) {
+  //           const hour = Number(s.startTime.split(':')[0]);
+  
+  //           // AM / PM filter
+  //           if (timeOfDay) {
+  //             if (timeOfDay === 'AM' && hour >= 12) continue;
+  //             if (timeOfDay === 'PM' && hour < 12) continue;
+  //           }
+  
+  //           slotsForDay.push({
+  //             startTime: toAmPm(s.startTime),
+  //             endTime: toAmPm(s.endTime),
+  //             duration,
+  //           });
+  //         }
+  //       }
+  
+  //       if (slotsForDay.length) {
+  //         result.push({
+  //           date: day.date,
+  //           slots: slotsForDay,
+  //         });
+  //       }
+  //     }
+  //   }
+  
+  //   return result;
+  // }
+  
   async getAvailableSlots(
     instructorId: string,
     duration: 1 | 2 | 2.5,
     timeOfDay?: 'AM' | 'PM',
   ) {
+    // 1️⃣ Find instructor
     const instructor = await this.instructorProfileModel
       .findOne({ userId: new Types.ObjectId(instructorId) })
       .lean<InstructorProfile>();
-  
+
+    this.logger.info(`WEEKCHECK - ${JSON.stringify(instructor?.availability.weeks)}`)
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
@@ -180,16 +252,44 @@ return orders.map(order => {
     const durationMinutes = duration * 60;
     const result = [];
   
+    // 2️⃣ Fetch all booked slots for instructor
+    const bookedSessions = await this.orderModel
+    .find({
+      instructorId: instructorId,
+      status: { $in: ['CONFIRMED', 'PAID'] },
+      date: { $gte: today },
+    })
+    .select('date startTime endTime')
+    .lean<BookedSlot[]>();
+  
+    // 3️⃣ Group booked slots by date
+    const bookedMap = new Map<
+      string,
+      { start: string; end: string }[]
+    >();
+  
+    for (const b of bookedSessions) {
+      if (!bookedMap.has(b.date)) {
+        bookedMap.set(b.date, []);
+      }
+    
+      bookedMap.get(b.date)!.push({
+        start: b.startTime,
+        end: b.endTime,
+      });
+    }
+    
+  
+    // 4️⃣ Iterate availability
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         if (day.date < today) continue;
   
         const slotsForDay = [];
+        const bookedForDay = bookedMap.get(day.date) || [];
   
         for (const slot of day.slots) {
-          if (slot.isBooked) continue;
-  
-          // 🔥 Split with 30 min gap
+          // 🔥 Split availability slot by duration
           const splitSlots = splitSlotByDuration(
             slot.startTime,
             slot.endTime,
@@ -197,9 +297,21 @@ return orders.map(order => {
           );
   
           for (const s of splitSlots) {
+            // 5️⃣ Check overlap with booked slots
+            const hasConflict = bookedForDay.some(b =>
+              this.isOverlapping(
+                s.startTime,
+                s.endTime,
+                b.start,
+                b.end,
+              ),
+            );
+  
+            if (hasConflict) continue;
+  
             const hour = Number(s.startTime.split(':')[0]);
   
-            // AM / PM filter
+            // 6️⃣ AM / PM filter
             if (timeOfDay) {
               if (timeOfDay === 'AM' && hour >= 12) continue;
               if (timeOfDay === 'PM' && hour < 12) continue;
@@ -224,7 +336,42 @@ return orders.map(order => {
   
     return result;
   }
+
+  private isOverlapping(
+    startA: string,
+    endA: string,
+    startB: string,
+    endB: string,
+  ): boolean {
+    return (
+      this.amPmToMinutes(startA) < this.amPmToMinutes(endB) &&
+      this.amPmToMinutes(endA) > this.amPmToMinutes(startB)
+    );
+  }
+
   
+  private  amPmToMinutes(time: string): number {
+    // Expected: "09:00 AM"
+    const match = time.trim().match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+  
+    if (!match) {
+      throw new Error(`Invalid time format: ${time}`);
+    }
+  
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const modifier = match[3]; // AM | PM
+  
+    if (modifier === 'PM' && hours !== 12) {
+      return (hours + 12) * 60 + minutes;
+    }
+  
+    if (modifier === 'AM' && hours === 12) {
+      return minutes; // midnight
+    }
+  
+    return hours * 60 + minutes;
+  }
   
   
   
@@ -286,7 +433,8 @@ return orders.map(order => {
         raw: slot,
       });
     }
-  
+    
+    
     // ---------------------------------------------------
     // 2️⃣ Validate each day independently
     // ---------------------------------------------------
