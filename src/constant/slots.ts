@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { func } from 'joi';
+
 
 // export function convertTo24Hour(time: string): string {
 //   const [timePart, meridian] = time.trim().split(' ');
@@ -282,3 +282,130 @@ export const amPmTo24 = (time: string): string => {
 
   return `${hour.toString().padStart(2, '0')}:${m}`;
 };
+
+function timeToMinutes(time: string): number {
+  if (!time || typeof time !== 'string') {
+    throw new BadRequestException(`Invalid time value: ${time}`);
+  }
+
+  const normalized = time.trim();
+
+  // 24-hour format: "09:00" or "09:00:00"
+  const twentyFourHr = normalized.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (twentyFourHr) {
+    const hour = Number(twentyFourHr[1]);
+    const minute = Number(twentyFourHr[2]);
+
+    if (hour > 23 || minute > 59) {
+      throw new BadRequestException(`Invalid 24h time: ${time}`);
+    }
+
+    return hour * 60 + minute;
+  }
+
+  // 12-hour format: "09:00 AM"
+  const twelveHr = normalized.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  
+  if (twelveHr) {
+    let hour = Number(twelveHr[1]);
+    const minute = Number(twelveHr[2]);
+    if(!twelveHr[3]){
+      throw new BadRequestException(`Getting time format error.`)
+    }
+    const meridian = twelveHr[3].toUpperCase();
+
+    if (hour > 12 || minute > 59) {
+      throw new BadRequestException(`Invalid 12h time: ${time}`);
+    }
+
+    if (meridian === 'PM' && hour !== 12) hour += 12;
+    if (meridian === 'AM' && hour === 12) hour = 0;
+
+    return hour * 60 + minute;
+  }
+
+  throw new BadRequestException(`Invalid time format: ${time}`);
+}
+
+export function minutesToAmPm(minutes: number): string {
+  let h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+
+  h = h % 12 || 12;
+
+  return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+
+export function isOverlapping(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string,
+): boolean {
+  const aStart = timeToMinutes(startA);
+  const aEnd = timeToMinutes(endA);
+  const bStart = timeToMinutes(startB);
+  const bEnd = timeToMinutes(endB);
+
+  return aStart < bEnd && aEnd > bStart;
+}
+
+export function convert12hToMinutes(time: string): number {
+  const match = time.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+
+  if (!match) {
+    throw new BadRequestException(`Invalid time format: ${time}`);
+  }
+
+  const [, hourStr, minuteStr, meridianRaw] = match;
+  if(!hourStr){
+    throw new BadRequestException(`Invalid time format: ${hourStr}`);
+  }
+  if(!minuteStr){
+    throw new BadRequestException(`Invalid time format: ${minuteStr}`);
+  }
+  if(!meridianRaw){
+    throw new BadRequestException(`Invalid time format: ${meridianRaw}`);
+  }
+  let hours = parseInt(hourStr, 10);
+  const minutes = parseInt(minuteStr, 10);
+  const meridian = meridianRaw.toUpperCase();
+
+  if (meridian === 'PM' && hours !== 12) hours += 12;
+  if (meridian === 'AM' && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+}
+
+export function toAmPmNew(time: string): string {
+  const match = time.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match) {
+    throw new BadRequestException(`Invalid 24h time: ${time}`);
+  }
+
+  let hour = Number(match[1]);
+  const minute = match[2];
+
+  const meridian = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12 || 12;
+
+  return `${hour.toString().padStart(2, '0')}:${minute} ${meridian}`;
+}
+
+export function normalizeDate(date: unknown): string {
+  if (typeof date === 'string') return date;
+  if (date instanceof Date) return date.toISOString().slice(0, 10);
+  throw new Error(`Invalid date value: ${JSON.stringify(date)}`);
+}
+
+
+
+export function normalizeTime(time: unknown): string {
+  if (typeof time === 'string') return time;
+  if (time instanceof Date) return time.toISOString().slice(11, 16);
+  throw new Error(`Invalid time value: ${JSON.stringify(time)}`);
+}
+
