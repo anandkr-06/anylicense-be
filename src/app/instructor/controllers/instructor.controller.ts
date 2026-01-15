@@ -38,6 +38,23 @@ import {
 export class InstructorController {
   constructor(private readonly instructorService: InstructorService) {}
 
+  @Get('booked/slots')
+  getInstructorBookedSlotsOnly(
+    @CurrentUser() currentUser: JwtPayload,
+    @Query('date') date?: string,
+  ) {
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException('Invalid date format. Use YYYY-MM-DD');
+    }
+  
+    return this.instructorService.getBookedSlotsOnly(
+      currentUser.sub,
+      date,
+    );
+  }
+  
+
+
   @Get('orders')
   getInstructorOrders(
     @Req() @CurrentUser() currentUser: JwtPayload
