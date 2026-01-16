@@ -136,8 +136,8 @@ export class OrderService {
       status: 'PENDING',
       proposedSlot: {
         date: dto.date,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
+        startTime: this.amPmTo24(dto.startTime),
+        endTime: this.amPmTo24(dto.endTime),
       },
       requestedAt: new Date(),
     };
