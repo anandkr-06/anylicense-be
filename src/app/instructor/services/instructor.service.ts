@@ -32,7 +32,7 @@ import { AvailabilityDayDto as AvailabilityDay } from '../dto/availability-day.d
 import { CheckAvailabilityDto } from '../dto/check-availability.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
-import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration, splitSlotByDuration, isOverlapping, toAmPmNew, normalizeDate, normalizeTime } from '@constant/slots';
+import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration, splitSlotByDuration, isOverlapping, toAmPmNew, normalizeDate, normalizeTime, calculateDuration } from '@constant/slots';
 
 import { CreateDaySlotDto } from '../dto/create-slot.dto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
@@ -97,10 +97,10 @@ export class InstructorService {
           instructorId: instructor._id,
           status: { $in: ['CONFIRMED', 'PAID'] },
         })
-        .select('_id bookedSlots status learnerId')
+        .select('_id bookedSlots status learnerId vehicleType')
         .populate({
           path: 'learnerId',
-          select: 'firstName lastName profileImage',
+          select: 'firstName lastName mobileNumber profileImage',
         })
         .lean<OrderLean[]>();
 
@@ -122,13 +122,16 @@ export class InstructorService {
           bookedMap.get(slotDate)!.push({
             start: slot.startTime,
             end: slot.endTime,
+            pickupLocation: slot.pickupLocation,
             orderId: order._id.toString(),
             bookingStatus: order.status,
+            vehicleType: order.vehicleType,
             learner: order.learnerId
               ? {
                 firstName: order.learnerId.firstName,
                 lastName: order.learnerId.lastName,
                 profileImage: order.learnerId.profileImage,
+                mobileNumber: order.learnerId.mobileNumber,
               }
               : null,
           });
@@ -177,11 +180,13 @@ export class InstructorService {
               slotsForDay.push({
                 startTime: toAmPm(sStart),
                 endTime: toAmPm(sEnd),
-                duration: duration ?? null,
+                duration: duration ?? calculateDuration(sStart,sEnd).hours,
                 isBooked: true,
                 orderId: booking.orderId,
                 bookingStatus: booking.bookingStatus,
                 learner: booking.learner,
+                vehicleType: booking.vehicleType,
+                pickupLocation: booking.pickupLocation,
               });
             }
 
