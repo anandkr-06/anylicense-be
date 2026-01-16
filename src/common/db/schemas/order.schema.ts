@@ -4,13 +4,43 @@ import { v4 as uuidv4 } from 'uuid';
 
 
 @Schema({ collection: 'orders', timestamps: true })
-
-@Schema({ collection: 'orders', timestamps: true })
 export class Order {
 
   // 🔹 existing fields (unchanged)
   @Prop({ type: Types.ObjectId, ref: 'Learner', required: true })
   learnerId!: Types.ObjectId;
+
+  @Prop({
+    type: {
+      requestedBy: { type: String, enum: ['LEARNER', 'INSTRUCTOR'] },
+      status: {
+        type: String,
+        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+        default: 'PENDING',
+      },
+      proposedSlot: {
+        date: String,
+        startTime: String,
+        endTime: String,
+      },
+      requestedAt: Date,
+      respondedAt: Date,
+    },
+  })
+  reschedule?: {
+    requestedBy: 'LEARNER' | 'INSTRUCTOR';
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    proposedSlot: {
+      date: string;
+      startTime: string;
+      endTime: string;
+    };
+    requestedAt: Date;
+    respondedAt?: Date;
+  };
+  
+
+  
   @Prop({ type: Number, default: 0 })
   walletCredited!: number;
 
@@ -85,6 +115,10 @@ export class Order {
   // ✅ NEW SAFE FIELDS
   @Prop({ enum: ['WITH_SLOTS', 'WITHOUT_SLOTS'], default: 'WITHOUT_SLOTS' })
   bookingMode!: 'WITH_SLOTS' | 'WITHOUT_SLOTS';
+
+  
+  @Prop({ enum: ['SCHEDULE', 'RESCHEDULE','CANCEL','NOSHOW','COMPLETED'], default: 'SCHEDULE' })
+  appointmentStatus!: 'SCHEDULE'| 'RESCHEDULE'|'CANCEL'|'NOSHOW'|'COMPLETED';
 
   @Prop({ default: 0 })
   usedHours!: number;
