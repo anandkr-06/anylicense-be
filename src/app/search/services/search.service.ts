@@ -296,6 +296,9 @@ async getInstructorProfile(instructorId: string) {
           model: {
             $first: `$vehicles.${vehicleType}.details.model`,
           },
+          make: {
+            $first: `$vehicles.${vehicleType}.details.make`,
+          },
           pricePerHour: {
             $first: `$vehicles.${vehicleType}.pricePerHour`,
           },
