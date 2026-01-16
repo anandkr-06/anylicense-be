@@ -10,36 +10,7 @@ export class Order {
   @Prop({ type: Types.ObjectId, ref: 'Learner', required: true })
   learnerId!: Types.ObjectId;
 
-  @Prop({
-    type: {
-      requestedBy: { type: String, enum: ['LEARNER', 'INSTRUCTOR'] },
-      status: {
-        type: String,
-        enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
-        default: 'PENDING',
-      },
-      proposedSlot: {
-        date: String,
-        startTime: String,
-        endTime: String,
-      },
-      requestedAt: Date,
-      respondedAt: Date,
-    },
-  })
-  reschedule?: {
-    requestedBy: 'LEARNER' | 'INSTRUCTOR';
-    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-    proposedSlot: {
-      date: string;
-      startTime: string;
-      endTime: string;
-    };
-    requestedAt: Date;
-    respondedAt?: Date;
-  };
-  
-
+ 
   
   @Prop({ type: Number, default: 0 })
   walletCredited!: number;
@@ -98,19 +69,63 @@ export class Order {
   @Prop({
     type: [
       {
-        date: String,
-        startTime: String,
-        endTime: String,
+        _id: { type: Types.ObjectId, auto: true }, // IMPORTANT
+  
+        date: { type: String, required: true },
+        startTime: { type: String, required: true },
+        endTime: { type: String, required: true },
+  
         pickupLocation: {
           pickupAddress: String,
           suburb: String,
           state: String,
         },
+  
+        // 🔥 SLOT-LEVEL RESCHEDULE
+        reschedule: {
+          requestedBy: {
+            type: String,
+            enum: ['LEARNER', 'INSTRUCTOR'],
+          },
+          status: {
+            type: String,
+            enum: ['PENDING', 'ACCEPTED', 'REJECTED'],
+          },
+          proposedSlot: {
+            date: String,
+            startTime: String,
+            endTime: String,
+          },
+          requestedAt: Date,
+          respondedAt: Date,
+        },
       },
     ],
     default: [],
   })
-  bookedSlots!: any[];
+  bookedSlots!: {
+    _id: Types.ObjectId;
+    date: string;
+    startTime: string;
+    endTime: string;
+    pickupLocation?: {
+      pickupAddress: string;
+      suburb: string;
+      state: string;
+    };
+    reschedule?: {
+      requestedBy: 'LEARNER' | 'INSTRUCTOR';
+      status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+      proposedSlot: {
+        date: string;
+        startTime: string;
+        endTime: string;
+      };
+      requestedAt: Date;
+      respondedAt?: Date;
+    };
+  }[];
+  
 
   // ✅ NEW SAFE FIELDS
   @Prop({ enum: ['WITH_SLOTS', 'WITHOUT_SLOTS'], default: 'WITHOUT_SLOTS' })

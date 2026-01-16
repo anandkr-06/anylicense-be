@@ -35,24 +35,26 @@ export class OrdersController {
     return this.ordersService.createOrder(learnerId, dto);
   }
 
-  @Post(':orderId/reschedule/request')
+  @Post(':orderId/slots/:slotId/reschedule/request')
   @UseGuards(JwtAuthGuard)
   requestReschedule(
     @Param('orderId') orderId: string,
+    @Param('slotId') slotId: string,
     @CurrentUser() user: JwtPayload,
     @Body() dto: RescheduleRequestDto,
   ) {
-    return this.ordersService.requestReschedule(orderId, user.sub, dto);
+    return this.ordersService.requestSlotReschedule(orderId, slotId, user.sub, dto);
   }
 
-  @Patch(':orderId/reschedule/respond')
+  @Patch(':orderId/slots/:slotId/reschedule/respond')
   @UseGuards(JwtAuthGuard)
   respondReschedule(
     @Param('orderId') orderId: string,
+    @Param('slotId') slotId: string,
     @CurrentUser() user: JwtPayload,
     @Body() dto: RescheduleResponseDto,
   ) {
-    return this.ordersService.respondReschedule(orderId, user.sub, dto.action);
+    return this.ordersService.respondSlotReschedule(orderId, slotId, user.sub, dto.action);
   }
 
 
