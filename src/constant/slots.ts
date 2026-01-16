@@ -409,3 +409,27 @@ export function normalizeTime(time: unknown): string {
   throw new Error(`Invalid time value: ${JSON.stringify(time)}`);
 }
 
+
+export function calculateDuration(
+  startTime: string,
+  endTime: string,
+): {
+  minutes: number;
+  hours: number;
+} {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+
+  if (end <= start) {
+    throw new BadRequestException(
+      `End time must be greater than start time (${startTime} → ${endTime})`,
+    );
+  }
+
+  const minutes = end - start;
+
+  return {
+    minutes,
+    hours: Number((minutes / 60).toFixed(2)),
+  };
+}
