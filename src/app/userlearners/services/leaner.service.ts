@@ -36,7 +36,7 @@ export class LearnerService {
       .find({ learnerId: new Types.ObjectId(learnerId) })
       .populate({
         path: 'instructorId', // InstructorProfile
-        select: 'rating vehicles',
+        select: 'rating vehicles reschedule appointmentStatus',
         populate: {
           path: 'userId', // User
           model: 'User',
@@ -58,9 +58,7 @@ export class LearnerService {
   // }
 
   async getLearnerBookedSlots(learnerId: string) {
-    const order = await this.orderModel.findOne({
-      learnerId,
-    });
+    const order = await this.orderModel.findOne({ learnerId: new Types.ObjectId(learnerId) });
   
     if (!order) {
       throw new NotFoundException('Order not found');

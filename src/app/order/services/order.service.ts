@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -21,6 +22,8 @@ import { CreateOrderDto, SlotType } from '../dto/create-order.dto';
 import { PLATFORM_CHARGE } from '@constant/packages';
 import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
+import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
+import { RescheduleResponseDto } from '../dto/reschedule-response.dto';
 
 
 interface InstructorHour {
@@ -67,6 +70,93 @@ export class OrderService {
     private readonly logger: Logger,
   ) { }
 
+  async respondReschedule(
+    orderId: string,
+    userId: string,
+    action: 'ACCEPTED' | 'REJECTED',
+  ) {
+    const order = await this.orderModel.findById(orderId);
+  
+    if (!order || !order.reschedule) {
+      throw new NotFoundException('No reschedule request found');
+    }
+  
+    const isRequester =
+      (order.reschedule.requestedBy === 'LEARNER' &&
+        order.learnerId.toString() === userId) ||
+      (order.reschedule.requestedBy === 'INSTRUCTOR' &&
+        order.instructorId.toString() === userId);
+  
+    if (isRequester) {
+      throw new ForbiddenException('Cannot respond to own request');
+    }
+  
+    order.reschedule.status = action;
+    order.reschedule.respondedAt = new Date();
+  
+    if (action === 'ACCEPTED') {
+      order.bookedSlots[0].date = order.reschedule.proposedSlot.date;
+      order.bookedSlots[0].startTime =
+        order.reschedule.proposedSlot.startTime;
+      order.bookedSlots[0].endTime =
+        order.reschedule.proposedSlot.endTime;
+        order.appointmentStatus = "RESCHEDULE";
+    }
+  
+    await order.save(); // ✅ DB UPDATED
+  
+    return {
+      success: true,
+      message: `Reschedule ${action.toLowerCase()}`,
+    };
+  }
+  
+
+
+  async requestReschedule(
+    orderId: string,
+    userId: string,
+    dto: { date: string; startTime: string; endTime: string },
+  ) {
+    const order = await this.orderModel.findById(orderId);
+  
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+  
+    if (order.reschedule?.status === 'PENDING') {
+      throw new BadRequestException('Reschedule already pending');
+    }
+  
+    const requestedBy =
+      order.learnerId.toString() === userId ? 'LEARNER' : 'INSTRUCTOR';
+  
+    order.reschedule = {
+      requestedBy,
+      status: 'PENDING',
+      proposedSlot: {
+        date: dto.date,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+      },
+      requestedAt: new Date(),
+    };
+  
+    await order.save(); // ✅ THIS WAS MISSING
+  
+    return {
+      success: true,
+      message: 'Reschedule request sent',
+    };
+  }
+  
+
+  
+
+
+
+
+  
   async createOrder(
     learnerId: string,
     dto: CreateOrderDto,
