@@ -33,7 +33,7 @@ export function convertTo24Hour(time: unknown): string {
     throw new BadRequestException(`Invalid time type`);
   }
 
-  const clean = time.trim();
+  const clean = time.trim().toUpperCase();
 
   // ❌ Reject pure 24-hour format
   if (/^\d{2}:\d{2}$/.test(clean)) {

@@ -74,7 +74,10 @@ export class Order {
         date: { type: String, required: true },
         startTime: { type: String, required: true },
         endTime: { type: String, required: true },
-  
+        type: {
+          type: String,
+          enum: ['LESSON', 'TEST'],
+        },
         pickupLocation: {
           pickupAddress: String,
           suburb: String,
@@ -108,6 +111,7 @@ export class Order {
     date: string;
     startTime: string;
     endTime: string;
+    type: 'LESSON' | 'TEST',
     pickupLocation?: {
       pickupAddress: string;
       suburb: string;

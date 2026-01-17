@@ -182,7 +182,7 @@ export class OrderService {
       userId: new Types.ObjectId(dto.instructorId),
     });
     if (!instructor) throw new NotFoundException('Instructor not found');
-
+    
     // // =====================================================
     // // 2️⃣ Vehicle & Pricing
     // // =====================================================
@@ -198,7 +198,7 @@ export class OrderService {
     // 2️⃣ Vehicle & Pricing (STRICT)
     // =====================================================
     const vehicle = instructor.vehicles?.[dto.vehicleType];
-
+    
     if (
       !vehicle ||
       !vehicle.hasVehicle ||
@@ -210,7 +210,7 @@ export class OrderService {
     const pricePerHour: number = vehicle.pricePerHour;
     const testPrice: number = vehicle.testPricePerHour ?? 0;
 
-
+    
 
     // =====================================================
     // 3️⃣ Normalize + Validate Slots
@@ -224,7 +224,7 @@ export class OrderService {
       suburb: s.suburb,
       state: s.state,
     }));
-
+    
     let usedHours = 0;
     let consumedAmount = 0;
 
@@ -247,7 +247,8 @@ export class OrderService {
         consumedAmount += testPrice;
       }
     }
-
+    
+    
     // =====================================================
     // 4️⃣ Hours Purchased
     // =====================================================
@@ -342,7 +343,7 @@ const totalAmount = Math.max(
     couponDiscount,
   0,
 );
-
+this.logger.log(`totalAmount: ${totalAmount}`)
 
     // =====================================================
     // 9️⃣ Order Create
@@ -598,7 +599,7 @@ const totalAmount = Math.max(
   ) {
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-
+    
     // 1️⃣ Find instructor availability for date
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
@@ -608,10 +609,10 @@ const totalAmount = Math.max(
       const rangeMatched = day.slots.some(range => {
         const rangeStart = this.toMinutes(range.startTime);
         const rangeEnd = this.toMinutes(range.endTime);
-
+        
         return reqStart >= rangeStart && reqEnd <= rangeEnd;
       });
-
+    
       if (!rangeMatched) {
         throw new BadRequestException(
           `Slot ${slot.startTime}-${slot.endTime} is outside instructor availability`,
@@ -636,7 +637,7 @@ const totalAmount = Math.max(
 
       return; // ✅ Slot valid
     }
-
+    
     throw new BadRequestException(
       `Instructor not available on ${slot.date}`,
     );
