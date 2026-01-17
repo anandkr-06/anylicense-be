@@ -38,6 +38,7 @@ import { CreateDaySlotDto } from '../dto/create-slot.dto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { OrderLean } from '@constant/helper';
 import { json } from 'stream/consumers';
+import { TestLocationDto } from '../dto/testlocation.dto';
 
 type BookedSlot = {
   date: string;
@@ -1088,6 +1089,32 @@ export class InstructorService {
       };
     } catch (error) {
       console.error('UPDATE SERVICE AREAS ERROR:', error);
+      throw error; // ❗ rethrow so NestJS shows correct status
+    }
+  }
+
+  async updateTestLocations(
+    userId: string,
+    testLocations: TestLocationDto[]
+  ) {
+    try {
+
+
+      const instructor = await this.instructorProfileModel.findOneAndUpdate(
+        { userId: new Types.ObjectId(userId) },
+        { $set: { testLocations } },
+        { new: true }
+      );
+
+      if (!instructor) {
+        throw new NotFoundException('Instructor profile not found');
+      }
+
+      return {
+        message: 'Test locations updated successfully',
+      };
+    } catch (error) {
+      console.error('UPDATE TEST LOCATIONS ERROR:', error);
       throw error; // ❗ rethrow so NestJS shows correct status
     }
   }

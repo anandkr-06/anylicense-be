@@ -31,6 +31,7 @@ import { Public } from '@common/decorators/public.decorator';
 import {
   WeekAvailabilityResponseDto,
 } from '../dto/availability-response.dto';
+import { UpdateTestLocationsDto } from '../dto/update-testlocations.dto';
 
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
@@ -160,6 +161,17 @@ async updateServiceAreas(
   return this.instructorService.updateServiceAreas(
     currentUser.sub,
     dto.serviceAreas
+  );
+}
+
+@Patch('test-locations')
+async updateTestLocation(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+  @Body() dto: UpdateTestLocationsDto
+) {
+  return this.instructorService.updateTestLocations(
+    currentUser.sub,
+    dto.testLocations
   );
 }
 

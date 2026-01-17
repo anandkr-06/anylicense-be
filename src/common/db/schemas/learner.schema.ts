@@ -52,7 +52,7 @@ export class Learner {
   @Prop({ default: false, index: true })
   dob!: string;
 
-  @Prop({ default: false, index: true })
+  @Prop({ default: null})
   gender!: string;
 
   // Forgot password
