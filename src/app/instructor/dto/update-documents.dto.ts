@@ -22,4 +22,19 @@ export class UpdateDocumentsDto {
   @ValidateNested()
   @Type(() => UpdateDocumentDto)
   vehicleRegistration?: UpdateDocumentDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateDocumentDto)
+  driverLicence?: UpdateDocumentDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateDocumentDto)
+  blueCard?: UpdateDocumentDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateDocumentDto)
+  certificateIvMotorVehicleTraining?: UpdateDocumentDto;
 }

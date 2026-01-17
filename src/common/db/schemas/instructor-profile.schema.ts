@@ -4,37 +4,66 @@ import { Document } from 'mongoose';
 
 import { Types } from 'mongoose';
 const defaultDocuments = {
-  
-    certificateOfCurrency: {
-      documentNumber: "123456789",
-      issueDate: null,
-      expiryDate: null,
-      expiryCycleMonths: 3,
-      attachment: null,
-      status: 'PENDING'},
-  
-    vehicleInspectionCertificate: {
-      documentNumber: "987654321",
-      issueDate: null,
-      expiryDate: null,
-      expiryCycleMonths: 6,
-      attachment: null,
-      status: 'PENDING'},
-  
-    industryAuthorityCard: {
-      documentNumber: "1122334455",
-      expiryDate: null,
-      attachment: null,
-      status: 'PENDING'},
-  
-    vehicleRegistration: {
-      documentNumber: "5544332211",
-      issueDate: null,
-      expiryDate: null,
-      expiryCycleMonths: 12,
-      attachment: null,
-      status: 'PENDING'}  
-    
+
+  certificateOfCurrency: {
+    documentNumber: "123456789",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 3,
+    attachment: null,
+    status: 'PENDING'
+  },
+
+  vehicleInspectionCertificate: {
+    documentNumber: "987654321",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 6,
+    attachment: null,
+    status: 'PENDING'
+  },
+
+  industryAuthorityCard: {
+    documentNumber: "1122334455",
+    expiryDate: null,
+    attachment: null,
+    status: 'PENDING'
+  },
+
+  vehicleRegistration: {
+    documentNumber: "5544332211",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 12,
+    attachment: null,
+    status: 'PENDING'
+  },
+
+  driverLicence: {
+    documentNumber: "5544332211",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 12,
+    attachment: null,
+    status: 'PENDING'
+  },
+  blueCard: {
+    documentNumber: "5544332211",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 12,
+    attachment: null,
+    status: 'PENDING'
+  },
+  certificateIvMotorVehicleTraining: {
+    documentNumber: "5544332211",
+    issueDate: null,
+    expiryDate: null,
+    expiryCycleMonths: 12,
+    attachment: null,
+    status: 'PENDING'
+  }
+
 }
 export class InstructorDocument {
   @Prop()
@@ -90,7 +119,7 @@ const defaultVehicles = {
       year: null,
       transmissionType: "auto",
       ancapSafetyRating: null,
-      hasDualControls: false  
+      hasDualControls: false
     }
   },
   manual: {
@@ -106,7 +135,7 @@ const defaultVehicles = {
       year: null,
       transmissionType: "manual",
       ancapSafetyRating: null,
-      hasDualControls: false  
+      hasDualControls: false
     }
   },
   private: {
@@ -142,20 +171,20 @@ export class TimeSlot {
   endTime!: string;
 
   @Prop({ default: false })
-    isBooked?: boolean;
-    
-    @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
-    bookingId?: Types.ObjectId;
-    
-    @Prop({ type: String, default: null })
-    pickupAddress?: string;
-    
-    @Prop({ type: String, default: null })
-    suburb?: string;
-    
-    @Prop({ type: String, default: null })
-    state?: string;
- 
+  isBooked?: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
+  bookingId?: Types.ObjectId;
+
+  @Prop({ type: String, default: null })
+  pickupAddress?: string;
+
+  @Prop({ type: String, default: null })
+  suburb?: string;
+
+  @Prop({ type: String, default: null })
+  state?: string;
+
 
 }
 
@@ -264,11 +293,33 @@ export class InstructorProfile {
     lat?: number;
     long?: number;
   }[];
-  
+
+  @Prop({
+    type: [
+      {
+        suburb: { type: String, required: true },
+        postCode: { type: String, default: null },
+        state: { type: String, default: null },
+        locationId: { type: String, default: null },
+        address: { type: String, default: null },
+        location: { type: String, default: null },
+      },
+    ],
+    default: [],
+  })
+  testLocations!: {
+    suburb: string;
+    postCode?: string;
+    state?: string;
+    locationId?: string;
+    address?: string;
+    location?: string;
+  }[];
+
   @Prop({ type: Availability, default: { weeks: [] } })
   availability!: Availability;
- 
-  
+
+
 
   @Prop({
     type: Object,
@@ -296,7 +347,7 @@ export class InstructorProfile {
   @Prop({ default: false })
   isVerified!: boolean;
 
-  @Prop({ type: InstructorDocuments,default: defaultDocuments })
+  @Prop({ type: InstructorDocuments, default: defaultDocuments })
   documents?: InstructorDocuments;
 }
 
