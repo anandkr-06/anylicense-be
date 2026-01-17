@@ -9,7 +9,7 @@ import { InstructorSearchDto } from '../dto/search.dto';
 import { successResponse } from '@common/helpers/response.helper';
 import { ApiResponse } from '@interfaces/api-response.interfaces';
 import { PackageDbService } from '@common/db/services/package.db.service';
-import { Model, Types } from 'mongoose';
+import { Model, Types, PipelineStage } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   ChangePasswordDto,
@@ -39,12 +39,16 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { OrderLean } from '@constant/helper';
 import { json } from 'stream/consumers';
 import { TestLocationDto } from '../dto/testlocation.dto';
+import { AvailabilityDayDTO, AvailabilityAggResult } from '@interfaces/instructor-slots.interface';
+
+
 
 type BookedSlot = {
   date: string;
   startTime: string;
   endTime: string;
 };
+
 
 @Injectable()
 export class InstructorService {
@@ -252,7 +256,7 @@ export class InstructorService {
       .find({ instructorId: instructor._id }, { bookedSlots: 1,reschedule:1,appointmentStatus:1 })
       .populate({
         path: 'learnerId',
-        select: 'firstName lastName email profileImage',
+        select: 'firstName lastName email profileImage mobileNumber',
       })
       .sort({ createdAt: -1 })
       .lean();
@@ -1038,32 +1042,104 @@ export class InstructorService {
 
 
 
-  // 4️⃣ GET AVAILABILITY
-  async getAvailability(userId: string) {
-    const profile = await this.instructorProfileModel.findOne(
-      { userId: new Types.ObjectId(userId) },
-      { availability: 1 }
-    ).lean();
+  // 4️⃣ GET AVAILABILITY WITHOUT PAGINATION
+  // async getAvailability(userId: string) {
+  //   const profile = await this.instructorProfileModel.findOne(
+  //     { userId: new Types.ObjectId(userId) },
+  //     { availability: 1 }
+  //   ).lean();
 
-    if (!profile) throw new NotFoundException('Instructor not found');
+  //   if (!profile) throw new NotFoundException('Instructor not found');
 
-    const availability = profile.availability;
+  //   const availability = profile.availability;
 
+  //   return {
+  //     ...availability,
+  //     weeks: availability.weeks.map(week => ({
+  //       ...week,
+  //       days: week.days.map(day => ({
+  //         ...day,
+  //         slots: day.slots.map(slot => ({
+  //           ...slot,
+  //           startTime: toAmPm(slot.startTime),
+  //           endTime: toAmPm(slot.endTime),
+  //         })),
+  //       })),
+  //     })),
+  //   };
+  // }
+
+  async getAvailabilityPaginated(
+    userId: string,
+    page = 1,
+    limit = 1, // 👈 weeks per page
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const skip = (page - 1) * limit;
+  
+    const match: any = {
+      userId: new Types.ObjectId(userId),
+    };
+  
+    const dateFilter: any = {};
+    if (startDate) dateFilter.$gte = startDate;
+    if (endDate) dateFilter.$lte = endDate;
+  
+    const pipeline: any[] = [
+      { $match: match },
+  
+      {
+        $project: {
+          weeks: {
+            $filter: {
+              input: '$availability.weeks',
+              as: 'week',
+              cond: {
+                $and: [
+                  startDate
+                    ? { $gte: ['$$week.endDate', startDate] }
+                    : { $const: true },
+                  endDate
+                    ? { $lte: ['$$week.startDate', endDate] }
+                    : { $const: true },
+                ],
+              },
+            },
+          },
+        },
+      },
+  
+      {
+        $project: {
+          totalWeeks: { $size: '$weeks' },
+          weeks: { $slice: ['$weeks', skip, limit] },
+        },
+      },
+    ];
+  
+    const result = await this.instructorProfileModel.aggregate(pipeline);
+  
+    if (!result.length) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    const weeks = result[0].weeks ?? [];
+    const totalWeeks = result[0].totalWeeks ?? 0;
+  
     return {
-      ...availability,
-      weeks: availability.weeks.map(week => ({
-        ...week,
-        days: week.days.map(day => ({
-          ...day,
-          slots: day.slots.map(slot => ({
-            ...slot,
-            startTime: toAmPm(slot.startTime),
-            endTime: toAmPm(slot.endTime),
-          })),
-        })),
-      })),
+      weeks,
+      pagination: {
+        page,
+        limit,
+        totalWeeks,
+        totalPages: Math.ceil(totalWeeks / limit),
+      },
     };
   }
+  
+  
+  
 
   async updateServiceAreas(
     userId: string,

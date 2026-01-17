@@ -146,11 +146,29 @@ getAvailableSlots(
    );
  }
 
- // 4️⃣ Get availability
- @Get('availability')
- getAvailability(@Req() @CurrentUser() currentUser: JwtPayload) {
-   return this.instructorService.getAvailability(currentUser.sub);
- }
+ // 4️⃣ Get availability WITHOUT PAGINATION
+//  @Get('availability')
+//  getAvailability(@Req() @CurrentUser() currentUser: JwtPayload) {
+//    return this.instructorService.getAvailability(currentUser.sub);
+//  }
+
+@Get('availability')
+getAvailability(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+  @Query('page') page = 1,
+  @Query('limit') limit = 7,
+  @Query('startDate') startDate?: string,
+  @Query('endDate') endDate?: string,
+) {
+  return this.instructorService.getAvailabilityPaginated(
+    currentUser.sub,
+    Number(page),
+    Number(limit),
+    startDate,
+    endDate,
+  );
+}
+
 
   
   @Patch('service-areas')
