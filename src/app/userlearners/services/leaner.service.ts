@@ -40,7 +40,7 @@ export class LearnerService {
         populate: {
           path: 'userId', // User
           model: 'User',
-          select: 'firstName lastName profileImage',
+          select: 'firstName lastName profileImage mobileNumber',
         },
       })
       .sort({ createdAt: -1 })
