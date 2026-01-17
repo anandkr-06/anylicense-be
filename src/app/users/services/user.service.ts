@@ -75,13 +75,23 @@ export class UserService {
         isTncApproved: dto.isTncApproved,
         isNotificationSent: dto.isNotificationSent,
         isActive: true,
-        state: dto.state
+        state: dto.state,
+        transmissionType:dto.transmissionType,
       });
 
-      await this.instructorProfileModel.create({
-        userId: user._id,
-        isVerified: false
-      });
+      // await this.instructorProfileModel.create({
+      //   userId: user._id,
+      //   isVerified: false,
+      //   transmissionType:dto.transmissionType
+      // });
+
+    const vehicles = this.buildDefaultVehicles(dto.transmissionType);
+
+await this.instructorProfileModel.create({
+  userId: user._id,
+  isVerified: false,
+  vehicles,
+});
 
      
 
@@ -239,71 +249,91 @@ export class UserService {
     return `${first}${last}`.toUpperCase();
   }
 
-  // private gettingUserValue(
-  //   payload: RegisterUserDto,
-  //   profileImage: string | null,
-  // ): Partial<UserDocument> {
-  //   const vehicleDetail: VehicleInterface[] = [];
-  //   const defaultVehicleValue = {
-  //     registrationNumber: '',
-  //     licenceCategory: '',
-  //     make: '',
-  //     model: '',
-  //     color: '',
-  //     year: 1990,
-  //     ancapSafetyRating: '',
-  //     hasDualControls: false,
-  //   };
-  //   const baseVehicle = {
-  //     year: 1990,
-  //     hasDualControls: false,
-  //   };
-  //   const transmissionType = payload.transmissionType;
-  //   if (transmissionType === TransmissionType.AUTO) {
-  //     vehicleDetail.push({
-  //       ...baseVehicle,
-  //       ...{ transmissionType: TransmissionType.AUTO },
-  //     });
-  //   } else if (transmissionType === TransmissionType.MANUAL) {
-  //     vehicleDetail.push({
-  //       ...baseVehicle,
-  //       ...{ transmissionType: TransmissionType.AUTO },
-  //     });
-  //   } else {
-  //     vehicleDetail.push(
-  //       {
-  //         ...baseVehicle,
-  //         ...{ transmissionType: TransmissionType.AUTO },
-  //       },
-  //       {
-  //         ...baseVehicle,
-  //         ...{ transmissionType: TransmissionType.MANUAL },
-  //       },
-  //     );
-  //   }
+  private buildDefaultVehicles(
+  transmissionType: TransmissionType,
+) {
+  const vehicles: any = {};
 
-  //   const user = {
-  //     firstName: payload.firstName,
-  //     lastName: payload.lastName,
-  //     email: payload.email,
-  //     gender: payload.gender,
-  //     mobileNumber: payload.mobileNumber,
-  //     dob: payload.dob,
-  //     description: payload.description,
-  //     isTncApproved: payload.isTncApproved,
-  //     isNotificationSent: payload.isNotificationSent,
-  //     profileImage: profileImage,
-  //     vehicles: vehicleDetail,
-  //     financialDetail: {
-  //       bankName: '',
-  //       accountHolderName: '',
-  //       accountNumber: '',
-  //       bsbNumber: '',
-  //       abnNumber: '',
-  //       businessName: '',
-  //     },
-  //   };
+  // -------------------------
+  // AUTO
+  // -------------------------
+  if (
+    transmissionType === TransmissionType.AUTO ||
+    transmissionType === TransmissionType.BOTH
+  ) {
+    vehicles.auto = {
+      hasVehicle: false,
+      pricePerHour: 40,
+      testPricePerHour: 50,
+      details: {
+        registrationNumber: null,
+        licenceCategory: null,
+        make: null,
+        model: null,
+        color: null,
+        year: null,
+        transmissionType: 'auto',
+        ancapSafetyRating: null,
+        hasDualControls: false,
+      },
+    };
+  }
 
-  //   return user;
-  // }
+  // -------------------------
+  // MANUAL
+  // -------------------------
+  if (
+    transmissionType === TransmissionType.MANUAL ||
+    transmissionType === TransmissionType.BOTH
+  ) {
+    vehicles.manual = {
+      hasVehicle: false,
+      pricePerHour: 40,
+      testPricePerHour: 50,
+      details: {
+        registrationNumber: null,
+        licenceCategory: null,
+        make: null,
+        model: null,
+        color: null,
+        year: null,
+        transmissionType: 'manual',
+        ancapSafetyRating: null,
+        hasDualControls: false,
+      },
+    };
+  }
+
+  // -------------------------
+  // PRIVATE VEHICLES
+  // -------------------------
+  if (
+    transmissionType === TransmissionType.AUTO ||
+    transmissionType === TransmissionType.BOTH
+  ) {
+    vehicles.private = {
+      hasVehicle: true,
+      auto: {
+        pricePerHour: 40,
+        testPricePerHour: 50,
+      },
+    };
+  }
+
+  if (
+    transmissionType === TransmissionType.MANUAL ||
+    transmissionType === TransmissionType.BOTH
+  ) {
+    vehicles.private = {
+      ...(vehicles.private ?? { hasVehicle: true }),
+      manual: {
+        pricePerHour: 40,
+        testPricePerHour: 50,
+      },
+    };
+  }
+
+  return vehicles;
+}
+
 }
