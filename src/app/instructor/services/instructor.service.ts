@@ -243,7 +243,7 @@ export class InstructorService {
     }
 
     const orders = await this.orderModel
-      .find({ instructorId: instructor._id }, { bookedSlots: 1,reschedule:1,appointmentStatus:1 })
+      .find({ instructorId: instructor._id }, { bookedSlots: 1,reschedule:1 })
       .populate({
         path: 'learnerId',
         select: 'firstName lastName email profileImage mobileNumber',

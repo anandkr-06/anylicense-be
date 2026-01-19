@@ -283,7 +283,7 @@ export const amPmTo24 = (time: string): string => {
   return `${hour.toString().padStart(2, '0')}:${m}`;
 };
 
-function timeToMinutes(time: string): number {
+export function timeToMinutes(time: string): number {
   if (!time || typeof time !== 'string') {
     throw new BadRequestException(`Invalid time value: ${time}`);
   }
