@@ -9,39 +9,29 @@ import { InstructorSearchDto } from '../dto/search.dto';
 import { successResponse } from '@common/helpers/response.helper';
 import { ApiResponse } from '@interfaces/api-response.interfaces';
 import { PackageDbService } from '@common/db/services/package.db.service';
-import { Model, Types, PipelineStage } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   ChangePasswordDto,
-  UpdateInstructorFinancialDto,
   UpdateInstructorProfileDto,
-  UpdateInstructorVehicleDto,
 } from '../dto/update-instructor-profile.dto';
 import { UserRole } from '@constant/users';
 import { CryptoHelper } from '@common/helpers/crypto.helper';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
 import { UpdateVehicleDto } from '../dto/update-vehicle.dto';
 import { UpdatePrivateVehicleDto } from '../dto/update-private-vehicle.dto';
-import { InstructorProfileDocument, InstructorProfile, TimeSlot } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas/instructor-profile.schema';
 import { UpdateFinancialDetailsDto } from '../dto/update-financial-details.dto'
 import { UpdateDocumentsDto } from '../dto/update-documents.dto'
 import { ServiceAreaDto } from '../dto/service-area.dto'
-import { UpdateAvailabilityDto } from '../dto/update-availability.dto'
 import { AvailabilityWeekDto } from '../dto/week.dto'
 import { AvailabilityDayDto as AvailabilityDay } from '../dto/availability-day.dto'
 import { CheckAvailabilityDto } from '../dto/check-availability.dto';
-import { CreateOrderDto } from '../dto/create-order.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateSlotDuration, splitSlotByDuration, isOverlapping, toAmPmNew, normalizeDate, normalizeTime, calculateDuration } from '@constant/slots';
-
-import { CreateDaySlotDto } from '../dto/create-slot.dto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { OrderLean } from '@constant/helper';
-import { json } from 'stream/consumers';
 import { TestLocationDto } from '../dto/testlocation.dto';
-import { AvailabilityDayDTO, AvailabilityAggResult } from '@interfaces/instructor-slots.interface';
-
-
 
 type BookedSlot = {
   date: string;
@@ -391,98 +381,213 @@ export class InstructorService {
   //   return result;
   // }
 
+  // async getAvailableSlots(
+  //   instructorId: string,
+  //   duration: 1 | 2 | 2.5,
+  //   timeOfDay?: 'AM' | 'PM',
+  // ) {
+  //   // 1️⃣ Find instructor
+  //   const instructor = await this.instructorProfileModel
+  //     .findOne({ userId: new Types.ObjectId(instructorId) })
+  //     .lean<InstructorProfile>();
+
+  //   this.logger.info(`WEEKCHECK - ${JSON.stringify(instructor?.availability.weeks)}`)
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+
+  //   const today = this.getTodayISODate();
+  //   const durationMinutes = duration * 60;
+  //   const result = [];
+
+  //   // 2️⃣ Fetch all booked slots for instructor
+  //   const bookedSessions = await this.orderModel
+  //     .find({
+  //       instructorId: instructorId,
+  //       status: { $in: ['CONFIRMED', 'PAID'] },
+  //       date: { $gte: today },
+  //     })
+  //     .select('date startTime endTime')
+  //     .lean<BookedSlot[]>();
+
+  //   // 3️⃣ Group booked slots by date
+  //   const bookedMap = new Map<
+  //     string,
+  //     { start: string; end: string }[]
+  //   >();
+
+  //   for (const b of bookedSessions) {
+  //     if (!bookedMap.has(b.date)) {
+  //       bookedMap.set(b.date, []);
+  //     }
+
+  //     bookedMap.get(b.date)!.push({
+  //       start: b.startTime,
+  //       end: b.endTime,
+  //     });
+  //   }
+
+
+  //   // 4️⃣ Iterate availability
+  //   for (const week of instructor.availability?.weeks || []) {
+      
+  //     for (const day of week.days) {
+  //       if (day.date < today) continue;
+        
+  //       const slotsForDay = [];
+  //       const bookedForDay = bookedMap.get(day.date) || [];
+
+  //       for (const slot of day.slots) {
+            
+  //         // 🔥 Split availability slot by duration
+  //         const splitSlots = splitSlotByDuration(
+  //           slot.startTime,
+  //           slot.endTime,
+  //           durationMinutes,
+  //         );
+
+  //         for (const s of splitSlots) {
+  //           // 5️⃣ Check overlap with booked slots
+  //           this.logger.info(`to check: ${JSON.stringify(s)}`)
+            
+  //           const hasConflict = bookedForDay.some(b =>
+  //             this.isOverlapping(
+  //               s.startTime,
+  //               s.endTime,
+  //               b.start,
+  //               b.end,
+  //             ),
+  //           );
+
+  //           if (hasConflict) continue;
+
+  //           const hour = Number(s.startTime.split(':')[0]);
+
+  //           // 6️⃣ AM / PM filter
+  //           if (timeOfDay) {
+  //             if (timeOfDay === 'AM' && hour >= 12) continue;
+  //             if (timeOfDay === 'PM' && hour < 12) continue;
+  //           }
+
+  //           slotsForDay.push({
+  //             startTime: toAmPm(s.startTime),
+  //             endTime: toAmPm(s.endTime),
+  //             duration,
+              
+  //           });
+  //         }
+  //       }
+
+  //       if (slotsForDay.length) {
+  //         result.push({
+  //           date: day.date,
+  //           slots: slotsForDay,
+  //         });
+  //       }
+  //     }
+  //   }
+
+  //   return result;
+  // }
   async getAvailableSlots(
     instructorId: string,
     duration: 1 | 2 | 2.5,
     timeOfDay?: 'AM' | 'PM',
   ) {
-    // 1️⃣ Find instructor
     const instructor = await this.instructorProfileModel
       .findOne({ userId: new Types.ObjectId(instructorId) })
       .lean<InstructorProfile>();
-
-    this.logger.info(`WEEKCHECK - ${JSON.stringify(instructor?.availability.weeks)}`)
+  
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
-
+  
     const today = this.getTodayISODate();
     const durationMinutes = duration * 60;
     const result = [];
-
-    // 2️⃣ Fetch all booked slots for instructor
+  
     const bookedSessions = await this.orderModel
       .find({
-        instructorId: instructorId,
+        instructorId,
         status: { $in: ['CONFIRMED', 'PAID'] },
         date: { $gte: today },
       })
       .select('date startTime endTime')
       .lean<BookedSlot[]>();
-
-    // 3️⃣ Group booked slots by date
-    const bookedMap = new Map<
-      string,
-      { start: string; end: string }[]
-    >();
-
+  
+    const bookedMap = new Map<string, { start: string; end: string }[]>();
+  
     for (const b of bookedSessions) {
-      if (!bookedMap.has(b.date)) {
-        bookedMap.set(b.date, []);
-      }
-
-      bookedMap.get(b.date)!.push({
-        start: b.startTime,
-        end: b.endTime,
-      });
+      if (!bookedMap.has(b.date)) bookedMap.set(b.date, []);
+      bookedMap.get(b.date)!.push({ start: b.startTime, end: b.endTime });
     }
-
-
-    // 4️⃣ Iterate availability
+  
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         if (day.date < today) continue;
-
+  
         const slotsForDay = [];
         const bookedForDay = bookedMap.get(day.date) || [];
+  
+        // for (const slot of day.slots) {
+        //   const splitSlots = splitSlotByDuration(
+        //     slot.startTime,
+        //     slot.endTime,
+        //     durationMinutes,
+        //   );
+  
+        //   for (const s of splitSlots) {
+        //     const isBooked = bookedForDay.some(b =>
+        //       this.isOverlapping(
+        //         s.startTime,
+        //         s.endTime,
+        //         b.start,
+        //         b.end,
+        //       ),
+        //     );
+  
+        //     const hour = Number(s.startTime.split(':')[0]);
+  
+        //     if (timeOfDay) {
+        //       if (timeOfDay === 'AM' && hour >= 12) continue;
+        //       if (timeOfDay === 'PM' && hour < 12) continue;
+        //     }
+  
+        //     slotsForDay.push({
+        //       startTime: toAmPm(s.startTime),
+        //       endTime: toAmPm(s.endTime),
+        //       duration,
+        //       isBooked, // ✅ TRUE if booked, FALSE if free
+        //     });
+        //   }
+        // }
 
         for (const slot of day.slots) {
-          // 🔥 Split availability slot by duration
           const splitSlots = splitSlotByDuration(
             slot.startTime,
             slot.endTime,
             durationMinutes,
           );
-
+        
           for (const s of splitSlots) {
-            // 5️⃣ Check overlap with booked slots
-            const hasConflict = bookedForDay.some(b =>
-              this.isOverlapping(
-                s.startTime,
-                s.endTime,
-                b.start,
-                b.end,
-              ),
-            );
-
-            if (hasConflict) continue;
-
+        
             const hour = Number(s.startTime.split(':')[0]);
-
-            // 6️⃣ AM / PM filter
+        
             if (timeOfDay) {
               if (timeOfDay === 'AM' && hour >= 12) continue;
               if (timeOfDay === 'PM' && hour < 12) continue;
             }
-
+        
             slotsForDay.push({
               startTime: toAmPm(s.startTime),
               endTime: toAmPm(s.endTime),
               duration,
+              isBooked: slot.isBooked === true, // ✅ SOURCE OF TRUTH
             });
           }
         }
-
+        
+  
         if (slotsForDay.length) {
           result.push({
             date: day.date,
@@ -491,9 +596,10 @@ export class InstructorService {
         }
       }
     }
-
+  
     return result;
   }
+  
 
   private isOverlapping(
     startA: string,
