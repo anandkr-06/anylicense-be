@@ -36,7 +36,7 @@ export class LearnerService {
       .find({ learnerId: new Types.ObjectId(learnerId) })
       .populate({
         path: 'instructorId', // InstructorProfile
-        select: 'rating vehicles reschedule appointmentStatus',
+        select: 'rating vehicles reschedule',
         populate: {
           path: 'userId', // User
           model: 'User',

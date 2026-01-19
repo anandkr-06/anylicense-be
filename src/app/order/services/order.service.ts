@@ -24,6 +24,9 @@ import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
 import { RescheduleResponseDto } from '../dto/reschedule-response.dto';
+import { ActionMetaRequestDto } from '../dto/action-meta.dto';
+import { FeedbackOwnerType } from '@constant/enum';
+import { calculateSlotDurationInHours, normalizeTime } from '@constant/order-actions';
 
 
 interface InstructorHour {
@@ -70,6 +73,273 @@ export class OrderService {
     private readonly logger: Logger,
   ) { }
 
+// ⏱ 24 HOUR RULE
+private isWithin24Hours(slotDate: string, startTime: string): boolean {
+  const slotDateTime = new Date(`${slotDate}T${startTime}`);
+  const diffMs = slotDateTime.getTime() - Date.now();
+  return diffMs <= 24 * 60 * 60 * 1000;
+}
+
+private calculateSlotHours(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  if(!eh || !em || !sh || !sm) {
+    throw new BadRequestException("Invalid to calculate slot hours!")
+  }
+  return (eh + em / 60) - (sh + sm / 60);
+}
+
+async cancelSlot(
+  orderId: string,
+  slotId: string,
+  userId: string,
+  role: FeedbackOwnerType,
+) {
+  // const session = await this.orderModel.db.startSession();
+  // session.startTransaction();
+
+  try {
+    const order = await this.orderModel
+      .findById(orderId);
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    const slot = order.bookedSlots.id(slotId);
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    if (slot.status !== 'BOOKED')
+      throw new BadRequestException('Slot not cancellable');
+
+    const within24h = this.isWithin24Hours(
+      slot.date,
+      slot.startTime,
+    );
+
+    slot.status = 'CANCELLED';
+    slot.actionMeta = {
+      actedBy: role,
+      actedAt: new Date(),
+      reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+    };
+
+    // 💰 WALLET REFUND (ONLY IF >24h)
+    if (!within24h) {
+      const hours = this.calculateSlotHours(
+        slot.startTime,
+        slot.endTime,
+      );
+      const refund = hours * order.pricePerHour;
+
+      order.walletCredit += refund;
+      order.remainingHours += hours;
+      order.usedHours -= hours;
+    }
+
+    await order.save();
+   
+    return { success: true, message: 'Slot cancelled' };
+  } catch (e) {
+    throw e;
+  }
+}
+
+async noShowSlot(
+  orderId: string,
+  slotId: string,
+  userId: string,
+  role: 'LEARNER' | 'INSTRUCTOR',
+  body: ActionMetaRequestDto,
+) {
+  const order = await this.orderModel.findById(orderId);
+  if (!order) throw new NotFoundException('Order not found');
+
+  const slot = order.bookedSlots.id(slotId);
+  if (!slot) throw new NotFoundException('Slot not found');
+
+  if (slot.status !== 'BOOKED')
+    throw new BadRequestException('Invalid slot state');
+
+  slot.status = 'NOSHOW';
+  slot.actionMeta = {
+    actedBy: role,
+    reasonType: body.reasonType,
+    comment: body.comment,
+    attachment: body.attachmentUrl,
+    actedAt: new Date(),
+  };
+
+  // ❌ No wallet refund
+  await order.save();
+
+  return { success: true, message: 'Slot marked as no-show' };
+}
+
+// async completeSlot(orderId: string, slotId: string) {
+//   const order = await this.orderModel.findById(orderId);
+//   if (!order) throw new NotFoundException('Order not found');
+
+//   const slot = order.bookedSlots.id(slotId);
+//   if (!slot) throw new NotFoundException('Slot not found');
+
+//   if (slot.status !== 'BOOKED')
+//     throw new BadRequestException('Slot cannot be completed');
+
+//   slot.status = 'COMPLETED';
+
+//   const hours = this.calculateSlotHours(
+//     slot.startTime,
+//     slot.endTime,
+//   );
+
+//   order.usedHours += hours;
+//   order.remainingHours -= hours;
+//   order.consumedAmount += hours * order.pricePerHour;
+
+//   await order.save();
+
+//   return { success: true, message: 'Slot completed' };
+// }
+
+
+  // async respondSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   action: 'ACCEPTED' | 'REJECTED',
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+  
+  //   const slot = order.bookedSlots.find(
+  //     s => String(s._id) === slotId
+  //   );
+    
+    
+  //   if (!slot || !slot.reschedule) {
+  //     throw new NotFoundException('No reschedule request found');
+  //   }
+  
+  //   const isRequester =
+  //     (slot.reschedule.requestedBy === 'LEARNER' &&
+  //       order.learnerId.toString() === userId) ||
+  //     (slot.reschedule.requestedBy === 'INSTRUCTOR' &&
+  //       order.instructorId.toString() === userId);
+  
+  //   if (isRequester) {
+  //     throw new ForbiddenException('Cannot respond to your own request');
+  //   }
+  
+  //   slot.reschedule.status = action;
+  //   slot.reschedule.respondedAt = new Date();
+  
+  //   if (action === 'ACCEPTED') {
+  //     slot.date = slot.reschedule.proposedSlot.date;
+  //     slot.startTime = slot.reschedule.proposedSlot.startTime;
+  //     slot.endTime = slot.reschedule.proposedSlot.endTime;
+  //   }
+  
+  //   await order.save();
+  
+  //   return {
+  //     success: true,
+  //     message: `Slot reschedule ${action.toLowerCase()}`,
+  //   };
+  // }
+  
+  
+
+
+  // async requestSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   dto: RescheduleRequestDto,
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+  
+  //   const slot = order.bookedSlots.find(
+  //     s => String(s._id) === slotId
+  //   );
+    
+  //   if (!slot) {
+  //     throw new NotFoundException('Slot not found');
+  //   }
+    
+  
+  //   if (slot.reschedule?.status === 'PENDING') {
+  //     throw new BadRequestException('Reschedule already pending for this slot');
+  //   }
+  
+  //   const requestedBy =
+  //     order.learnerId.toString() === userId ? 'LEARNER' : 'INSTRUCTOR';
+  
+  //   slot.reschedule = {
+  //     requestedBy,
+  //     status: 'PENDING',
+  //     proposedSlot: {
+  //       date: dto.date,
+  //       startTime: this.amPmTo24(dto.startTime),
+  //       endTime: this.amPmTo24(dto.endTime),
+  //     },
+  //     requestedAt: new Date(),
+  //   };
+  
+  //   await order.save();
+  
+  //   return {
+  //     success: true,
+  //     message: 'Slot reschedule request sent',
+  //   };
+  // }
+
+  async completeSlot(
+    orderId: string,
+    slotId: string,
+    userId: string,
+  ) {
+    const order = await this.orderModel.findById(orderId);
+    if (!order) throw new NotFoundException('Order not found');
+  
+    const slot = order.bookedSlots.find(
+      s => String(s._id) === slotId,
+    );
+    if (!slot) throw new NotFoundException('Slot not found');
+  
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+      throw new BadRequestException(
+        `Slot cannot be completed from ${slot.status}`,
+      );
+    }
+  
+    const start = normalizeTime(slot.startTime);
+    const end = normalizeTime(slot.endTime);
+  
+    const hours = calculateSlotDurationInHours(start, end);
+  
+    // ✅ Update slot
+    slot.status = 'COMPLETED';
+  
+    // ✅ Update order usage
+    order.usedHours += hours;
+    order.remainingHours = Math.max(
+      0,
+      order.totalHours - order.usedHours,
+    );
+  
+    if (order.remainingHours === 0) {
+      order.scheduleStatus = 'FULLY_SCHEDULED';
+    }
+  
+    await order.save();
+  
+    return {
+      success: true,
+      message: 'Slot marked as completed',
+      completedHours: hours,
+    };
+  }
+  
   async respondSlotReschedule(
     orderId: string,
     slotId: string,
@@ -79,23 +349,29 @@ export class OrderService {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
   
-    const slot = order.bookedSlots.find(
-      s => String(s._id) === slotId
+    const instructorData = await this.instructorProfileModel.findOne(
+      { userId: new Types.ObjectId(userId) }
     );
-    
-    
+    if (!order) throw new NotFoundException('Order not found');
+
+    const slot = order.bookedSlots.id(slotId);
     if (!slot || !slot.reschedule) {
       throw new NotFoundException('No reschedule request found');
     }
   
-    const isRequester =
-      (slot.reschedule.requestedBy === 'LEARNER' &&
-        order.learnerId.toString() === userId) ||
-      (slot.reschedule.requestedBy === 'INSTRUCTOR' &&
-        order.instructorId.toString() === userId);
+    const isLearner = order.learnerId.toString() === userId;
+    const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
   
-    if (isRequester) {
-      throw new ForbiddenException('Cannot respond to your own request');
+    if (!isLearner && !isInstructor) {
+      throw new ForbiddenException('Unauthorized');
+    }
+  
+    if (
+      (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
+      (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
+    ) {
+      this.logger.warn(`${JSON.stringify(slot.reschedule)} Learner to check: ${JSON.stringify(isLearner)}`)
+      throw new ForbiddenException('Requester cannot respond');
     }
   
     slot.reschedule.status = action;
@@ -105,7 +381,16 @@ export class OrderService {
       slot.date = slot.reschedule.proposedSlot.date;
       slot.startTime = slot.reschedule.proposedSlot.startTime;
       slot.endTime = slot.reschedule.proposedSlot.endTime;
+      slot.status = 'RESCHEDULED';
     }
+  
+    if (action === 'REJECTED') {
+      slot.status = 'BOOKED';
+      slot.reschedule.status = 'REJECTED';
+      slot.reschedule.respondedAt = new Date();
+    }
+    
+    slot.reschedule = undefined;
   
     await order.save();
   
@@ -115,9 +400,6 @@ export class OrderService {
     };
   }
   
-  
-
-
   async requestSlotReschedule(
     orderId: string,
     slotId: string,
@@ -127,24 +409,30 @@ export class OrderService {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
   
-    const slot = order.bookedSlots.find(
-      s => String(s._id) === slotId
+    const instructorData = await this.instructorProfileModel.findOne(
+      { userId: new Types.ObjectId(userId) }
     );
-    
-    if (!slot) {
-      throw new NotFoundException('Slot not found');
-    }
-    
+
+    const slot = order.bookedSlots.id(slotId);
+    if (!slot) throw new NotFoundException('Slot not found');
   
     if (slot.reschedule?.status === 'PENDING') {
-      throw new BadRequestException('Reschedule already pending for this slot');
+      throw new BadRequestException('Reschedule already pending');
     }
   
-    const requestedBy =
-      order.learnerId.toString() === userId ? 'LEARNER' : 'INSTRUCTOR';
+    if (['CANCELLED', 'NOSHOW', 'COMPLETED'].includes(slot.status)) {
+      throw new BadRequestException(`Cannot reschedule this slot`);
+    }
   
+    const isLearner = order.learnerId.toString() === userId;
+    const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
+  
+    if (!isLearner && !isInstructor) {
+      throw new ForbiddenException('Unauthorized');
+    }
+    slot.status = 'PENDING_RESCHEDULE';
     slot.reschedule = {
-      requestedBy,
+      requestedBy: isLearner ? 'LEARNER' : 'INSTRUCTOR',
       status: 'PENDING',
       proposedSlot: {
         date: dto.date,
@@ -161,6 +449,7 @@ export class OrderService {
       message: 'Slot reschedule request sent',
     };
   }
+  
   
   
 
