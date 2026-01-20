@@ -189,6 +189,7 @@ export class InstructorService {
                 pickupLocation: booking.pickupLocation,
                 bookedSlotId: booking.bookedSlotId,
                 status: booking.status,
+                instructorId:instructorId
               });
             }
 
