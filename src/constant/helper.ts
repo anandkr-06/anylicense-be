@@ -19,6 +19,7 @@ export type OrderLean = {
 };
 
 type OrderBookedSlot = {
+  _id: Types.ObjectId; 
   date: string;
   startTime: string;
   endTime: string;
