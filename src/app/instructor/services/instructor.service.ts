@@ -98,25 +98,29 @@ export class InstructorService {
           select: 'firstName lastName mobileNumber profileImage',
         })
         .lean<OrderLean[]>();
+        // this.logger.info(`Getting order details: ${JSON.stringify(orders)}`)
 
       // 3️⃣ Booked map
       const bookedMap = new Map<string, any[]>();
 
       for (const order of orders) {
+        
         for (const slot of order.bookedSlots || []) {
+          
           if (!slot.date || !slot.startTime || !slot.endTime) continue;
-
+          
           const slotDate = normalizeDate(slot.date);
 
-          if (slotDate < startDate || slotDate > endDateISO) continue;
+         // if (slotDate < startDate || slotDate > endDateISO) continue;
 
-          if (!bookedMap.has(slotDate)) {
+          //if (!bookedMap.has(slotDate)) {
             bookedMap.set(slotDate, []);
-          }
-
+          //}
+          
           bookedMap.get(slotDate)!.push({
             start: slot.startTime,
             end: slot.endTime,
+            bookedSlotId: slot._id.toString(),
             pickupLocation: slot.pickupLocation,
             orderId: order._id.toString(),
             bookingStatus: order.status,
@@ -182,6 +186,7 @@ export class InstructorService {
                 learner: booking.learner,
                 vehicleType: booking.vehicleType,
                 pickupLocation: booking.pickupLocation,
+                bookedSlotId: booking.bookedSlotId,
               });
             }
 
