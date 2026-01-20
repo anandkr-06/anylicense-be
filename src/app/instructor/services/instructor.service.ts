@@ -121,6 +121,7 @@ export class InstructorService {
             start: slot.startTime,
             end: slot.endTime,
             bookedSlotId: slot._id.toString(),
+            status: slot.status,
             pickupLocation: slot.pickupLocation,
             orderId: order._id.toString(),
             bookingStatus: order.status,
@@ -187,6 +188,7 @@ export class InstructorService {
                 vehicleType: booking.vehicleType,
                 pickupLocation: booking.pickupLocation,
                 bookedSlotId: booking.bookedSlotId,
+                status: booking.status,
               });
             }
 
