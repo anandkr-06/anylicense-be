@@ -90,7 +90,7 @@ export class InstructorService {
       const orders = await this.orderModel
         .find({
           instructorId: instructor._id,
-          // status: { $in: ['CONFIRMED', 'PAID'] },
+          status: { $in: ['CONFIRMED', 'PAID'] },
         })
         .select('_id bookedSlots status learnerId vehicleType')
         .populate({
