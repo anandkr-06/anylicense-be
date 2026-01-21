@@ -26,6 +26,7 @@ import { PaymentsModule } from '@app/payment/payment.module';
 import { WalletModule } from '@app/wallet/wallet.module';
 import { FeedbackModule } from '@app/feedback/feedback.module';
 import { AddressLocationModule } from '@app/addresslocations/addresslocation.module';
+import { CourseModule } from '@app/course/course.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { AddressLocationModule } from '@app/addresslocations/addresslocation.mod
     WalletModule,
     FeedbackModule,
     AddressLocationModule,
+    CourseModule,
   ],
   providers: [
     GlobalExceptionFilter,
