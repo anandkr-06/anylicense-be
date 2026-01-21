@@ -433,3 +433,10 @@ export function calculateDuration(
     hours: Number((minutes / 60).toFixed(2)),
   };
 }
+
+export interface AvailableSlot {
+  startTime: string;
+  endTime: string;
+  duration: number;
+  isBooked: boolean;
+}
