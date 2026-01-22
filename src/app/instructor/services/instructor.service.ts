@@ -90,7 +90,7 @@ export class InstructorService {
       const orders = await this.orderModel
         .find({
           instructorId: instructor._id,
-          status: { $in: ['CONFIRMED', 'PAID'] },
+          // status: { $in: ['CONFIRMED', 'PAID'] },
         })
         .select('_id bookedSlots status learnerId vehicleType')
         .populate({
@@ -121,6 +121,7 @@ export class InstructorService {
           start: slot.startTime,
           end: slot.endTime,
           bookedSlotId: slot._id.toString(), // ✅ correct
+          reschedule:slot.reschedule,
           status: slot.status,
           pickupLocation: slot.pickupLocation,
           orderId: order._id.toString(),
@@ -191,7 +192,9 @@ export class InstructorService {
                 // bookedSlotId: booking.bookedSlots,
                 bookedSlotId: booking.bookedSlotId,
                 status: booking.status,
-                instructorId:instructorId
+                instructorId:instructorId,
+                reschedule:booking.reschedule
+
               });
             }
 
