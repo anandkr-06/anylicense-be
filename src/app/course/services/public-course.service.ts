@@ -52,7 +52,7 @@ export class PublicCourseService {
 
     // ✅ LOCATION (EMBEDDED)
     if (city) {
-      filter['location.city'] = city;
+      filter['location'] = city;
     }
 
     // ✅ PRICE RANGE
@@ -85,39 +85,18 @@ export class PublicCourseService {
       data: data.map((course: any) => ({
         id: course._id,
         providerName: course.providerId?.instituteName,
-        title: course.title,
+        courseName: course.courseName,
         category: course.category,
-        mode: course.mode,
-        level: course.level,
-        language: course.language,
-        location: course.location.city,
+        // url: course.url,
+        location: course.location,
         startDate: course.startDate,
         endDate: course.endDate,
         price: course.price,
+        seats: course.seats
       })),
     };
   }
 
-//   async createLead(dto: CreateLeadDto) {
-//     const course = await this.courseModel.findById(dto.courseId);
-//     const courseProvider = await this.courseProviderModel.findById(course?.providerId);
-
-
-//     if (await this.courseLeadModel.exists({ email:dto.email, courseId:dto.courseId })) {
-//         return {
-//             "success": true,
-//             "message": "Lead submitted successfully",
-//             "redirectUrl": courseProvider?.websiteUrl
-//           };
-//     }
-
-//     await this.courseLeadModel.create(dto);
-//     return {
-//         "success": true,
-//         "message": "Lead submitted successfully",
-//         "redirectUrl": courseProvider?.websiteUrl
-//       };
-//   }
 async createLead(dto: CreateLeadDto) {
     // 1️⃣ Fetch course with minimal fields
     const course = await this.courseModel
@@ -134,12 +113,12 @@ async createLead(dto: CreateLeadDto) {
     }
   
     // 2️⃣ Fetch provider website
-    const provider = await this.courseProviderModel
-      .findById(course.providerId)
-      .select('websiteUrl')
+    const courseData = await this.courseModel
+      .findById(dto.courseId)
+      .select('url')
       .lean();
   
-    const redirectUrl = provider?.websiteUrl ?? null;
+    const redirectUrl = courseData?.url ?? null;
   
     // 3️⃣ Check duplicate lead
     const leadExists = await this.courseLeadModel.exists({

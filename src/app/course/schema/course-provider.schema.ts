@@ -33,6 +33,12 @@ export class CourseProvider extends Document {
 
   @Prop()
   location?: string;
+
+  @Prop({ default: true })
+  isAgreedToTermsAndConditions?: boolean;
+  
+  @Prop({ default: true })
+  isAgreedToCommunicationAndOffers?: boolean;
 }
 
 export const CourseProviderSchema =

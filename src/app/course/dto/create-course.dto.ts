@@ -1,4 +1,5 @@
 import {
+  isBoolean,
     IsEnum,
     IsNotEmpty,
     IsNumber,
@@ -43,30 +44,13 @@ import {
   
   export class CreateCourseDto {
     @IsNotEmpty()
-    title!: string;
+    courseName!: string;
   
     @IsNotEmpty()
     category!: string;
   
-    @IsEnum(CourseMode)
-    mode!: CourseMode;
-  
-    @IsEnum(CourseLevel)
-    level!: CourseLevel;
-  
-    @IsNotEmpty()
-    language!: string;
-  
-    @ValidateNested()
-    @Type(() => DurationDto)
-    duration!: DurationDto;
-  
     @IsNumber()
     price!: number;
-  
-    @IsOptional()
-    @IsNumber()
-    discountedPrice?: number;
   
     @IsString()
     startDate!: string;
@@ -75,10 +59,18 @@ import {
     endDate!: string;
   
     @IsOptional()
-    description?: string;
+    seats?: number;
   
-    @ValidateNested()
-    @Type(() => LocationDto)
-    location!: LocationDto;
+    @IsOptional()
+    location?: string;
+
+    @IsEnum({default:true})
+    isAgreedToTermsAndConditions?: boolean;
+
+    @IsEnum({default:true})
+    isAgreedToCommunicationAndOffers?: boolean;
+
+    @IsOptional()
+    url?: string;
   }
   
