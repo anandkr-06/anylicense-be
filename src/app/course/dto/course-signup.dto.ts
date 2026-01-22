@@ -1,12 +1,9 @@
 // dto/course-signup.dto.ts
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CourseSignupDto {
   @IsNotEmpty()
   instituteName!: string;
-
-  @IsOptional()
-  ownerName!: string;
 
   @IsEmail()
   email!: string;
@@ -18,9 +15,6 @@ export class CourseSignupDto {
   password!: string;
 
   @IsOptional()
-  gstNumber?: string;
-
-  @IsOptional()
   logoUrl?: string;
 
   @IsOptional()
@@ -28,4 +22,11 @@ export class CourseSignupDto {
 
   @IsOptional()
   location?: string;
+
+  @IsEnum({default:true})
+  isAgreedToTermsAndConditions?: boolean;
+
+  @IsEnum({default:true})
+  isAgreedToCommunicationAndOffers?: boolean;
+
 }

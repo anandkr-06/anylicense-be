@@ -13,6 +13,12 @@ export class Lead {
   courseId!: Types.ObjectId;
 
   @Prop() source!: string;
+  
+  @Prop({ default: true })
+    isAgreedToTermsAndConditions!: boolean;
+  
+    @Prop({ default: true })
+    isAgreedToCommunicationAndOffers!: boolean;
 }
 
 export const LeadSchema =
