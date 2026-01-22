@@ -25,6 +25,7 @@ type OrderBookedSlot = {
   endTime: string;
   pickupLocation: string
   status:string
+  reschedule:any
 };
 
 export class RescheduleOrderDto {
