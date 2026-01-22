@@ -5,7 +5,7 @@ export class CourseSignupDto {
   @IsNotEmpty()
   instituteName!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   ownerName!: string;
 
   @IsEmail()
@@ -25,4 +25,7 @@ export class CourseSignupDto {
 
   @IsOptional()
   websiteUrl?: string;
+
+  @IsOptional()
+  location?: string;
 }
