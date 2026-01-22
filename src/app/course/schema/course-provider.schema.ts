@@ -7,7 +7,7 @@ export class CourseProvider extends Document {
   @Prop({ required: true })
   instituteName!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   ownerName!: string;
 
   @Prop({ unique: true, sparse: true })
@@ -30,6 +30,9 @@ export class CourseProvider extends Document {
 
   @Prop({ default: true })
   isActive!: boolean;
+
+  @Prop()
+  location?: string;
 }
 
 export const CourseProviderSchema =
