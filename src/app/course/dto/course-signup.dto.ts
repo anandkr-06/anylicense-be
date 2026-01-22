@@ -22,4 +22,7 @@ export class CourseSignupDto {
 
   @IsOptional()
   logoUrl?: string;
+
+  @IsOptional()
+  websiteUrl?: string;
 }

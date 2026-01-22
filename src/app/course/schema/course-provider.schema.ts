@@ -25,6 +25,9 @@ export class CourseProvider extends Document {
   @Prop()
   logoUrl?: string;
 
+  @Prop()
+  websiteUrl?: string;
+
   @Prop({ default: true })
   isActive!: boolean;
 }
