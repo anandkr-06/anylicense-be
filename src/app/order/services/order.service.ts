@@ -73,132 +73,132 @@ export class OrderService {
     private readonly logger: Logger,
   ) { }
 
-// ⏱ 24 HOUR RULE
-private isWithin24Hours(slotDate: string, startTime: string): boolean {
-  const slotDateTime = new Date(`${slotDate}T${startTime}`);
-  const diffMs = slotDateTime.getTime() - Date.now();
-  return diffMs <= 24 * 60 * 60 * 1000;
-}
-
-private calculateSlotHours(start: string, end: string): number {
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  if(!eh || !em || !sh || !sm) {
-    throw new BadRequestException("Invalid to calculate slot hours!")
+  // ⏱ 24 HOUR RULE
+  private isWithin24Hours(slotDate: string, startTime: string): boolean {
+    const slotDateTime = new Date(`${slotDate}T${startTime}`);
+    const diffMs = slotDateTime.getTime() - Date.now();
+    return diffMs <= 24 * 60 * 60 * 1000;
   }
-  return (eh + em / 60) - (sh + sm / 60);
-}
 
-async cancelSlot(
-  orderId: string,
-  slotId: string,
-  userId: string,
-  role: FeedbackOwnerType,
-) {
-  // const session = await this.orderModel.db.startSession();
-  // session.startTransaction();
+  private calculateSlotHours(start: string, end: string): number {
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    if (!eh || !em || !sh || !sm) {
+      throw new BadRequestException("Invalid to calculate slot hours!")
+    }
+    return (eh + em / 60) - (sh + sm / 60);
+  }
 
-  try {
-    const order = await this.orderModel
-      .findById(orderId);
+  async cancelSlot(
+    orderId: string,
+    slotId: string,
+    userId: string,
+    role: FeedbackOwnerType,
+  ) {
+    // const session = await this.orderModel.db.startSession();
+    // session.startTransaction();
 
+    try {
+      const order = await this.orderModel
+        .findById(orderId);
+
+      if (!order) throw new NotFoundException('Order not found');
+
+      const slot = order.bookedSlots.id(slotId);
+      if (!slot) throw new NotFoundException('Slot not found');
+
+      if (slot.status !== 'BOOKED')
+        throw new BadRequestException('Slot not cancellable');
+
+      const within24h = this.isWithin24Hours(
+        slot.date,
+        slot.startTime,
+      );
+
+      slot.status = 'CANCELLED';
+      slot.actionMeta = {
+        actedBy: role,
+        actedAt: new Date(),
+        reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+      };
+
+      // 💰 WALLET REFUND (ONLY IF >24h)
+      if (!within24h) {
+        const hours = this.calculateSlotHours(
+          slot.startTime,
+          slot.endTime,
+        );
+        const refund = hours * order.pricePerHour;
+
+        order.walletCredit += refund;
+        order.remainingHours += hours;
+        order.usedHours -= hours;
+      }
+
+      await order.save();
+
+      return { success: true, message: 'Slot cancelled' };
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async noShowSlot(
+    orderId: string,
+    slotId: string,
+    userId: string,
+    role: 'LEARNER' | 'INSTRUCTOR',
+    body: ActionMetaRequestDto,
+  ) {
+    const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
 
     const slot = order.bookedSlots.id(slotId);
     if (!slot) throw new NotFoundException('Slot not found');
 
     if (slot.status !== 'BOOKED')
-      throw new BadRequestException('Slot not cancellable');
+      throw new BadRequestException('Invalid slot state');
 
-    const within24h = this.isWithin24Hours(
-      slot.date,
-      slot.startTime,
-    );
-
-    slot.status = 'CANCELLED';
+    slot.status = 'NOSHOW';
     slot.actionMeta = {
       actedBy: role,
+      reasonType: body.reasonType,
+      comment: body.comment,
+      attachment: body.attachmentUrl,
       actedAt: new Date(),
-      reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
     };
 
-    // 💰 WALLET REFUND (ONLY IF >24h)
-    if (!within24h) {
-      const hours = this.calculateSlotHours(
-        slot.startTime,
-        slot.endTime,
-      );
-      const refund = hours * order.pricePerHour;
-
-      order.walletCredit += refund;
-      order.remainingHours += hours;
-      order.usedHours -= hours;
-    }
-
+    // ❌ No wallet refund
     await order.save();
-   
-    return { success: true, message: 'Slot cancelled' };
-  } catch (e) {
-    throw e;
+
+    return { success: true, message: 'Slot marked as no-show' };
   }
-}
 
-async noShowSlot(
-  orderId: string,
-  slotId: string,
-  userId: string,
-  role: 'LEARNER' | 'INSTRUCTOR',
-  body: ActionMetaRequestDto,
-) {
-  const order = await this.orderModel.findById(orderId);
-  if (!order) throw new NotFoundException('Order not found');
+  // async completeSlot(orderId: string, slotId: string) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
 
-  const slot = order.bookedSlots.id(slotId);
-  if (!slot) throw new NotFoundException('Slot not found');
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot) throw new NotFoundException('Slot not found');
 
-  if (slot.status !== 'BOOKED')
-    throw new BadRequestException('Invalid slot state');
+  //   if (slot.status !== 'BOOKED')
+  //     throw new BadRequestException('Slot cannot be completed');
 
-  slot.status = 'NOSHOW';
-  slot.actionMeta = {
-    actedBy: role,
-    reasonType: body.reasonType,
-    comment: body.comment,
-    attachment: body.attachmentUrl,
-    actedAt: new Date(),
-  };
+  //   slot.status = 'COMPLETED';
 
-  // ❌ No wallet refund
-  await order.save();
+  //   const hours = this.calculateSlotHours(
+  //     slot.startTime,
+  //     slot.endTime,
+  //   );
 
-  return { success: true, message: 'Slot marked as no-show' };
-}
+  //   order.usedHours += hours;
+  //   order.remainingHours -= hours;
+  //   order.consumedAmount += hours * order.pricePerHour;
 
-// async completeSlot(orderId: string, slotId: string) {
-//   const order = await this.orderModel.findById(orderId);
-//   if (!order) throw new NotFoundException('Order not found');
+  //   await order.save();
 
-//   const slot = order.bookedSlots.id(slotId);
-//   if (!slot) throw new NotFoundException('Slot not found');
-
-//   if (slot.status !== 'BOOKED')
-//     throw new BadRequestException('Slot cannot be completed');
-
-//   slot.status = 'COMPLETED';
-
-//   const hours = this.calculateSlotHours(
-//     slot.startTime,
-//     slot.endTime,
-//   );
-
-//   order.usedHours += hours;
-//   order.remainingHours -= hours;
-//   order.consumedAmount += hours * order.pricePerHour;
-
-//   await order.save();
-
-//   return { success: true, message: 'Slot completed' };
-// }
+  //   return { success: true, message: 'Slot completed' };
+  // }
 
 
   // async respondSlotReschedule(
@@ -209,44 +209,44 @@ async noShowSlot(
   // ) {
   //   const order = await this.orderModel.findById(orderId);
   //   if (!order) throw new NotFoundException('Order not found');
-  
+
   //   const slot = order.bookedSlots.find(
   //     s => String(s._id) === slotId
   //   );
-    
-    
+
+
   //   if (!slot || !slot.reschedule) {
   //     throw new NotFoundException('No reschedule request found');
   //   }
-  
+
   //   const isRequester =
   //     (slot.reschedule.requestedBy === 'LEARNER' &&
   //       order.learnerId.toString() === userId) ||
   //     (slot.reschedule.requestedBy === 'INSTRUCTOR' &&
   //       order.instructorId.toString() === userId);
-  
+
   //   if (isRequester) {
   //     throw new ForbiddenException('Cannot respond to your own request');
   //   }
-  
+
   //   slot.reschedule.status = action;
   //   slot.reschedule.respondedAt = new Date();
-  
+
   //   if (action === 'ACCEPTED') {
   //     slot.date = slot.reschedule.proposedSlot.date;
   //     slot.startTime = slot.reschedule.proposedSlot.startTime;
   //     slot.endTime = slot.reschedule.proposedSlot.endTime;
   //   }
-  
+
   //   await order.save();
-  
+
   //   return {
   //     success: true,
   //     message: `Slot reschedule ${action.toLowerCase()}`,
   //   };
   // }
-  
-  
+
+
 
 
   // async requestSlotReschedule(
@@ -257,23 +257,23 @@ async noShowSlot(
   // ) {
   //   const order = await this.orderModel.findById(orderId);
   //   if (!order) throw new NotFoundException('Order not found');
-  
+
   //   const slot = order.bookedSlots.find(
   //     s => String(s._id) === slotId
   //   );
-    
+
   //   if (!slot) {
   //     throw new NotFoundException('Slot not found');
   //   }
-    
-  
+
+
   //   if (slot.reschedule?.status === 'PENDING') {
   //     throw new BadRequestException('Reschedule already pending for this slot');
   //   }
-  
+
   //   const requestedBy =
   //     order.learnerId.toString() === userId ? 'LEARNER' : 'INSTRUCTOR';
-  
+
   //   slot.reschedule = {
   //     requestedBy,
   //     status: 'PENDING',
@@ -284,9 +284,9 @@ async noShowSlot(
   //     },
   //     requestedAt: new Date(),
   //   };
-  
+
   //   await order.save();
-  
+
   //   return {
   //     success: true,
   //     message: 'Slot reschedule request sent',
@@ -300,46 +300,46 @@ async noShowSlot(
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-  
+
     const slot = order.bookedSlots.find(
       s => String(s._id) === slotId,
     );
     if (!slot) throw new NotFoundException('Slot not found');
-  
+
     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
       throw new BadRequestException(
         `Slot cannot be completed from ${slot.status}`,
       );
     }
-  
+
     const start = normalizeTime(slot.startTime);
     const end = normalizeTime(slot.endTime);
-  
+
     const hours = calculateSlotDurationInHours(start, end);
-  
+
     // ✅ Update slot
     slot.status = 'COMPLETED';
-  
+
     // ✅ Update order usage
     order.usedHours += hours;
     order.remainingHours = Math.max(
       0,
       order.totalHours - order.usedHours,
     );
-  
+
     if (order.remainingHours === 0) {
       order.scheduleStatus = 'FULLY_SCHEDULED';
     }
-  
+
     await order.save();
-  
+
     return {
       success: true,
       message: 'Slot marked as completed',
       completedHours: hours,
     };
   }
-  
+
   async respondSlotReschedule(
     orderId: string,
     slotId: string,
@@ -348,7 +348,7 @@ async noShowSlot(
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-  
+
     const instructorData = await this.instructorProfileModel.findOne(
       { userId: new Types.ObjectId(userId) }
     );
@@ -358,14 +358,14 @@ async noShowSlot(
     if (!slot || !slot.reschedule) {
       throw new NotFoundException('No reschedule request found');
     }
-  
+
     const isLearner = order.learnerId.toString() === userId;
     const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
-  
+
     if (!isLearner && !isInstructor) {
       throw new ForbiddenException('Unauthorized');
     }
-  
+
     if (
       (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
       (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
@@ -373,33 +373,83 @@ async noShowSlot(
       this.logger.warn(`${JSON.stringify(slot.reschedule)} Learner to check: ${JSON.stringify(isLearner)}`)
       throw new ForbiddenException('Requester cannot respond');
     }
-  
+
     slot.reschedule.status = action;
     slot.reschedule.respondedAt = new Date();
-  
+
     if (action === 'ACCEPTED') {
       slot.date = slot.reschedule.proposedSlot.date;
       slot.startTime = slot.reschedule.proposedSlot.startTime;
       slot.endTime = slot.reschedule.proposedSlot.endTime;
       slot.status = 'RESCHEDULED';
     }
-  
+
     if (action === 'REJECTED') {
       slot.status = 'BOOKED';
       slot.reschedule.status = 'REJECTED';
       slot.reschedule.respondedAt = new Date();
     }
-    
+
     slot.reschedule = undefined;
-  
+
     await order.save();
-  
+
     return {
       success: true,
       message: `Slot reschedule ${action.toLowerCase()}`,
     };
   }
-  
+
+  // async requestSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   dto: RescheduleRequestDto,
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const instructorData = await this.instructorProfileModel.findOne(
+  //     { userId: new Types.ObjectId(userId) }
+  //   );
+
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot) throw new NotFoundException('Slot not found');
+
+  //   if (slot.reschedule?.status === 'PENDING') {
+  //     throw new BadRequestException('Reschedule already pending');
+  //   }
+
+  //   if (['CANCELLED', 'NOSHOW', 'COMPLETED'].includes(slot.status)) {
+  //     throw new BadRequestException(`Cannot reschedule this slot`);
+  //   }
+
+  //   const isLearner = order.learnerId.toString() === userId;
+  //   const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
+
+  //   if (!isLearner && !isInstructor) {
+  //     throw new ForbiddenException('Unauthorized');
+  //   }
+  //   slot.status = 'PENDING_RESCHEDULE';
+  //   slot.reschedule = {
+  //     requestedBy: isLearner ? 'LEARNER' : 'INSTRUCTOR',
+  //     status: 'PENDING',
+  //     proposedSlot: {
+  //       date: dto.date,
+  //       startTime: this.amPmTo24(dto.startTime),
+  //       endTime: this.amPmTo24(dto.endTime),
+  //     },
+  //     requestedAt: new Date(),
+  //   };
+
+  //   await order.save();
+
+  //   return {
+  //     success: true,
+  //     message: 'Slot reschedule request sent',
+  //   };
+  // }
+
   async requestSlotReschedule(
     orderId: string,
     slotId: string,
@@ -408,31 +458,129 @@ async noShowSlot(
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-  
+
+    const slot = order.bookedSlots.find(s => String(s._id) === slotId);
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    if (['COMPLETED', 'CANCEL', 'NOSHOW'].includes(slot.status)) {
+      throw new BadRequestException('Slot cannot be rescheduled');
+    }
+
     const instructorData = await this.instructorProfileModel.findOne(
       { userId: new Types.ObjectId(userId) }
     );
+    const isLearner = order.learnerId.toString() === userId;
+    const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
 
-    const slot = order.bookedSlots.id(slotId);
-    if (!slot) throw new NotFoundException('Slot not found');
-  
+    if (!isLearner && !isInstructor) {
+      throw new ForbiddenException();
+    }
+
+
+    const dateParts = slot.date.split('-');
+
+    if (dateParts.length !== 3) {
+      throw new BadRequestException('Invalid slot date format');
+    }
+
+    const year = Number(dateParts[0]);
+    const month = Number(dateParts[1]);
+    const day = Number(dateParts[2]);
+
+    const timeParts = slot.startTime.split(':');
+
+    if (timeParts.length < 2) {
+      throw new BadRequestException('Invalid slot time format');
+    }
+
+    const hour = Number(timeParts[0]);
+    const minute = Number(timeParts[1]);
+
+    const slotStart = new Date(
+      year,
+      month - 1,
+      day,
+      hour,
+      minute,
+      0,
+    );
+    
+    const now = new Date(); // ✅ LOCAL time
+    
+    const diffMs = slotStart.getTime() - now.getTime();
+    const hoursBefore = diffMs / (1000 * 60 * 60);
+    
+    this.logger.debug({
+      slotStartLocal: slotStart.toString(),
+      nowLocal: now.toString(),
+      hoursBefore,
+    });
+    
+    if (hoursBefore <= 0) {
+      throw new BadRequestException(
+        'Cannot reschedule a past or ongoing slot',
+      );
+    }
+    
+    if (isLearner && hoursBefore < 24) {
+      throw new BadRequestException(
+        'Learners cannot reschedule within 24 hours of the slot' + hoursBefore +'='+isLearner,
+      );
+    }
+    
+    
+    // ✅ Validate NEW slot datetime (future)
+    const requestedSlotStart = this.buildDateTime(
+      dto.date,
+      this.amPmTo24(dto.startTime),
+    );
+    
+    if (requestedSlotStart.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'Requested slot must be in the future',
+      );
+    }
+    
+
+// ⛔ Learner already requested
+if (isLearner && slot.status === 'PENDING_RESCHEDULE') {
+  throw new BadRequestException(
+    'Reschedule request already in progress',
+  );
+}
+
+// ⛔ Learner < 24 hours → BLOCK
+if (isLearner && hoursBefore < 24) {
+  throw new BadRequestException(
+    'Learners cannot reschedule within 24 hours of the slot',
+  );
+}
+
+// ✅ Learner ≥ 24 hours → AUTO APPROVE
+if (isLearner && hoursBefore >= 24) {
+  slot.date = dto.date;
+  slot.startTime = this.amPmTo24(dto.startTime);
+  slot.endTime = this.amPmTo24(dto.endTime);
+  slot.status = 'RESCHEDULED';
+  slot.reschedule = undefined;
+
+  await order.save();
+
+  return {
+    success: true,
+    message: 'Slot rescheduled successfully',
+    autoApproved: true,
+  };
+}
+
+
+    // 🔁 INSTRUCTOR → APPROVAL FLOW
     if (slot.reschedule?.status === 'PENDING') {
       throw new BadRequestException('Reschedule already pending');
     }
-  
-    if (['CANCELLED', 'NOSHOW', 'COMPLETED'].includes(slot.status)) {
-      throw new BadRequestException(`Cannot reschedule this slot`);
-    }
-  
-    const isLearner = order.learnerId.toString() === userId;
-    const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
-  
-    if (!isLearner && !isInstructor) {
-      throw new ForbiddenException('Unauthorized');
-    }
-    slot.status = 'PENDING_RESCHEDULE';
+
     slot.reschedule = {
-      requestedBy: isLearner ? 'LEARNER' : 'INSTRUCTOR',
+      requestedBy: 'INSTRUCTOR',
       status: 'PENDING',
       proposedSlot: {
         date: dto.date,
@@ -441,24 +589,59 @@ async noShowSlot(
       },
       requestedAt: new Date(),
     };
-  
+
+    slot.status = 'RESCHEDULE';
+
     await order.save();
-  
+
     return {
       success: true,
-      message: 'Slot reschedule request sent',
+      message: 'Reschedule request sent for learner approval',
+      autoApproved: false,
     };
+  }
+
+
+
+  private buildDateTime(date: string, time24: string): Date {
+    const dateParts = date.split('-');
+    if (dateParts.length !== 3) {
+      throw new BadRequestException('Invalid date format, expected YYYY-MM-DD');
+    }
+  
+    const year = Number(dateParts[0]);
+    const month = Number(dateParts[1]);
+    const day = Number(dateParts[2]);
+  
+    if (
+      Number.isNaN(year) ||
+      Number.isNaN(month) ||
+      Number.isNaN(day)
+    ) {
+      throw new BadRequestException('Invalid date values');
+    }
+  
+    const timeParts = time24.split(':');
+    if (timeParts.length < 2) {
+      throw new BadRequestException('Invalid time format, expected HH:mm');
+    }
+  
+    const hour = Number(timeParts[0]);
+    const minute = Number(timeParts[1]);
+  
+    if (Number.isNaN(hour) || Number.isNaN(minute)) {
+      throw new BadRequestException('Invalid time values');
+    }
+  
+    return new Date(year, month - 1, day, hour, minute, 0);
   }
   
   
-  
-
-  
 
 
 
 
-  
+
   async createOrder(
     learnerId: string,
     dto: CreateOrderDto,
@@ -471,7 +654,7 @@ async noShowSlot(
       userId: new Types.ObjectId(dto.instructorId),
     });
     if (!instructor) throw new NotFoundException('Instructor not found');
-    
+
     // // =====================================================
     // // 2️⃣ Vehicle & Pricing
     // // =====================================================
@@ -487,7 +670,7 @@ async noShowSlot(
     // 2️⃣ Vehicle & Pricing (STRICT)
     // =====================================================
     const vehicle = instructor.vehicles?.[dto.vehicleType];
-    
+
     if (
       !vehicle ||
       !vehicle.hasVehicle ||
@@ -499,7 +682,7 @@ async noShowSlot(
     const pricePerHour: number = vehicle.pricePerHour;
     const testPrice: number = vehicle.testPricePerHour ?? 0;
 
-    
+
 
     // =====================================================
     // 3️⃣ Normalize + Validate Slots
@@ -513,7 +696,7 @@ async noShowSlot(
       suburb: s.suburb,
       state: s.state,
     }));
-    
+
     let usedHours = 0;
     let consumedAmount = 0;
 
@@ -536,8 +719,8 @@ async noShowSlot(
         consumedAmount += testPrice;
       }
     }
-    
-    
+
+
     // =====================================================
     // 4️⃣ Hours Purchased
     // =====================================================
@@ -623,16 +806,16 @@ async noShowSlot(
 
 
     // =====================================================
-// 8️⃣.5️⃣ TOTAL ORDER AMOUNT (REQUIRED BY SCHEMA)
-// =====================================================
-const totalAmount = Math.max(
-  learnerValueAmount +
-    platformCharge -
-    discount -
-    couponDiscount,
-  0,
-);
-this.logger.log(`totalAmount: ${totalAmount}`)
+    // 8️⃣.5️⃣ TOTAL ORDER AMOUNT (REQUIRED BY SCHEMA)
+    // =====================================================
+    const totalAmount = Math.max(
+      learnerValueAmount +
+      platformCharge -
+      discount -
+      couponDiscount,
+      0,
+    );
+    this.logger.log(`totalAmount: ${totalAmount}`)
 
     // =====================================================
     // 9️⃣ Order Create
@@ -888,7 +1071,7 @@ this.logger.log(`totalAmount: ${totalAmount}`)
   ) {
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-    
+
     // 1️⃣ Find instructor availability for date
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
@@ -898,10 +1081,10 @@ this.logger.log(`totalAmount: ${totalAmount}`)
       const rangeMatched = day.slots.some(range => {
         const rangeStart = this.toMinutes(range.startTime);
         const rangeEnd = this.toMinutes(range.endTime);
-        
+
         return reqStart >= rangeStart && reqEnd <= rangeEnd;
       });
-    
+
       if (!rangeMatched) {
         throw new BadRequestException(
           `Slot ${slot.startTime}-${slot.endTime} is outside instructor availability`,
@@ -926,7 +1109,7 @@ this.logger.log(`totalAmount: ${totalAmount}`)
 
       return; // ✅ Slot valid
     }
-    
+
     throw new BadRequestException(
       `Instructor not available on ${slot.date}`,
     );
