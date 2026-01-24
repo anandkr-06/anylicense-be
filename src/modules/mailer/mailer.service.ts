@@ -11,10 +11,8 @@ export class MailerService {
     context?: Record<string, any>;
     html?: string;
   }) {
-    // TEMP: console log (replace with nodemailer later)
     this.logger.log(`Sending email to ${options.to}`);
     this.logger.log(`Subject: ${options.subject}`);
-
     return {
       success: true,
     };

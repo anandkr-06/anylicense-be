@@ -18,6 +18,8 @@ import { CourseStatus, Course } from '../schema/course.schema';
 import { UpdateCourseDto } from '../dto/update-course.dto';
 import { CourseListDto } from '../dto/course-list.dto';
 
+import { NotificationService } from 'modules/notifications/notification.service';
+
 
 export class CourseService {
   constructor(
@@ -26,6 +28,8 @@ export class CourseService {
     @InjectModel(Course.name)
     private readonly courseModel: Model<Course>,
     private readonly jwtService: JwtService,
+    //Notification Service
+    private readonly notificationService: NotificationService,
   ) { }
 
   async signup(dto: CourseSignupDto) {
@@ -44,11 +48,13 @@ export class CourseService {
   
     const hashedPassword = await bcrypt.hash(dto.password, 10);
   
-    await this.courseProviderModel.create({
+    const payload = await this.courseProviderModel.create({
       ...dto,
       password: hashedPassword,
     });
   
+    await this.notificationService.sendCourseSignUp(payload);
+
     return {
       success: true,
       message: 'Course provider registered successfully',

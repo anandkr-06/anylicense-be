@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { join } from 'path';
 import { EmailService } from './email.service';
 
 @Module({
@@ -15,7 +17,15 @@ import { EmailService } from './email.service';
         },
       },
       defaults: {
-        from: '"No Reply" <noreply@example.com>',
+        from: `"No Reply" <${process.env["SMTP_USER"]}>`,
+      },
+      template: {
+        // 👇 IMPORTANT
+        dir: join(process.cwd(), 'src/modules/email/email.templates'),
+        adapter: new HandlebarsAdapter(),
+        options: {
+          strict: false, // prevents blank emails
+        },
       },
     }),
   ],

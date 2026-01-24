@@ -19,8 +19,15 @@ export class NotificationService {
       template: 'learner-booking',
     //   context: { "learner", "order" },
     });
+  }
 
-    
+  async sendCourseSignUp(course: any) {
+    await this.mailerService.sendMail({
+      to: course.email,
+      subject: 'Course Sign Up: Thank you!',
+      template: 'course-booking',
+      context: { instituteName: course.instituteName, email:course.email },
+    });
 
     
     // await this.smsService.send(

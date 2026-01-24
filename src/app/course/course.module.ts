@@ -17,6 +17,7 @@ import {
   CourseSchema,
 } from '../course/schema/course.schema';
 import { Lead, LeadSchema} from './schema/lead.schema';
+import { NotificationModule } from 'modules/notifications/notification.module';
 
 
 @Module({
@@ -30,6 +31,7 @@ import { Lead, LeadSchema} from './schema/lead.schema';
       secret: process.env['JWT_SECRET'],
       signOptions: { expiresIn: '1h' },
     }),
+    NotificationModule
   ],
   controllers: [CourseController,PublicCourseController],
   providers: [CourseService, PublicCourseService],
