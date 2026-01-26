@@ -456,6 +456,7 @@ export class OrderService {
     userId: string,
     dto: RescheduleRequestDto,
   ) {
+    
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
 
@@ -471,6 +472,7 @@ export class OrderService {
     );
     const isLearner = order.learnerId.toString() === userId;
     const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
+    this.logger.log(JSON.stringify(isInstructor))
 
     if (!isLearner && !isInstructor) {
       throw new ForbiddenException();
@@ -590,7 +592,7 @@ if (isLearner && hoursBefore >= 24) {
       requestedAt: new Date(),
     };
 
-    slot.status = 'RESCHEDULE';
+    slot.status = 'RESCHEDULED';
 
     await order.save();
 
