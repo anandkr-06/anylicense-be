@@ -7,6 +7,10 @@ export enum CourseStatus {
   REJECTED = 'REJECTED',
 }
 
+export enum CourseType {
+  WEEKEND = 'Weekend',
+  WEEKDAY = 'Weekday',
+}
 
 @Schema({ timestamps: true })
 export class Course extends Document {
@@ -52,11 +56,11 @@ export class Course extends Document {
   @Prop()
   deletedAt?: Date;
 
-  @Prop({ default: true })
-  isAgreedToTermsAndConditions!: boolean;
-
-  @Prop({ default: true })
-  isAgreedToCommunicationAndOffers!: boolean;
+  @Prop({
+    enum: CourseType,
+    default: CourseType.WEEKEND,
+  })
+  courseType!: CourseStatus;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
