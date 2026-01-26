@@ -1,76 +1,76 @@
 import {
-  isBoolean,
-    IsEnum,
-    IsNotEmpty,
-    IsNumber,
-    IsOptional,
-    IsString,
-    ValidateNested,
-  } from 'class-validator';
-  import { Type } from 'class-transformer';
-  
-  export enum CourseMode {
-    ONLINE = 'Online',
-    OFFLINE = 'Offline',
-  }
-  
-  export enum CourseLevel {
-    BEGINNER = 'Beginner',
-    INTERMEDIATE = 'Intermediate',
-    ADVANCED = 'Advanced',
-  }
-  
-  export class DurationDto {
-    @IsNumber()
-    value!: number;
-  
-    @IsString()
-    unit!: string; // Days | Months
-  }
-  
-  export class LocationDto {
-    @IsString()
-    address!: string;
-  
-    @IsString()
-    city!: string;
-  
-    @IsString()
-    state!: string;
-  
-    @IsString()
-    pincode!: string;
-  }
-  
-  export class CreateCourseDto {
-    @IsNotEmpty()
-    courseName!: string;
-  
-    @IsNotEmpty()
-    category!: string;
-  
-    @IsNumber()
-    price!: number;
-  
-    @IsString()
-    startDate!: string;
-  
-    @IsString()
-    endDate!: string;
-  
-    @IsOptional()
-    seats?: number;
-  
-    @IsOptional()
-    location?: string;
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsPositive,
+  IsDateString,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
-    @IsEnum({default:true})
-    isAgreedToTermsAndConditions?: boolean;
+export enum CourseType {
+  WEEKEND = 'Weekend',
+  WEEKDAY = 'Weekday',
+}
 
-    @IsEnum({default:true})
-    isAgreedToCommunicationAndOffers?: boolean;
+export class DurationDto {
+  @IsNumber()
+  @IsPositive()
+  value!: number;
 
-    @IsOptional()
-    url?: string;
-  }
-  
+  @IsString()
+  unit!: 'Days' | 'Months';
+}
+
+export class LocationDto {
+  @IsString()
+  address!: string;
+
+  @IsString()
+  city!: string;
+
+  @IsString()
+  state!: string;
+
+  @IsString()
+  pincode!: string;
+}
+
+export class CreateCourseDto {
+  @IsNotEmpty()
+  @IsString()
+  courseName!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  category!: string;
+
+  @IsNumber()
+  @IsPositive()
+  price!: number;
+
+  @IsDateString()
+  startDate!: string;
+
+  @IsDateString()
+  endDate!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  seats?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location?: LocationDto;
+
+  @IsEnum(CourseType)
+  courseType!: CourseType;
+
+  @IsOptional()
+  @IsString()
+  url?: string;
+}

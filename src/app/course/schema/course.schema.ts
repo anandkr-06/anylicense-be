@@ -7,35 +7,71 @@ export enum CourseStatus {
   REJECTED = 'REJECTED',
 }
 
+export enum CourseType {
+  WEEKEND = 'Weekend',
+  WEEKDAY = 'Weekday',
+}
+
+@Schema({ _id: false })
+class Location {
+  @Prop({ default: '' })
+  address!: string;
+
+  @Prop({ default: '' })
+  city!: string;
+
+  @Prop({ default: '' })
+  state!: string;
+
+  @Prop({ default: '' })
+  pincode!: string;
+}
+
 
 @Schema({ timestamps: true })
 export class Course extends Document {
   @Prop({ type: Types.ObjectId, ref: 'CourseProvider', required: true })
   providerId!: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   courseName!: string;
 
   @Prop({ required: true })
   category!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, min: 0 })
   price!: number;
 
-  @Prop()
-  startDate!: string;
+  @Prop({ type: Date, required: true })
+  startDate!: Date;
+
+  @Prop({ type: Date, required: true })
+  endDate!: Date;
+
+  @Prop({
+    type: Location,
+    default: () => ({
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
+    }),
+  })
+  location!: Location;
+  
+
+  @Prop({ min: 1 })
+  seats?: number;
 
   @Prop()
-  endDate!: string;
+  url?: string;
 
-  @Prop()
-  location!:string;
-
-  @Prop()
-  seats!:number;
-
-  @Prop()
-  url!:string;
+  @Prop({
+    enum: CourseType,
+    required: true,
+    default: CourseType.WEEKEND,
+  })
+  courseType!: CourseType;
 
   @Prop({
     enum: CourseStatus,
@@ -51,12 +87,6 @@ export class Course extends Document {
 
   @Prop()
   deletedAt?: Date;
-
-  @Prop({ default: true })
-  isAgreedToTermsAndConditions!: boolean;
-
-  @Prop({ default: true })
-  isAgreedToCommunicationAndOffers!: boolean;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
