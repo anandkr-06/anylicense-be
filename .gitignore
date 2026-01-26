@@ -144,3 +144,4 @@ seed.ts
 .DS_Store
 .DS_Store*
 *.DS_Store*
+scripts/*
