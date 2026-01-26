@@ -27,4 +27,16 @@ public getAllSuburbs(@Query() query: SearchPaginationDto) {
   return this.suburbService.getAllSuburbs(query);
 }
 
+
+@Get('boundaries-ui')
+async getMultipleSuburbBoundaries(
+  @Query('names') names: string
+) {
+  const suburbNames = names
+    .split(',')
+    .map(n => n.trim().toUpperCase());
+  return  this.suburbService.getAllSuburbsCoordinates(names);;
+}
+
+
 }

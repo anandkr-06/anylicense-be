@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SuburbDocument } from '@common/db/schemas/suburb.schema'; 
 import { Public } from '@common/decorators/public.decorator';
+import { geoToUIRegions } from '@constant/suburb';
 
 @Injectable()
 export class SuburbService {
@@ -12,6 +13,29 @@ export class SuburbService {
     private readonly suburbModel: Model<SuburbDocument>,
   ) {}
 
+  public async getAllSuburbsCoordinates(suburb:string) {
+
+  
+    const suburbNames = suburb
+    .split(',')
+    .map(n => n.trim().toUpperCase());
+
+  const suburbs = await this.suburbModel.find(
+    {
+     // state: state.toUpperCase(),
+      name: { $in: suburbNames }
+    },
+    { geometry: 1, _id: 0 }
+  );
+
+  const response: any[] = [];
+
+  for (const suburb of suburbs) {
+    response.push(...geoToUIRegions(suburb.geometry));
+  }
+
+  return response;
+  }
   public async getAllSuburbs({
     search = '',
     page = 1,
