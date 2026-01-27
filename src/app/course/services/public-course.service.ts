@@ -22,10 +22,12 @@ export class PublicCourseService {
 
     const locations = await this.courseModel.distinct('location');
     const startDates = await this.courseModel.distinct('startDate');
+    const courseName = await this.courseModel.distinct('courseName');
 
     return {
       locations,
-      startDates
+      startDates,
+      courseName
     };
 
   }
