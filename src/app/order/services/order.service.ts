@@ -592,7 +592,7 @@ if (isLearner && hoursBefore >= 24) {
       requestedAt: new Date(),
     };
 
-    slot.status = 'RESCHEDULED';
+    slot.status = 'PENDING_RESCHEDULE';
 
     await order.save();
 
