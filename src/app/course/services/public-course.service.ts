@@ -80,7 +80,7 @@ export class PublicCourseService {
     const [data, total] = await Promise.all([
       this.courseModel
         .find(filter)
-        .populate('providerId', 'instituteName logo')
+        .populate('providerId', 'instituteName logoUrl')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
@@ -98,6 +98,7 @@ export class PublicCourseService {
       data: data.map((course: any) => ({
         id: course._id,
         providerName: course.providerId?.instituteName,
+        logoUrl: course.providerId?.logoUrl,
         courseName: course.courseName,
         category: course.category,
         // url: course.url,
