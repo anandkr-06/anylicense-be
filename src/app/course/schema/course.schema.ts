@@ -13,19 +13,19 @@ export enum CourseType {
 }
 
 @Schema({ _id: false })
-class Location {
-  @Prop({ default: '' })
-  address!: string;
+// class Location {
+//   @Prop({ default: '' })
+//   address!: string;
 
-  @Prop({ default: '' })
-  city!: string;
+//   @Prop({ default: '' })
+//   city!: string;
 
-  @Prop({ default: '' })
-  state!: string;
+//   @Prop({ default: '' })
+//   state!: string;
 
-  @Prop({ default: '' })
-  pincode!: string;
-}
+//   @Prop({ default: '' })
+//   pincode!: string;
+// }
 
 
 @Schema({ timestamps: true })
@@ -48,17 +48,18 @@ export class Course extends Document {
   @Prop({ type: Date, required: true })
   endDate!: Date;
 
-  @Prop({
-    type: Location,
-    default: () => ({
-      address: '',
-      city: '',
-      state: '',
-      pincode: '',
-    }),
-  })
-  location!: Location;
-  
+  // @Prop({
+  //   type: Location,
+  //   default: () => ({
+  //     address: '',
+  //     city: '',
+  //     state: '',
+  //     pincode: '',
+  //   }),
+  // })
+  // location!: Location;
+  @Prop({ required: true, trim: true })
+  location!:string ;
 
   @Prop({ min: 1 })
   seats?: number;

@@ -52,7 +52,7 @@ export class CourseService {
       ...dto,
       password: hashedPassword,
     });
-  
+
     await this.notificationService.sendCourseSignUp(payload);
 
     return {
