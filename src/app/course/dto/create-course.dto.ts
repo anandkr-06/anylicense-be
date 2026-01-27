@@ -6,14 +6,10 @@ import {
   IsEnum,
   IsPositive,
   IsDateString,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
-export enum CourseType {
-  WEEKEND = 'Weekend',
-  WEEKDAY = 'Weekday',
-}
+import { courseCategory, courseType } from '@constant/enum';
+
 
 export class DurationDto {
   @IsNumber()
@@ -44,8 +40,8 @@ export class CreateCourseDto {
   courseName!: string;
 
   @IsNotEmpty()
-  @IsString()
-  category!: string;
+  @IsEnum(courseCategory)
+  category!: courseCategory;
 
   @IsNumber()
   @IsPositive()
@@ -71,8 +67,8 @@ export class CreateCourseDto {
   @IsString()
   location!: string;
 
-  @IsEnum(CourseType)
-  courseType!: CourseType;
+  @IsEnum(courseType)
+  courseType!: courseType;
 
   @IsOptional()
   @IsString()

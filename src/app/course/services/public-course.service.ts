@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Course, CourseStatus } from '../schema/course.schema';
+import { Course } from '../schema/course.schema';
 import { CreateLeadDto } from '../dto/create-lead.dto';
 import { Lead } from '../schema/lead.schema';
 import { CourseProvider } from '../schema/course-provider.schema';
@@ -16,8 +16,19 @@ export class PublicCourseService {
     @InjectModel(CourseProvider.name)
     private readonly courseProviderModel: Model<CourseProvider>,
 
-  ) {}
+  ) { }
 
+  async getCourseFilters() {
+
+    const locations = await this.courseModel.distinct('location');
+    const startDates = await this.courseModel.distinct('startDate');
+
+    return {
+      locations,
+      startDates
+    };
+
+  }
   async getCourses(query: any) {
     const {
       category,
@@ -34,9 +45,9 @@ export class PublicCourseService {
 
     // ✅ BASE FILTER (ONLY VALID COURSES)
     const filter: any = {
-    //   status: 'APPROVED',   // must exist in DB
-    //   isActive: true,
-    //   isDeleted: false,
+      //   status: 'APPROVED',   // must exist in DB
+      //   isActive: true,
+      //   isDeleted: false,
     };
 
     // ✅ SIMPLE MATCHES
@@ -97,7 +108,7 @@ export class PublicCourseService {
     };
   }
 
-async createLead(dto: CreateLeadDto) {
+  async createLead(dto: CreateLeadDto) {
     // 1️⃣ Fetch course with minimal fields
     const course = await this.courseModel
       .findOne({
@@ -107,32 +118,32 @@ async createLead(dto: CreateLeadDto) {
       })
       .select('providerId')
       .lean();
-  
+
     if (!course) {
       throw new NotFoundException('Course not found');
     }
-  
+
     // 2️⃣ Fetch provider website
     const courseData = await this.courseModel
       .findById(dto.courseId)
       .select('url')
       .lean();
-  
+
     const redirectUrl = courseData?.url ?? null;
-  
+
     // 3️⃣ Check duplicate lead
     const leadExists = await this.courseLeadModel.exists({
       email: dto.email,
       courseId: dto.courseId,
     });
-  
+
     if (!leadExists) {
       await this.courseLeadModel.create({
         ...dto,
         providerId: course.providerId,
       });
     }
-  
+
     // 4️⃣ Unified response
     return {
       success: true,
@@ -140,6 +151,6 @@ async createLead(dto: CreateLeadDto) {
       redirectUrl,
     };
   }
-  
-  
+
+
 }

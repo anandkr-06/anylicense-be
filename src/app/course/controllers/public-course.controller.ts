@@ -5,9 +5,9 @@ import { CreateLeadDto } from '../dto/create-lead.dto';
 
 @Controller('public/courses')
 export class PublicCourseController {
-  constructor(private readonly service: PublicCourseService) {}
+  constructor(private readonly service: PublicCourseService) { }
 
-  
+
   @Public()
   @Get()
   getCourses(@Query() query: any) {
@@ -16,7 +16,16 @@ export class PublicCourseController {
 
   @Public()
   @Post('leads')
-      signup(@Body() dto: CreateLeadDto) {
-          return this.service.createLead(dto);
-      }
+  signup(@Body() dto: CreateLeadDto) {
+    return this.service.createLead(dto);
+  }
+
+  @Public()
+  @Get('filters')
+  getFilters(@Query() query: any) {
+    return this.service.getCourseFilters();
+  }
+
+
+
 }

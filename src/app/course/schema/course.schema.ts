@@ -1,16 +1,8 @@
+import { courseCategory, courseStatus, courseType } from '@constant/enum';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export enum CourseStatus {
-  PENDING = 'PENDING_APPROVAL',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-}
 
-export enum CourseType {
-  WEEKEND = 'Weekend',
-  WEEKDAY = 'Weekday',
-}
 
 @Schema({ _id: false })
 // class Location {
@@ -36,8 +28,14 @@ export class Course extends Document {
   @Prop({ required: true, trim: true })
   courseName!: string;
 
-  @Prop({ required: true })
-  category!: string;
+
+  @Prop({
+    enum: courseCategory,
+    required: true,
+    default: courseCategory.BIKE,
+  })
+  category!: courseCategory;
+
 
   @Prop({ required: true, min: 0 })
   price!: number;
@@ -68,17 +66,17 @@ export class Course extends Document {
   url?: string;
 
   @Prop({
-    enum: CourseType,
+    enum: courseType,
     required: true,
-    default: CourseType.WEEKEND,
+    default: courseType.WEEKEND,
   })
-  courseType!: CourseType;
+  courseType!: courseType;
 
   @Prop({
-    enum: CourseStatus,
-    default: CourseStatus.PENDING,
+    enum: courseStatus,
+    default: courseStatus.PENDING,
   })
-  status!: CourseStatus;
+  status!: courseStatus;
 
   @Prop({ default: false })
   isActive!: boolean;

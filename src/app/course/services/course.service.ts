@@ -14,11 +14,12 @@ import { CourseProvider } from '../schema/course-provider.schema';
 import { CourseSignupDto } from '../dto/course-signup.dto';
 import { CourseLoginDto } from '../dto/course-login.dto';
 import { CreateCourseDto } from '../dto/create-course.dto';
-import { CourseStatus, Course } from '../schema/course.schema';
+import { Course } from '../schema/course.schema';
 import { UpdateCourseDto } from '../dto/update-course.dto';
 import { CourseListDto } from '../dto/course-list.dto';
 
 import { NotificationService } from 'modules/notifications/notification.service';
+import { courseStatus } from '@constant/enum';
 
 
 export class CourseService {
@@ -107,7 +108,7 @@ export class CourseService {
     const course = await this.courseModel.create({
       ...dto,
       providerId: new Types.ObjectId(providerId),
-      status: CourseStatus.PENDING,
+      status: courseStatus.PENDING,
       isActive: false,
     });
 
@@ -205,7 +206,7 @@ export class CourseService {
     const course = await this.courseModel.findByIdAndUpdate(
       courseId,
       {
-        status: CourseStatus.APPROVED,
+        status: courseStatus.APPROVED,
         isActive: true,
       },
       { new: true },
@@ -225,7 +226,7 @@ export class CourseService {
     const course = await this.courseModel.findByIdAndUpdate(
       courseId,
       {
-        status: CourseStatus.REJECTED,
+        status: courseStatus.REJECTED,
         isActive: false,
       },
       { new: true },
@@ -245,7 +246,7 @@ export class CourseService {
   // 📋 Admin list pending courses
   async getPendingCourses() {
     return this.courseModel.find({
-      status: CourseStatus.PENDING,
+      status: courseStatus.PENDING,
     });
   }
 }
