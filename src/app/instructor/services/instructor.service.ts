@@ -90,7 +90,7 @@ export class InstructorService {
       const orders = await this.orderModel
         .find({
           instructorId: instructor._id,
-          status: { $in: ['CONFIRMED', 'PAID'] },
+          // status: { $in: ['CONFIRMED', 'PAID'] },
         })
         .select('_id bookedSlots status learnerId vehicleType')
         .populate({
@@ -106,7 +106,7 @@ export class InstructorService {
       for (const order of orders) {
         
         for (const slot of order.bookedSlots || []) {
-          
+          this.logger.info("Info:="+JSON.stringify(slot.status));
           if (!slot.date || !slot.startTime || !slot.endTime) continue;
           
           const slotDate = normalizeDate(slot.date);
