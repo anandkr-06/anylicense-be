@@ -27,6 +27,7 @@ import { WalletModule } from '@app/wallet/wallet.module';
 import { FeedbackModule } from '@app/feedback/feedback.module';
 import { AddressLocationModule } from '@app/addresslocations/addresslocation.module';
 import { CourseModule } from '@app/course/course.module';
+import { ReviewsModule } from '@app/reviews/reviews.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { CourseModule } from '@app/course/course.module';
     FeedbackModule,
     AddressLocationModule,
     CourseModule,
+    ReviewsModule,
   ],
   providers: [
     GlobalExceptionFilter,
