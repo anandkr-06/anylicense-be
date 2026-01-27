@@ -270,6 +270,7 @@ export class InstructorService {
       return {
         ...rest,
         learner: learnerId || null, // only keep 'learner'
+        instructorId: userId
       };
     });
 
