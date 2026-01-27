@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Course, CourseStatus } from '../schema/course.schema';
+import { Course } from '../schema/course.schema';
 import { CreateLeadDto } from '../dto/create-lead.dto';
 import { Lead } from '../schema/lead.schema';
 import { CourseProvider } from '../schema/course-provider.schema';

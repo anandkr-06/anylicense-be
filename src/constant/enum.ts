@@ -9,3 +9,19 @@ export enum FeedbackType {
     QUESTIONS = 'QUESTIONS',
   }
   
+  export enum courseCategory {
+    TRUCK = 'TRUCK',
+    BIKE = 'BIKE',
+    DANGEROUS_GOODS = 'DANGEROUS GOODS',
+  }
+
+  export enum courseType {
+    WEEKEND = 'Weekend',
+    WEEKDAY = 'Weekday',
+  }
+
+  export enum courseStatus {
+    PENDING = 'PENDING_APPROVAL',
+    APPROVED = 'APPROVED',
+    REJECTED = 'REJECTED',
+  }
