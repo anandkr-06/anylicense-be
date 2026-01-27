@@ -62,10 +62,14 @@ export class CreateCourseDto {
   @IsPositive()
   seats?: number;
 
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => LocationDto)
-  location?: LocationDto;
+  // @IsOptional()
+  // @ValidateNested()
+  // @Type(() => LocationDto)
+  // location?: LocationDto;
+
+  @IsNotEmpty()
+  @IsString()
+  location!: string;
 
   @IsEnum(CourseType)
   courseType!: CourseType;
