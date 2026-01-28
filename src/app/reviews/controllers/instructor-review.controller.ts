@@ -4,14 +4,26 @@ import { InstructorReviewService } from '../services/instructor-review.service';
 import { JwtPayload } from '@interfaces/user.interface';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { Public } from '@common/decorators/public.decorator';
 
 
 @Controller('instructors/:instructorId/reviews')
 export class InstructorReviewController {
   constructor(private readonly service: InstructorReviewService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
+  @Get()
+  getReviews(@Param('instructorId') instructorId: string) {
+    return this.service.findByInstructor(instructorId);
+  }
+  @Public()
+  @Get('summary')
+  getSummary(@Param('instructorId') instructorId: string) {
+    return this.service.getSummary(instructorId);
+  }
+
   @Post()
+  @UseGuards(JwtAuthGuard)
   createReview(
     @Param('instructorId') instructorId: string,
     @Body() dto: CreateInstructorReviewDto,
@@ -23,14 +35,5 @@ export class InstructorReviewController {
     userId: currentUser.sub,
     });
   }
-
-  @Get()
-  getReviews(@Param('instructorId') instructorId: string) {
-    return this.service.findByInstructor(instructorId);
-  }
-
-  @Get('summary')
-  getSummary(@Param('instructorId') instructorId: string) {
-    return this.service.getSummary(instructorId);
-  }
+  
 }
