@@ -17,6 +17,7 @@ import { Logger } from 'nestjs-pino';
 import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
+import { PopulatedInstructor } from '@constant/instructors';
 
 @Injectable()
 export class LearnerService {
@@ -31,21 +32,57 @@ export class LearnerService {
 
   ) {} 
   
+  // async getOrdersForLearner(learnerId: string) {
+  //   return this.orderModel
+  //     .find({ learnerId: new Types.ObjectId(learnerId) })
+  //     .populate({
+  //       path: 'instructorId', // InstructorProfile
+  //       select: 'rating vehicles reschedule',
+  //       populate: {
+  //         path: 'userId', // User
+  //         model: 'User',
+  //         select: 'firstName lastName profileImage mobileNumber',
+  //       },
+        
+  //     })
+  //     .sort({ createdAt: -1 })
+  //     .lean();
+  // }
+
   async getOrdersForLearner(learnerId: string) {
-    return this.orderModel
+    const orders = await this.orderModel
       .find({ learnerId: new Types.ObjectId(learnerId) })
       .populate({
-        path: 'instructorId', // InstructorProfile
+        path: 'instructorId',
         select: 'rating vehicles reschedule',
         populate: {
-          path: 'userId', // User
+          path: 'userId',
           model: 'User',
           select: 'firstName lastName profileImage mobileNumber',
         },
       })
       .sort({ createdAt: -1 })
-      .lean();
+      .lean<any[]>(); // 👈 important
+  
+    return orders.map(order => {
+      const instructor = order.instructorId as PopulatedInstructor; // 👈 cast
+  
+      const vehicleType = order.vehicleType;
+  
+      if (instructor?.vehicles) {
+        order.instructorId = {
+          ...instructor,
+          vehicle: instructor.vehicles[vehicleType] ?? null,
+        };
+  
+        delete (order.instructorId as any).vehicles;
+      }
+  
+      return order;
+    });
   }
+  
+  
   
   
   // async getOrdersForLearner(learnerId: string) {

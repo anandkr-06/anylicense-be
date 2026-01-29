@@ -26,17 +26,25 @@ export class InstructorReviewService {
   }
 
   findByInstructor(instructorId: string) {
+    const filter: any = {};
+  
+    if (instructorId.toLowerCase() !== 'all') {
+      filter.instructorId = instructorId;
+    }
+  
     return this.model
-      .find({ instructorId })
+      .find(filter)
       .select('-_id -instructorId -createdAt -updatedAt -__v')
       .populate({
         path: 'userId',
-        select: 'firstName profileImage -_id', // 👈 remove user _id
+        select: 'firstName profileImage -_id',
       })
-      .sort({ createdAt: -1 }) // 🔽 latest first
-    .limit(10) 
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
   }
+  
+  
   
   
 
