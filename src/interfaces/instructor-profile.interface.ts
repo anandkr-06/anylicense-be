@@ -65,10 +65,16 @@ export interface InstructorProfileResponse {
   };
 
   financialDetails?: FinancialDetailsResponse;
-  rating: number;
+  rating?:RatingType;
   isVerified: boolean;
   documents?: InstructorDocumentsResponse;
 
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface  RatingType
+    {
+      avg: Number,
+      total: Number,
+    };

@@ -9,12 +9,15 @@ import {InstructorReviewService} from '../reviews/services/instructor-review.ser
 import {InstructorReview, InstructorReviewSchema} from '../reviews/schema/instructor-review.schema'
 
 import { NotificationModule } from 'modules/notifications/notification.module';
+import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+
 
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: InstructorReview.name, schema: InstructorReviewSchema },
+      { name: InstructorProfile.name, schema: InstructorProfileSchema },
     ]),
     JwtModule.register({
       secret: process.env['JWT_SECRET'],

@@ -341,8 +341,18 @@ export class InstructorProfile {
   })
   financialDetails?: FinancialDetails;
 
-  @Prop({ default: 0 })
-  rating!: number;
+  @Prop({
+    type: {
+      avg: Number,
+      total: Number,
+    },
+    default: { avg: 0, total: 0 },
+  })
+  rating!: {
+    avg: number;
+    total: number;
+  };
+  
 
   @Prop({ default: false })
   isVerified!: boolean;
