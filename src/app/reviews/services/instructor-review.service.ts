@@ -83,7 +83,7 @@ export class InstructorReviewService {
     const summary = await this.getSummary(filter.instructorId);
   
     await this.instructorProfileModel.updateOne(
-      { _id: filter.instructorId },
+      { userId: filter.instructorId }, // ✅ THIS IS THE FIX
       {
         $set: {
           rating: {
@@ -94,6 +94,7 @@ export class InstructorReviewService {
       },
     );
   
+    
     return review;
   }
   
