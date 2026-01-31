@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Put, Get, Param, Res } from '@nestjs/common';
+import { Body, Controller, Post, Req, Put, Get, Param, Res, Headers } from '@nestjs/common';
 import { Public } from '@common/decorators/public.decorator';
 import { LearnerService } from '../services/leaner.service';
 import { SelfLeanerRegisterDto } from '../dto/self-learner-register.dto';
@@ -14,6 +14,8 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Response, Request } from 'express';
 import { Types } from 'mongoose';
+
+
 
 @Controller('learner')
 export class LearnerController {
@@ -41,20 +43,24 @@ export class LearnerController {
 
 
 
-
-  @Public()
+@Public()
   @Post('register/self')
   async registerSelf(
     @Body() body: SelfLeanerRegisterDto,
-    @Req() req: Request
+    @Headers('x-referral-code') referralCode: string,
   ) {
-    return this.learnerService.registerSelf(body, req);
+    return this.learnerService.registerSelf(body, referralCode);
   }
+  
+
 
   @Public()
   @Post('register/for-someone')
-  async registerForSomeone(@Body() body: SomeOneLeanerRegisterDto, @Req() req: Request) {
-    return this.learnerService.registerSomeOne(body,req);
+  async registerForSomeone(
+    @Body() body: SomeOneLeanerRegisterDto, 
+    @Headers('x-referral-code') referralCode: string,
+  ) {
+    return this.learnerService.registerSomeOne(body,referralCode);
   }
 
   @Public()

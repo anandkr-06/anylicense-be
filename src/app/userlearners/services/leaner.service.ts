@@ -114,122 +114,82 @@ export class LearnerService {
 
   async registerSelf(
     payload: SelfLeanerRegisterDto,
-    req: Request,
+    req: string,
   ) {
     return this.createLearner(payload, req);
   }
 
-  // async createLearner(
-  //   payload: SelfLeanerRegisterDto,
-  //   req: Request,
-  // ) {
-  //   // 1️⃣ Create learner normally
-  //   const learner = await this.learnerModel.create({
-  //     ...payload,
-  //   });
-
-  //   // 2️⃣ Read referral cookie
-  //   const referralCode = req.cookies?.referralCode;
-
-  //   if (referralCode) {
-  //     const referrer = await this.learnerModel.findOne({
-  //       referralCode,
-  //     });
-
-  //     // 3️⃣ Prevent self-referral
-  //     if (referrer && referrer._id.toString() !== learner._id.toString()) {
-  //       // Attach referrer
-  //       await this.learnerModel.updateOne(
-  //         { _id: learner._id },
-  //         { referredBy: referrer._id },
-  //       );
-
-  //       // Create referral record
-  //       await this.referralModel.create({
-  //         referrerId: referrer._id,
-  //         refereeId: learner._id,
-  //         status: 'REGISTERED',
-  //       });
-  //     }
-  //   }
-
-  //   return learner;
-  // }
-
-
-  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req: Request,) {
+  
+  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req:string,) {
     return this.createLearner(payload, req);
   }
 
-  private async createLearner(payload: any, req: Request) {
-    // Hash password
+  private async createLearner(
+    payload: any,
+    referralCode?: string,
+  ) {
     const hashedPassword = await bcrypt.hash(payload.password, 10);
     payload.password = hashedPassword;
+  try{
+    const learner = await this.learnerModel.create(payload);
   
-    try {
-      // 1️⃣ Create learner
-      const learner = await this.learnerModel.create(payload);
+    if (
+      referralCode &&
+      Types.ObjectId.isValid(referralCode)
+    ) {
+      const referrer = await this.learnerModel.findById(
+        new Types.ObjectId(referralCode),
+      );
   
-      const customPayload = {
-        sub: learner._id,
-        email: learner.email,
-      };
-  
-      // 2️⃣ Referral logic (OPTIONAL)
-      // const referralCode = req.cookies?.referralCode;
-      const referralCode = req.cookies?.['referralCode'];
-      this.logger.warn(`referralCode = ${referralCode}`);
-
-      if (referralCode) {
-        // const referrer = await this.learnerModel.findOne({
-        //   referralCode,
-        // });
-        const referrer = await this.learnerModel.findById(
-          referralCode,
+      if (
+        referrer &&
+        referrer._id.toString() !== learner._id.toString()
+      ) {
+        await this.learnerModel.updateOne(
+          { _id: learner._id },
+          { referredBy: referrer._id },
         );
   
-        // Prevent self-referral
-        if (referrer && referrer._id.toString() !== learner._id.toString()) {
-          await this.learnerModel.updateOne(
-            { _id: learner._id },
-            { referredBy: referrer._id },
-          );
-  
-          await this.referralModel.create({
-            referrerId: referrer._id,
-            refereeId: learner._id,
-            status: 'REGISTERED',
-          });
-        }
+        await this.referralModel.create({
+          referrerId: referrer._id,
+          refereeId: learner._id,
+          status: 'REGISTERED',
+        });
       }
-  
-      // 3️⃣ ALWAYS return response (IMPORTANT)
-      return {
-        accessToken: this.jwtService.sign(customPayload),
-        success: true,
-        message: 'Learner created successfully',
-        learner: {
-          id: learner._id,
-          firstName: learner.firstName,
-          email: learner.email,
-          mobileNumber: learner.mobileNumber,
-        },
-      };
-  
-    } catch (error: any) {
-      if (error?.code === 11000) {
-        if (error?.keyPattern?.email) {
-          throw new ConflictException('Email already registered');
-        }
-        if (error?.keyPattern?.mobileNumber) {
-          throw new ConflictException('Mobile number already registered');
-        }
-        throw new ConflictException('User already exists');
-      }
-  
-      throw new InternalServerErrorException(error?.message);
     }
+  
+    return {
+      accessToken: this.jwtService.sign({
+        sub: learner._id,
+        email: learner.email,
+      }),
+      success: true,
+      message: 'Learner created successfully',
+      learner: {
+        id: learner._id,
+        firstName: learner.firstName,
+        email: learner.email,
+        mobileNumber: learner.mobileNumber,
+      },
+    };
+  } catch (error: any) {
+    if (error?.code === 11000) {
+      if (error?.keyPattern?.email) {
+        throw new ConflictException('Email already registered');
+      }
+  
+      if (error?.keyPattern?.mobileNumber) {
+        throw new ConflictException('Mobile number already registered');
+      }
+  
+      throw new ConflictException('User already exists');
+    }
+  
+    throw new InternalServerErrorException(error?.message);
   }
+  
+  }
+  
   
   async login(identifier: string, password: string) {
     const learner = await this.learnerModel.findOne({
