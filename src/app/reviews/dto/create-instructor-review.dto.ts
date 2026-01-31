@@ -1,8 +1,20 @@
-import { IsMongoId, IsNotEmpty, IsNumber, Max, Min } from 'class-validator';
+import {
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateInstructorReviewDto {
   @IsMongoId()
   instructorId!: string;
+
+  @IsMongoId()
+  orderId!: string;
+
+  @IsMongoId()
+  slotId!: string;
 
   @IsNumber()
   @Min(1)
