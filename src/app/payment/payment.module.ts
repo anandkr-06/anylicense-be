@@ -14,6 +14,8 @@ import {InstructorModule} from '@app/instructor/instructor.module';
 import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
 import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
 import { WalletModule } from '@app/wallet/wallet.module';
+import { ReferralService } from './services/referral.service';
+import { Referral, ReferralSchema } from '@common/db/schemas/referral.schema';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { WalletModule } from '@app/wallet/wallet.module';
         schema: InstructorProfileSchema,
       },
       { name: Learner.name, schema: LearnerSchema },
+      { name: Referral.name, schema: ReferralSchema },
     ]),
     DbModule,
     OrdersModule,
@@ -38,7 +41,7 @@ import { WalletModule } from '@app/wallet/wallet.module';
     
   ],
   controllers: [PaymentController,StripeWebhookController],
-  providers: [StripeService, UserDbService],
+  providers: [StripeService, UserDbService, ReferralService],
   exports: [StripeService],
 })
 export class PaymentsModule {}

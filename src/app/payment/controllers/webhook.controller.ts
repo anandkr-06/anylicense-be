@@ -21,6 +21,7 @@ import { WalletService } from '@app/wallet/services/wallet.service';
 import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { StripeIntentMetadata, StripeCardMeta } from '@common/stripe/stripe.types';
 import { Public } from '@common/decorators/public.decorator';
+import { ReferralService } from '../services/referral.service';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -44,6 +45,7 @@ export class StripeWebhookController {
     private readonly learnerModel: Model<LearnerDocument>,
 
     private readonly walletService: WalletService,
+    private readonly referralService: ReferralService,
   ) { }
 
   /* -------------------------------------------
@@ -152,7 +154,15 @@ if (
   );
 
   if (!order) return { received: true };
+    // ✅ Reward referral ONLY on first confirmed order
+    const confirmedCount = await this.orderModel.countDocuments({
+      learnerId: order.learnerId,
+      status: 'CONFIRMED',
+    });
 
+    if (confirmedCount === 1) {
+      await this.referralService.rewardReferral(order.learnerId, order._id);
+    }
   // ✅ CREDIT ONLY REMAINING PREPAID VALUE
   if (order.walletCreditAfterBooking > 0) {
     await this.walletService.creditWallet(
@@ -240,4 +250,5 @@ if (
 
     return { received: true };
   }
+  
 }

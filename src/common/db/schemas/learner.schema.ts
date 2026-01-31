@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type LearnerDocument = Learner & Document;
 
@@ -10,6 +10,12 @@ export type LearnerDocument = Learner & Document;
   },
 })
 export class Learner {
+  @Prop({ required: false, unique: true, sparse: true, index: true })
+referralCode?: string;
+
+@Prop({ type: Types.ObjectId, ref: 'Learner', index: true })
+referredBy?: Types.ObjectId;
+
   @Prop({ required: true })
   firstName!: string;
 
