@@ -427,6 +427,12 @@ export class LearnerService {
     return { learner };
   }
 
-
+  async getReferralsByReferrer(learnerId: Types.ObjectId) {
+    return this.referralModel
+      .find({ referrerId: learnerId })
+      .populate('refereeId', 'firstName email')
+      .sort({ createdAt: -1 });
+  }
+  
 }
 

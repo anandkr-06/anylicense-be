@@ -13,6 +13,7 @@ import { JwtPayload } from '@interfaces/user.interface';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Response, Request } from 'express';
+import { Types } from 'mongoose';
 
 @Controller('learner')
 export class LearnerController {
@@ -118,7 +119,13 @@ export class LearnerController {
 
     return res.redirect('/signup');
   }
-
+  @Get('referrals/my')
+  async myReferrals(@Req() @CurrentUser() currentUser: JwtPayload,) {
+    return this.learnerService.getReferralsByReferrer(
+      new Types.ObjectId(currentUser.sub),
+    );
+  }
+  
 
 }
 
