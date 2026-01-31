@@ -7,6 +7,7 @@ import { LearnerController } from './controllers/learner.controller';
 import { LearnerService } from './services/leaner.service';
 import { Order, OrderSchema } from '@common/db/schemas/order.schema';
 import { NotificationModule } from 'modules/notifications/notification.module';
+import { Referral, ReferralSchema } from '@common/db/schemas/referral.schema';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { NotificationModule } from 'modules/notifications/notification.module';
     MongooseModule.forFeature([
       { name: Learner.name, schema: LearnerSchema },
       { name: Order.name, schema: OrderSchema },
+      {name:Referral.name, schema:ReferralSchema}
     ]),
     DbModule,
     NotificationModule,

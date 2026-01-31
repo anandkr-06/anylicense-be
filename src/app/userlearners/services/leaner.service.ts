@@ -1,5 +1,7 @@
-import { ConflictException, Injectable, UnauthorizedException,  BadRequestException,
-  ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException, Injectable, UnauthorizedException, BadRequestException,
+  ForbiddenException, NotFoundException
+} from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -18,7 +20,8 @@ import { UpdateLearnerProfileDto } from '../dto/update-learner-profile.dto';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { PopulatedInstructor } from '@constant/instructors';
-
+import { Request } from 'express';
+import { Referral } from '@common/db/schemas/referral.schema';
 @Injectable()
 export class LearnerService {
   constructor(
@@ -27,11 +30,14 @@ export class LearnerService {
     private jwtService: JwtService,
     private readonly logger: Logger,
     private readonly notificationService: NotificationService,
-    @InjectModel(Order.name) 
-        private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(Order.name)
+    private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(Referral.name)
+    private referralModel: Model<Referral>,
 
-  ) {} 
-  
+
+  ) { }
+
   // async getOrdersForLearner(learnerId: string) {
   //   return this.orderModel
   //     .find({ learnerId: new Types.ObjectId(learnerId) })
@@ -43,7 +49,7 @@ export class LearnerService {
   //         model: 'User',
   //         select: 'firstName lastName profileImage mobileNumber',
   //       },
-        
+
   //     })
   //     .sort({ createdAt: -1 })
   //     .lean();
@@ -63,28 +69,28 @@ export class LearnerService {
       })
       .sort({ createdAt: -1 })
       .lean<any[]>(); // 👈 important
-  
+
     return orders.map(order => {
       const instructor = order.instructorId as PopulatedInstructor; // 👈 cast
-  
+
       const vehicleType = order.vehicleType;
-  
+
       if (instructor?.vehicles) {
         order.instructorId = {
           ...instructor,
           vehicle: instructor.vehicles[vehicleType] ?? null,
         };
-  
+
         delete (order.instructorId as any).vehicles;
       }
-  
+
       return order;
     });
   }
-  
-  
-  
-  
+
+
+
+
   // async getOrdersForLearner(learnerId: string) {
   //   await this.notificationService.testMail();
   //   return this.orderModel
@@ -96,38 +102,105 @@ export class LearnerService {
 
   async getLearnerBookedSlots(learnerId: string) {
     const order = await this.orderModel.findOne({ learnerId: new Types.ObjectId(learnerId) });
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     return order;
-    
+
   }
 
-  
-  async registerSelf(payload: SelfLeanerRegisterDto) {
-    return this.createLearner(payload);
+
+  async registerSelf(
+    payload: SelfLeanerRegisterDto,
+    req: Request,
+  ) {
+    return this.createLearner(payload, req);
   }
 
-  async registerSomeOne(payload: SomeOneLeanerRegisterDto) {
-    return this.createLearner(payload);
+  // async createLearner(
+  //   payload: SelfLeanerRegisterDto,
+  //   req: Request,
+  // ) {
+  //   // 1️⃣ Create learner normally
+  //   const learner = await this.learnerModel.create({
+  //     ...payload,
+  //   });
+
+  //   // 2️⃣ Read referral cookie
+  //   const referralCode = req.cookies?.referralCode;
+
+  //   if (referralCode) {
+  //     const referrer = await this.learnerModel.findOne({
+  //       referralCode,
+  //     });
+
+  //     // 3️⃣ Prevent self-referral
+  //     if (referrer && referrer._id.toString() !== learner._id.toString()) {
+  //       // Attach referrer
+  //       await this.learnerModel.updateOne(
+  //         { _id: learner._id },
+  //         { referredBy: referrer._id },
+  //       );
+
+  //       // Create referral record
+  //       await this.referralModel.create({
+  //         referrerId: referrer._id,
+  //         refereeId: learner._id,
+  //         status: 'REGISTERED',
+  //       });
+  //     }
+  //   }
+
+  //   return learner;
+  // }
+
+
+  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req: Request,) {
+    return this.createLearner(payload, req);
   }
 
-  private async createLearner(payload: any) {
+  private async createLearner(payload: any, req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(payload.password, 10);
     payload.password = hashedPassword;
-
+  
     try {
-      // return await this.learnerModel.create(payload);
+      // 1️⃣ Create learner
       const learner = await this.learnerModel.create(payload);
-
+  
       const customPayload = {
         sub: learner._id,
         email: learner.email,
       };
   
+      // 2️⃣ Referral logic (OPTIONAL)
+      // const referralCode = req.cookies?.referralCode;
+      const referralCode = req.cookies?.['referralCode'];
+      this.logger.warn(`referralCode = ${referralCode}`);
+
+      if (referralCode) {
+        const referrer = await this.learnerModel.findOne({
+          referralCode,
+        });
+  
+        // Prevent self-referral
+        if (referrer && referrer._id.toString() !== learner._id.toString()) {
+          await this.learnerModel.updateOne(
+            { _id: learner._id },
+            { referredBy: referrer._id },
+          );
+  
+          await this.referralModel.create({
+            referrerId: referrer._id,
+            refereeId: learner._id,
+            status: 'REGISTERED',
+          });
+        }
+      }
+  
+      // 3️⃣ ALWAYS return response (IMPORTANT)
       return {
         accessToken: this.jwtService.sign(customPayload),
         success: true,
@@ -139,9 +212,7 @@ export class LearnerService {
           mobileNumber: learner.mobileNumber,
         },
       };
-
-
-
+  
     } catch (error: any) {
       if (error?.code === 11000) {
         if (error?.keyPattern?.email) {
@@ -152,10 +223,11 @@ export class LearnerService {
         }
         throw new ConflictException('User already exists');
       }
-    
+  
       throw new InternalServerErrorException(error?.message);
     }
-  } 
+  }
+  
   async login(identifier: string, password: string) {
     const learner = await this.learnerModel.findOne({
       $or: [
@@ -192,162 +264,169 @@ export class LearnerService {
         mobileNumber: learner.mobileNumber,
       },
     };
-  }  
+  }
   async changePassword(
     learnerId: string,
     payload: ChangePasswordDto,
   ) {
     const { existingPassword, newPassword, confirmPassword } = payload;
-  
+
     if (newPassword !== confirmPassword) {
       throw new BadRequestException('Passwords do not match');
     }
-  
+
     const learner = await this.learnerModel.findById(learnerId);
-  
+
     if (!learner) {
       throw new ForbiddenException('Learner not found');
     }
-  
+
     const isValid = await bcrypt.compare(
       existingPassword,
       learner.password,
     );
-  
+
     if (!isValid) {
       throw new ForbiddenException('Existing password is incorrect');
     }
-  
+
     learner.password = await bcrypt.hash(newPassword, 10);
     await learner.save();
-  
+
     return {
       message: 'Password changed successfully',
     };
-  } 
+  }
 
   /* 1️⃣ Request reset */
-async forgotPassword(identifier: string) {
-  const learner = await this.learnerModel.findOne({
-    $or: [
-      { email: identifier },
-      { mobileNumber: identifier },
-    ],
-  });
+  async forgotPassword(identifier: string) {
+    const learner = await this.learnerModel.findOne({
+      $or: [
+        { email: identifier },
+        { mobileNumber: identifier },
+      ],
+    });
 
-  if (!learner) {
-    // Do NOT reveal user existence
+    if (!learner) {
+      // Do NOT reveal user existence
+      return { message: 'If account exists, reset instructions sent' };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    learner.passwordResetToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    this.logger.log(`Password reset token for learner ${learner._id}: ${token}`);
+
+    learner.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+    await learner.save();
+
+    // 🔔 Send token via email/SMS here
+    // resetLink = `${FRONTEND_URL}/reset-password?token=${token}`
+
     return { message: 'If account exists, reset instructions sent' };
   }
 
-  const token = crypto.randomBytes(32).toString('hex');
+  /* 2️⃣ Reset password */
+  async resetPassword(payload: ResetPasswordDto) {
+    const { token, newPassword, confirmPassword } = payload;
 
-  learner.passwordResetToken = crypto
-    .createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-    this.logger.log(`Password reset token for learner ${learner._id}: ${token}`);
-    
-  learner.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 min
-
-  await learner.save();
-
-  // 🔔 Send token via email/SMS here
-  // resetLink = `${FRONTEND_URL}/reset-password?token=${token}`
-
-  return { message: 'If account exists, reset instructions sent' };
-}
-
-/* 2️⃣ Reset password */
-async resetPassword(payload: ResetPasswordDto) {
-  const { token, newPassword, confirmPassword } = payload;
-
-  if (newPassword !== confirmPassword) {
-    throw new BadRequestException('Passwords do not match');
-  }
-
-  const hashedToken = crypto
-    .createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-  const learner = await this.learnerModel.findOne({
-    passwordResetToken: hashedToken,
-    passwordResetExpires: { $gt: new Date() },
-  });
-
-  if (!learner) {
-    throw new BadRequestException('Token invalid or expired');
-  }
-
-  learner.password = await bcrypt.hash(newPassword, 10);
-  learner.passwordResetToken = undefined;
-  learner.passwordResetExpires = undefined;
-
-  await learner.save();
-
-  return { message: 'Password reset successful' };
-}
-async updateProfile(
-  learnerId: string,
-  payload: UpdateLearnerProfileDto,
-) {
-  // Check duplicate email
-  if (payload.email) {
-    const emailExists = await this.learnerModel.findOne({
-      email: payload.email,
-      _id: { $ne: learnerId },
-    });
-    if (emailExists) {
-      throw new ConflictException('Email already in use');
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
     }
-  }
 
-  // Check duplicate mobile
-  if (payload.mobileNumber) {
-    const mobileExists = await this.learnerModel.findOne({
-      mobileNumber: payload.mobileNumber,
-      _id: { $ne: learnerId },
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const learner = await this.learnerModel.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() },
     });
-    if (mobileExists) {
-      throw new ConflictException('Mobile number already in use');
+
+    if (!learner) {
+      throw new BadRequestException('Token invalid or expired');
     }
+
+    learner.password = await bcrypt.hash(newPassword, 10);
+    learner.passwordResetToken = undefined;
+    learner.passwordResetExpires = undefined;
+
+    await learner.save();
+
+    return { message: 'Password reset successful' };
+  }
+  async updateProfile(
+    learnerId: string,
+    payload: UpdateLearnerProfileDto,
+  ) {
+    // Check duplicate email
+    if (payload.email) {
+      const emailExists = await this.learnerModel.findOne({
+        email: payload.email,
+        _id: { $ne: learnerId },
+      });
+      if (emailExists) {
+        throw new ConflictException('Email already in use');
+      }
+    }
+
+    // Check duplicate mobile
+    if (payload.mobileNumber) {
+      const mobileExists = await this.learnerModel.findOne({
+        mobileNumber: payload.mobileNumber,
+        _id: { $ne: learnerId },
+      });
+      if (mobileExists) {
+        throw new ConflictException('Mobile number already in use');
+      }
+    }
+
+    const learner = await this.learnerModel.findByIdAndUpdate(
+      learnerId,
+      {
+        ...payload,
+        lastUpdated: new Date(),
+      },
+      { new: true },
+    );
+
+    if (!learner) {
+      throw new NotFoundException('Learner not found');
+    }
+
+    return {
+      message: 'Profile updated successfully',
+      data: learner,
+    };
   }
 
-  const learner = await this.learnerModel.findByIdAndUpdate(
-    learnerId,
-    {
-      ...payload,
-      lastUpdated: new Date(),
-    },
-    { new: true },
-  );
+  async getProfile(learnerId: string) {
+    const learner = await this.learnerModel
+      .findById(learnerId)
+      .select('-password') // 🔐 never expose password
+      .lean();
 
-  if (!learner) {
-    throw new NotFoundException('Learner not found');
+    if (!learner) {
+      throw new NotFoundException('Learner not found');
+    }
+
+    return {
+      data: learner,
+    };
   }
 
-  return {
-    message: 'Profile updated successfully',
-    data: learner,
-  };
-}
 
-async getProfile(learnerId: string) {
-  const learner = await this.learnerModel
-    .findById(learnerId)
-    .select('-password') // 🔐 never expose password
-    .lean();
-
-  if (!learner) {
-    throw new NotFoundException('Learner not found');
+  async getReferal(code: string) {
+    const learner = this.learnerModel.findOne({ referralCode: code });
+    return { learner };
   }
 
-  return {
-    data: learner,
-  };
-}
 
 }
 

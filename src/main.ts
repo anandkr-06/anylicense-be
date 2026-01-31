@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
-
+const cookieParser = require("cookie-parser"); // ✅ CORRECT
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false, // 🔥 REQUIRED
@@ -12,7 +12,7 @@ async function bootstrap() {
     '/api/webhooks/stripe',
     bodyParser.raw({ type: 'application/json' }),
   );
-
+  app.use(cookieParser());   // 👈 REQUIRED
   // ✅ JSON for rest of app
   app.use(bodyParser.json());
 
