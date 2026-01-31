@@ -181,9 +181,12 @@ export class LearnerService {
       this.logger.warn(`referralCode = ${referralCode}`);
 
       if (referralCode) {
-        const referrer = await this.learnerModel.findOne({
+        // const referrer = await this.learnerModel.findOne({
+        //   referralCode,
+        // });
+        const referrer = await this.learnerModel.findById(
           referralCode,
-        });
+        );
   
         // Prevent self-referral
         if (referrer && referrer._id.toString() !== learner._id.toString()) {
