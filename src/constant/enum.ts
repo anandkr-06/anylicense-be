@@ -13,6 +13,7 @@ export enum FeedbackType {
     TRUCK = 'TRUCK',
     BIKE = 'BIKE',
     DANGEROUS_GOODS = 'DANGEROUS GOODS',
+    FORK_LIFT = 'FORK LIFT',
   }
 
   export enum courseType {
