@@ -6,9 +6,11 @@ import {
   IsEnum,
   IsPositive,
   IsDateString,
+  ValidateNested,
 } from 'class-validator';
 
 import { courseCategory, courseType } from '@constant/enum';
+import { Type } from 'class-transformer';
 
 
 export class DurationDto {
@@ -22,16 +24,13 @@ export class DurationDto {
 
 export class LocationDto {
   @IsString()
-  address!: string;
-
-  @IsString()
-  city!: string;
+  suburb!: string;
 
   @IsString()
   state!: string;
 
   @IsString()
-  pincode!: string;
+  postCode!: string;
 }
 
 export class CreateCourseDto {
@@ -58,14 +57,14 @@ export class CreateCourseDto {
   @IsPositive()
   seats?: number;
 
-  // @IsOptional()
-  // @ValidateNested()
-  // @Type(() => LocationDto)
-  // location?: LocationDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location?: LocationDto;
 
-  @IsNotEmpty()
-  @IsString()
-  location!: string;
+  // @IsNotEmpty()
+  // @IsString()
+  // location!: string;
 
   @IsEnum(courseType)
   courseType!: courseType;

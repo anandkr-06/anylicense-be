@@ -1,5 +1,14 @@
 // dto/course-signup.dto.ts
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+
+export class ProviderLocationDto {
+  @IsString()
+  suburb!: string;
+
+  @IsString()
+  state!: string;
+}
 
 export class CourseSignupDto {
   @IsNotEmpty()
@@ -21,7 +30,9 @@ export class CourseSignupDto {
   websiteUrl?: string;
 
   @IsOptional()
-  location?: string;
+  @ValidateNested()
+  @Type(() => ProviderLocationDto)
+  location?: ProviderLocationDto;
 
   @IsEnum({default:true})
   isAgreedToTermsAndConditions?: boolean;

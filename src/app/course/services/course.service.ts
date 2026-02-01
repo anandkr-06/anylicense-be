@@ -20,6 +20,7 @@ import { CourseListDto } from '../dto/course-list.dto';
 
 import { NotificationService } from 'modules/notifications/notification.service';
 import { courseStatus } from '@constant/enum';
+import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
 
 
 export class CourseService {
@@ -54,7 +55,7 @@ export class CourseService {
       password: hashedPassword,
     });
 
-    await this.notificationService.sendCourseSignUp(payload);
+    //await this.notificationService.sendCourseSignUp(payload);
 
     return {
       success: true,
@@ -99,6 +100,60 @@ export class CourseService {
     };
   }
   
+  // 🔹 GET PROFILE
+  async getProfile(providerId: string) {
+    if (!Types.ObjectId.isValid(providerId)) {
+      throw new BadRequestException('Invalid provider id'+ providerId);
+    }
+  
+    const provider = await this.courseProviderModel
+      .findById(providerId)
+      .select('-password')
+      .lean();
+  
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+  
+    return provider;
+  }
+
+  // 🔹 UPDATE PROFILE
+  async updateProfile(
+    providerId: string,
+    dto: UpdateCourseProviderProfileDto,
+  ) {
+    // Prevent email / phone duplicates
+    if (dto.email || dto.phone) {
+      const exists = await this.courseProviderModel.findOne({
+        _id: { $ne: providerId },
+        $or: [
+          dto.email ? { email: dto.email } : {},
+          dto.phone ? { phone: dto.phone } : {},
+        ],
+      });
+
+      if (exists) {
+        throw new BadRequestException(
+          'Email or phone already in use',
+        );
+      }
+    }
+
+    const updated = await this.courseProviderModel
+      .findByIdAndUpdate(
+        providerId,
+        { $set: dto },
+        { new: true, runValidators: true },
+      )
+      .select('-password');
+
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      data: updated,
+    };
+  }
 
   async addCourse(providerId: string, dto: CreateCourseDto) {
     if (!Types.ObjectId.isValid(providerId)) {

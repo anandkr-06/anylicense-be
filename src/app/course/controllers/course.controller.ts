@@ -1,5 +1,5 @@
 // course.controller.ts
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { CourseService } from '../services/course.service';
 import { CourseSignupDto } from '../dto/course-signup.dto';
 import { CourseLoginDto } from '../dto/course-login.dto';
@@ -10,6 +10,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
 import { CourseListDto } from '../dto/course-list.dto';
 import { UpdateCourseDto } from '../dto/update-course.dto';
+import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
 
 @Controller('course')
 export class CourseController {
@@ -28,6 +29,29 @@ export class CourseController {
     login(@Body() dto: CourseLoginDto) {
         return this.courseService.login(dto);
     }
+
+    // 🔹 GET PROFILE
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getProfile(
+    @CurrentUser() currentUser: JwtPayload) {
+    return this.courseService.getProfile(
+      currentUser.sub
+    );
+  }
+
+  // 🔹 UPDATE PROFILE
+  @Put('me')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() dto: UpdateCourseProviderProfileDto,
+  ) {
+    return this.courseService.updateProfile(
+      currentUser.sub,
+      dto,
+    );
+  }
 
     // @Public()
     @Post('add')

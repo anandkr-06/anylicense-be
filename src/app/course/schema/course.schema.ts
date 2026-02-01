@@ -5,19 +5,16 @@ import { Document, Types } from 'mongoose';
 
 
 @Schema({ _id: false })
-// class Location {
-//   @Prop({ default: '' })
-//   address!: string;
+class Location {
+  @Prop({ required: true })
+  suburb!: string;
 
-//   @Prop({ default: '' })
-//   city!: string;
+  @Prop({ required: true })
+  state!: string;
 
-//   @Prop({ default: '' })
-//   state!: string;
-
-//   @Prop({ default: '' })
-//   pincode!: string;
-// }
+  @Prop({ required: true })
+    postCode!: string;
+}
 
 
 @Schema({ timestamps: true })
@@ -46,18 +43,14 @@ export class Course extends Document {
   @Prop({ type: Date, required: true })
   endDate!: Date;
 
-  // @Prop({
-  //   type: Location,
-  //   default: () => ({
-  //     address: '',
-  //     city: '',
-  //     state: '',
-  //     pincode: '',
-  //   }),
-  // })
-  // location!: Location;
-  @Prop({ required: true, trim: true })
-  location!:string ;
+  @Prop({
+      type: Location,
+      default: () => ({
+        suburb: '',
+        state: '',
+      }),
+    })
+    location!: Location;
 
   @Prop({ min: 1 })
   seats?: number;
