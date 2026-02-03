@@ -32,6 +32,8 @@ import { PrivateLearnerService } from '../services/private-order.service';
 import { PrivateLearner } from '@common/db/schemas/private-learner.schema';
 import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 import Stripe from 'stripe';
+import { OrderStatusType, PrivateOrderDetailsResponseDto } from '../dto/private-order-details.response';
+import { PrivateOrderPopulated } from '@interfaces/order.interface';
 
 interface InstructorHour {
   startTime: string;
@@ -218,6 +220,163 @@ return orderData;
   }
   
   
+  async getInstructorPrivateOrders({
+    instructorId,
+    page,
+    limit,
+    status,
+  }: {
+    instructorId: string;
+    page: number;
+    limit: number;
+    status?: string;
+  }) {
+    const query: any = {
+      instructorId: new Types.ObjectId(instructorId),
+    };
+  
+    if (status) {
+      query.status = status;
+    }
+  
+    const skip = (page - 1) * limit;
+  
+    const [data, total] = await Promise.all([
+      this.privateOrderModel
+        .find(query)
+        .populate({
+          path: 'privateLearnerId',
+          select: 'firstName lastName mobileNumber preferredVehicleType',
+        }) // ✅ ONLY learner
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+  
+      this.privateOrderModel.countDocuments(query),
+    ]);
+  
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+  
+  async getInstructorPrivateOrderDetails(
+    instructorId: string,
+    orderId: string,
+  ): Promise<PrivateOrderDetailsResponseDto> {
+    const order = await this.privateOrderModel
+  .findOne({
+    _id: new Types.ObjectId(orderId),
+    instructorId: new Types.ObjectId(instructorId),
+    isDeleted: { $ne: true },
+  })
+  .populate({
+    path: 'privateLearnerId',
+    select: 'firstName mobileNumber preferredVehicleType',
+  })
+  .lean<PrivateOrderPopulated>();
+
+if (!order) {
+  throw new NotFoundException('Private order not found');
+}
+
+  
+return {
+  id: order._id.toString(),
+  status: this.mapOrderStatus(order.status),
+  paymentStatus: order.paymentStatus,
+  vehicleType: order.vehicleType,
+  totalAmount: order.totalAmount,
+  createdAt: order.createdAt,
+
+  privateLearner: {
+    firstName: order.privateLearnerId.firstName,
+    mobileNumber: order.privateLearnerId.mobileNumber,
+    preferredVehicleType:
+      order.privateLearnerId.preferredVehicleType,
+  },
+
+  lessonSlots: order.lessonSlots,
+  testPackage: order.testPackage ?? null,
+};
+
+
+  }
+  
+  private mapOrderStatus(status: string): OrderStatusType {
+    switch (status) {
+      case 'PENDING_PAYMENT':
+      case 'CONFIRMED':
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return status;
+      default:
+        throw new Error(`Invalid order status: ${status}`);
+    }
+  }
+  
+  async cancelPrivateOrder(
+    instructorId: string,
+    orderId: string,
+  ) {
+    const order = await this.privateOrderModel.findOne({
+      _id: orderId,
+      instructorId,
+    });
+  
+    if (!order) {
+      throw new NotFoundException('Private order not found');
+    }
+  
+    if (!['PENDING_PAYMENT', 'CONFIRMED'].includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot cancel order with status ${order.status}`,
+      );
+    }
+  
+    // 1️⃣ Update order
+    //order.status = OrderStatus.CANCELLED;
+  
+    if (order.paymentStatus === 'PENDING') {
+      order.paymentStatus = 'FAILED';
+    }
+  
+    await order.save();
+  
+    // 2️⃣ Unlock slots (important)
+    await this.unlockPrivateOrderSlots(order._id);
+  
+    return {
+      message: 'Private order cancelled successfully',
+      orderId: order._id.toString(),
+      status: this.mapOrderStatus(order.status)
+    };
+    
+  }
+  
+  private async unlockPrivateOrderSlots(orderId: Types.ObjectId) {
+    await this.instructorProfileModel.updateMany(
+      {
+        'availability.weeks.days.slots.bookingId': orderId,
+      },
+      {
+        $set: {
+          'availability.weeks.$[].days.$[].slots.$[slot].isBooked': false,
+          'availability.weeks.$[].days.$[].slots.$[slot].bookingId': null,
+        },
+      },
+      {
+        arrayFilters: [{ 'slot.bookingId': orderId }],
+      },
+    );
+  }
   
 
   // ⏱ 24 HOUR RULE
