@@ -9,7 +9,8 @@ import {
   Patch,
   BadRequestException,
   RawBody,
-  Headers
+  Headers,
+  Query
 } from '@nestjs/common';
 import { OrderService } from '../services/order.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
@@ -23,6 +24,7 @@ import { FeedbackOwnerType } from '@constant/enum';
 import { CreatePrivateOrderDto } from '../dto/create-private-order.dto';
 import { CreatePrivateLearnerDto } from '../dto/create-private-learner.dto';
 import { PrivateLearnerService } from '../services/private-order.service';
+import { CancelPrivateOrderResponseDto } from '../dto/cancel-private-order.response.dto';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -147,16 +149,45 @@ export class OrdersController {
     return this.ordersService.createPrivateOrder(user.sub, dto);
   }
 
-//   @Post('stripe/webhook')
-// async handleStripeWebhook(
-//   @Headers('stripe-signature') signature: string,
-//   @Req() req: any, // 👈 IMPORTANT
-// ) {
-//   return this.ordersService.handleStripeWebhook(
-//     req.body as Buffer,
-//     signature,
-//   );
-// }
+  @UseGuards(JwtAuthGuard)
+@Get('private-orders')
+async getPrivateOrders(
+  @CurrentUser() user: JwtPayload,   // ✅ required first
+  @Query('page') page = 1,
+  @Query('limit') limit = 10,
+  @Query('status') status?: string,  // ✅ optional last
+) {
+  return this.ordersService.getInstructorPrivateOrders({
+    instructorId: user.sub,
+    page: Number(page),
+    limit: Number(limit),
+    status,
+  });
+}
+
+@UseGuards(JwtAuthGuard)
+@Get('private-orders/:orderId')
+async getPrivateOrderDetails(
+  @CurrentUser() user: JwtPayload,
+  @Param('orderId') orderId: string,
+) {
+  return this.ordersService.getInstructorPrivateOrderDetails(
+    user.sub,
+    orderId,
+  );
+}
+
+@Post('private-orders/:id/cancel')
+async cancelPrivateOrder(
+  @Param('id') orderId: string,
+  @CurrentUser() user: JwtPayload,
+): Promise<CancelPrivateOrderResponseDto> {
+  return this.ordersService.cancelPrivateOrder(
+    user.sub,
+    orderId,
+  );
+}
+
 
 
 }
