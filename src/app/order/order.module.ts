@@ -16,6 +16,10 @@ import { Slot, SlotSchema } from '@common/db/schemas/slot.schema';
 import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
 import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
 import { WalletModule } from '@app/wallet/wallet.module';
+import { PrivateLearnerSchema, PrivateLearner } from '@common/db/schemas/private-learner.schema';
+import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
+import { PrivateLearnerService } from './services/private-order.service';
+import { PrivateLearnersController } from './controllers/private-learners.controller';
 
 
 @Module({
@@ -35,6 +39,9 @@ import { WalletModule } from '@app/wallet/wallet.module';
       },
       { name: Order.name, schema: OrderSchema },
       { name: Learner.name, schema: LearnerSchema },
+      { name: PrivateOrder.name, schema: PrivateOrderSchema },
+      
+      { name: PrivateLearner.name, schema: PrivateLearnerSchema },
     ]),
     AddressModule,
     DbModule,
@@ -42,8 +49,8 @@ import { WalletModule } from '@app/wallet/wallet.module';
     LeanerModule,
     WalletModule, // ✅ ADD THIS
   ],
-  controllers: [OrdersController],
-  providers: [OrderService, UserDbService],
+  controllers: [OrdersController, PrivateLearnersController],
+  providers: [OrderService, UserDbService, PrivateLearnerService],
   exports: [OrderService],
 })
 export class OrdersModule {}

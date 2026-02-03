@@ -7,7 +7,9 @@ import {
   Get,
   Param,
   Patch,
-  BadRequestException
+  BadRequestException,
+  RawBody,
+  Headers
 } from '@nestjs/common';
 import { OrderService } from '../services/order.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
@@ -18,11 +20,17 @@ import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
 import { RescheduleResponseDto } from '../dto/reschedule-response.dto';
 import { ActionMetaRequestDto } from '../dto/action-meta.dto';
 import { FeedbackOwnerType } from '@constant/enum';
+import { CreatePrivateOrderDto } from '../dto/create-private-order.dto';
+import { CreatePrivateLearnerDto } from '../dto/create-private-learner.dto';
+import { PrivateLearnerService } from '../services/private-order.service';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private readonly ordersService: OrderService) { }
+  constructor(
+    private readonly ordersService: OrderService
+    , private readonly privateLearnerService: PrivateLearnerService
+  ) { }
 
   /**
    * Create driving lesson order
@@ -113,6 +121,42 @@ export class OrdersController {
   ) {
     return this.ordersService.completeSlot(orderId, slotId,user.sub);
   }
+
+  // Create Private Learner
+  @Post('private-learners')
+  createPrivateLearner(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreatePrivateLearnerDto,
+  ) {
+    return this.privateLearnerService.create(user.sub, dto);
+  }
+
+  // Book Private Slot / Test
+  // @Post('private-booking')
+  // createPrivateBooking(
+  //   @CurrentUser() user: JwtPayload,
+  //   @Body() dto: CreatePrivateOrderDto,
+  // ) {
+  //   return this.ordersService.createPrivateOrder(user.sub, dto);
+  // }
+  @Post('private-booking')
+  createPrivateBooking(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreatePrivateOrderDto,
+  ) {
+    return this.ordersService.createPrivateOrder(user.sub, dto);
+  }
+
+//   @Post('stripe/webhook')
+// async handleStripeWebhook(
+//   @Headers('stripe-signature') signature: string,
+//   @Req() req: any, // 👈 IMPORTANT
+// ) {
+//   return this.ordersService.handleStripeWebhook(
+//     req.body as Buffer,
+//     signature,
+//   );
+// }
 
 
 }

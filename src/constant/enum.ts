@@ -26,3 +26,11 @@ export enum FeedbackType {
     APPROVED = 'APPROVED',
     REJECTED = 'REJECTED',
   }
+
+  export enum OrderStatus {
+    PENDING_PAYMENT = 'PENDING_PAYMENT',
+    PAID = 'PAID',
+    FAILED = 'FAILED',
+    CANCELLED = 'CANCELLED',
+  }
+  

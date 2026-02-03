@@ -25,9 +25,13 @@ import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
 import { RescheduleResponseDto } from '../dto/reschedule-response.dto';
 import { ActionMetaRequestDto } from '../dto/action-meta.dto';
-import { FeedbackOwnerType } from '@constant/enum';
+import { FeedbackOwnerType, OrderStatus } from '@constant/enum';
 import { calculateSlotDurationInHours, normalizeTime } from '@constant/order-actions';
-
+import { CreatePrivateOrderDto } from '../dto/create-private-order.dto';
+import { PrivateLearnerService } from '../services/private-order.service';
+import { PrivateLearner } from '@common/db/schemas/private-learner.schema';
+import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
+import Stripe from 'stripe';
 
 interface InstructorHour {
   startTime: string;
@@ -54,9 +58,14 @@ interface NormalizedSlot {
 
 @Injectable()
 export class OrderService {
+  private stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
+    //apiVersion: '2024-06-20',
+    apiVersion: '2025-12-15.clover',
+  });
   constructor(
     private readonly userDbService: UserDbService,
     private readonly walletService: WalletService,
+    private readonly privateLearnerService: PrivateLearnerService,
 
     @InjectModel(InstructorProfile.name)
     private readonly instructorProfileModel: Model<InstructorProfileDocument>,
@@ -69,9 +78,147 @@ export class OrderService {
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
-
+    
     private readonly logger: Logger,
+    @InjectModel(PrivateOrder.name)
+    private readonly privateOrderModel: Model<PrivateOrderDocument>,
+    
   ) { }
+
+  
+
+  // 🔐 Centralized pricing logic
+  async createPrivateOrder(
+    instructorId: string,
+    dto: CreatePrivateOrderDto,
+  ) {
+    let learner;
+  
+    // 1️⃣ Resolve learner
+    if (dto.privateLearnerId) {
+      learner = await this.privateLearnerService.findOne(
+        instructorId,
+        dto.privateLearnerId,
+      );
+  
+      if (!learner) {
+        throw new BadRequestException('Private learner not found');
+      }
+    } else {
+      if (
+        !dto.newLearner?.name ||
+        !dto.newLearner?.phone ||
+        !dto.newLearner?.vehicleType
+      ) {
+        throw new BadRequestException('Incomplete learner details');
+      }
+  
+      learner = await this.privateLearnerService.create(instructorId, {
+        firstName: dto.newLearner.name,
+        mobileNumber: dto.newLearner.phone,
+        preferredVehicleType: dto.newLearner.vehicleType,
+      });
+    }
+  
+    // 2️⃣ Load instructor profile ONCE
+    const instructorProfile = await this.instructorProfileModel
+      .findOne({ userId: new Types.ObjectId(instructorId) })
+      .select({ vehicles: 1 })
+      .lean();
+  
+    if (!instructorProfile) {
+      throw new BadRequestException('Instructor profile not found');
+    }
+  
+    // 3️⃣ Lesson slots pricing
+    const lessonSlots = dto.lessonSlots.map(slot => {
+      const hourlyPrice = this.resolvePrivatePrice(
+        instructorProfile,
+        learner.preferredVehicleType,
+        false,
+      );
+  
+      return {
+        ...slot,
+        price: hourlyPrice * slot.bookingPeriod,
+      };
+    });
+  
+    // 4️⃣ Test package pricing
+    let testPackage;
+    if (dto.testPackage) {
+      const testPrice = this.resolvePrivatePrice(
+        instructorProfile,
+        learner.preferredVehicleType,
+        true,
+      );
+  
+      testPackage = {
+        ...dto.testPackage,
+        price: testPrice,
+      };
+    }
+  
+    // 5️⃣ Total
+    const totalAmount =
+      lessonSlots.reduce((sum, s) => sum + s.price, 0) +
+      (testPackage?.price || 0);
+  
+    // 6️⃣ Create private order
+const orderData = await this.privateOrderModel.create({
+  instructorId,
+  privateLearnerId: learner._id,
+  vehicleType: learner.preferredVehicleType,
+  lessonSlots,
+  testPackage,
+  totalAmount,
+});
+
+if (!orderData?._id) {
+  throw new BadRequestException('Failed to create private order');
+}
+
+return orderData;
+ 
+  }
+
+  private resolvePrivatePrice(
+    instructorProfile: InstructorProfile,
+    vehicleType: 'AUTO' | 'MANUAL',
+    isTest = false,
+  ): number {
+    const privateVehicle = instructorProfile.vehicles?.private;
+  
+    if (!privateVehicle?.hasVehicle) {
+      throw new BadRequestException(
+        'Private booking not enabled for instructor',
+      );
+    }
+  
+    const vehicleKey: 'auto' | 'manual' =
+      vehicleType === 'AUTO' ? 'auto' : 'manual';
+  
+    const priceBlock = privateVehicle[vehicleKey];
+  
+    if (!priceBlock) {
+      throw new BadRequestException(
+        `Private price not configured for ${vehicleType}`,
+      );
+    }
+  
+    const price = isTest
+      ? priceBlock.testPricePerHour
+      : priceBlock.pricePerHour;
+  
+    if (!price) {
+      throw new BadRequestException('Invalid private pricing');
+    }
+  
+    return price;
+  }
+  
+  
+  
 
   // ⏱ 24 HOUR RULE
   private isWithin24Hours(slotDate: string, startTime: string): boolean {
@@ -400,55 +547,7 @@ export class OrderService {
     };
   }
 
-  // async requestSlotReschedule(
-  //   orderId: string,
-  //   slotId: string,
-  //   userId: string,
-  //   dto: RescheduleRequestDto,
-  // ) {
-  //   const order = await this.orderModel.findById(orderId);
-  //   if (!order) throw new NotFoundException('Order not found');
 
-  //   const instructorData = await this.instructorProfileModel.findOne(
-  //     { userId: new Types.ObjectId(userId) }
-  //   );
-
-  //   const slot = order.bookedSlots.id(slotId);
-  //   if (!slot) throw new NotFoundException('Slot not found');
-
-  //   if (slot.reschedule?.status === 'PENDING') {
-  //     throw new BadRequestException('Reschedule already pending');
-  //   }
-
-  //   if (['CANCELLED', 'NOSHOW', 'COMPLETED'].includes(slot.status)) {
-  //     throw new BadRequestException(`Cannot reschedule this slot`);
-  //   }
-
-  //   const isLearner = order.learnerId.toString() === userId;
-  //   const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
-
-  //   if (!isLearner && !isInstructor) {
-  //     throw new ForbiddenException('Unauthorized');
-  //   }
-  //   slot.status = 'PENDING_RESCHEDULE';
-  //   slot.reschedule = {
-  //     requestedBy: isLearner ? 'LEARNER' : 'INSTRUCTOR',
-  //     status: 'PENDING',
-  //     proposedSlot: {
-  //       date: dto.date,
-  //       startTime: this.amPmTo24(dto.startTime),
-  //       endTime: this.amPmTo24(dto.endTime),
-  //     },
-  //     requestedAt: new Date(),
-  //   };
-
-  //   await order.save();
-
-  //   return {
-  //     success: true,
-  //     message: 'Slot reschedule request sent',
-  //   };
-  // }
 
   async requestSlotReschedule(
     orderId: string,
@@ -1203,6 +1302,44 @@ if (isLearner && hoursBefore >= 24) {
   }
 
 
+  // async handleStripeWebhook(payload: Buffer, signature: string) {
+  //   const event = this.stripe.webhooks.constructEvent(
+  //     payload,
+  //     signature,
+  //     process.env['STRIPE_WEBHOOK_SECRET']!,
+  //   );
+  
+  //   if (event.type === 'payment_intent.succeeded') {
+  //     const intent = event.data.object as Stripe.PaymentIntent;
+    
+  //     const orderId = intent.metadata['orderId'];
+    
+  //     if (!orderId) {
+  //       throw new BadRequestException('Order ID missing in Stripe metadata');
+  //     }
+    
+  //     await this.privateOrderModel.updateOne(
+  //       { _id: orderId },
+  //       {
+  //         status: OrderStatus.PAID,
+  //         paidAt: new Date(),
+  //       },
+  //     );
+  //   }
+    
+  
+  //   if (event.type === 'payment_intent.payment_failed') {
+  //     const intent = event.data.object as Stripe.PaymentIntent;
+  
+  //     await this.privateOrderModel.updateOne(
+  //       { stripePaymentIntentId: intent.id },
+  //       { status: OrderStatus.FAILED },
+  //     );
+  //   }
+  
+  //   return { received: true };
+  // }
+  
 
 }
 
