@@ -16,6 +16,8 @@ import { Learner, LearnerSchema } from '@common/db/schemas/learner.schema';
 import { WalletModule } from '@app/wallet/wallet.module';
 import { ReferralService } from './services/referral.service';
 import { Referral, ReferralSchema } from '@common/db/schemas/referral.schema';
+import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
+
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { Referral, ReferralSchema } from '@common/db/schemas/referral.schema';
     MongooseModule.forFeature([
       { name: Payment.name, schema: PaymentSchema },
       { name: Order.name, schema: OrderSchema },
+      { name: PrivateOrder.name, schema: PrivateOrderSchema },
       { name: User.name, schema: UserSchema },
       {
         name: InstructorProfile.name,

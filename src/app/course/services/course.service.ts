@@ -21,6 +21,7 @@ import { CourseListDto } from '../dto/course-list.dto';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { courseStatus } from '@constant/enum';
 import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
+import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
 
 
 export class CourseService {
@@ -32,20 +33,16 @@ export class CourseService {
     private readonly jwtService: JwtService,
     //Notification Service
     private readonly notificationService: NotificationService,
+    private readonly smtpErrorHandler: SmtpErrorHandlerService,
   ) { }
 
   async signup(dto: CourseSignupDto) {
     const exists = await this.courseProviderModel.findOne({
-      $or: [
-        { email: dto.email },
-        { phone: dto.phone },
-      ],
+      $or: [{ email: dto.email }, { phone: dto.phone }],
     });
   
     if (exists) {
-      throw new BadRequestException(
-        'Email or mobile already registered',
-      );
+      throw new BadRequestException('Email or mobile already registered');
     }
   
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -54,14 +51,35 @@ export class CourseService {
       ...dto,
       password: hashedPassword,
     });
-
-    //await this.notificationService.sendCourseSignUp(payload);
-
+  
+    let emailSent = false;
+  
+    // try {
+    //   this.notificationService.sendCourseSignUp(payload);
+    
+    //   emailSent = true;
+    // } catch (error) {
+    //   this.smtpErrorHandler.handle(error, {
+    //     providerId: payload._id,
+    //     source: 'course-provider-signup',
+    //   })
+    // }
+      this.notificationService
+    .sendCourseSignUp(payload)
+    .catch(error =>
+      this.smtpErrorHandler.handle(error, {
+        providerId: payload._id,
+        source: 'course-provider-signup',
+      }),
+    );
+  
     return {
       success: true,
       message: 'Course provider registered successfully',
+      emailSent, // optional
     };
   }
+  
   
 
   async login(dto: CourseLoginDto) {

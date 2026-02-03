@@ -22,6 +22,7 @@ import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { StripeIntentMetadata, StripeCardMeta } from '@common/stripe/stripe.types';
 import { Public } from '@common/decorators/public.decorator';
 import { ReferralService } from '../services/referral.service';
+import { PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -43,6 +44,9 @@ export class StripeWebhookController {
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
+
+    @InjectModel('PrivateOrder')
+    private readonly privateOrderModel: Model<PrivateOrderDocument>,
 
     private readonly walletService: WalletService,
     private readonly referralService: ReferralService,
@@ -136,47 +140,23 @@ export class StripeWebhookController {
 
       /* -------- ORDER PAYMENT -------- */
       /* -------- ORDER PAYMENT -------- */
-if (
-  metadata.purpose === 'ORDER_PAYMENT' &&
-  metadata.orderId &&
-  metadata.learnerId
-) {
-  
-  const orderId = new Types.ObjectId(metadata.orderId);
-
-  const order = await this.orderModel.findByIdAndUpdate(
-    orderId,
-    {
-      status: 'CONFIRMED',
-      paymentStatus: 'PAID',
-    },
-    { new: true },
-  );
-
-  if (!order) return { received: true };
-    // ✅ Reward referral ONLY on first confirmed order
-    const confirmedCount = await this.orderModel.countDocuments({
-      learnerId: order.learnerId,
-      status: 'CONFIRMED',
-    });
-
-    if (confirmedCount === 1) {
-      await this.referralService.rewardReferral(order.learnerId, order._id);
-    }
-  // ✅ CREDIT ONLY REMAINING PREPAID VALUE
-  if (order.walletCreditAfterBooking > 0) {
-    await this.walletService.creditWallet(
-      order.learnerId,
-      order.walletCreditAfterBooking,
-      WalletTxnSource.ORDER_REMAINING,
-      order._id,
-      intent.id,
-      cardMeta,
-    );
-  }
-
-  return { received: true };
-}
+      if (
+        metadata.purpose === 'ORDER_PAYMENT' &&
+        metadata.orderId
+      ) {
+        const orderType = metadata.orderType ?? 'PUBLIC';
+      
+        if (orderType === 'PUBLIC' && metadata.learnerId) {
+          await this.handlePublicOrderSuccess(intent, metadata, cardMeta);
+          return { received: true };
+        }
+      
+        if (orderType === 'PRIVATE') {
+          await this.handlePrivateOrderSuccess(intent, metadata);
+          return { received: true };
+        }
+      }
+      
 
     }
 
@@ -196,14 +176,21 @@ if (
       );
 
       if (metadata.orderId) {
+        const orderType = metadata.orderType ?? 'PUBLIC';
         const orderId = new Types.ObjectId(metadata.orderId);
-
-        await this.orderModel.findByIdAndUpdate(orderId, {
-          status: 'CANCELLED',
-        });
-
-        await this.unlockSlots(orderId);
+      
+        if (orderType === 'PUBLIC') {
+          await this.orderModel.findByIdAndUpdate(orderId, { status: 'CANCELLED' });
+          await this.unlockSlots(orderId);
+        }
+      
+        if (orderType === 'PRIVATE') {
+          await this.privateOrderModel.findByIdAndUpdate(orderId, {
+            status: 'CANCELLED',
+          });
+        }
       }
+      
     }
 
     /* -------------------------------------------
@@ -211,17 +198,17 @@ if (
     -------------------------------------------- */
     if (event.type === 'charge.refunded') {
       const charge = event.data.object as Stripe.Charge;
-    
+
       const payment = await this.paymentModel.findOne({
         stripeChargeId: charge.id,
       });
       if (!payment) return { received: true };
-    
+
       const order = await this.orderModel.findById(payment.orderId);
       if (!order) return { received: true };
-    
+
       const card = charge.payment_method_details?.card;
-    
+
       const cardMeta: StripeCardMeta = {
         brand: card?.brand ?? undefined,
         last4: card?.last4 ?? undefined,
@@ -230,7 +217,7 @@ if (
         paymentIntentId: payment.stripePaymentIntentId!,
         chargeId: charge.id,
       };
-    
+
       await this.walletService.creditWallet(
         order.learnerId,
         charge.amount_refunded / 100,
@@ -239,16 +226,72 @@ if (
         `refund-${charge.id}`,
         cardMeta,
       );
-    
+
       await this.orderModel.findByIdAndUpdate(order._id, {
         status: 'REFUNDED',
       });
-    
+
       await this.unlockSlots(order._id);
     }
-    
+
 
     return { received: true };
+  }
+
+
+
+  private async handlePublicOrderSuccess(
+    intent: Stripe.PaymentIntent,
+    metadata: StripeIntentMetadata,
+    cardMeta: StripeCardMeta,
+  ) {
+    const orderId = new Types.ObjectId(metadata.orderId);
+  
+    const order = await this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+      },
+      { new: true },
+    );
+  
+    if (!order) return;
+  
+    // ✅ Referral (UNCHANGED)
+    const confirmedCount = await this.orderModel.countDocuments({
+      learnerId: order.learnerId,
+      status: 'CONFIRMED',
+    });
+  
+    if (confirmedCount === 1) {
+      await this.referralService.rewardReferral(order.learnerId, order._id);
+    }
+  
+    // ✅ Wallet remaining credit (UNCHANGED)
+    if (order.walletCreditAfterBooking > 0) {
+      await this.walletService.creditWallet(
+        order.learnerId,
+        order.walletCreditAfterBooking,
+        WalletTxnSource.ORDER_REMAINING,
+        order._id,
+        intent.id,
+        cardMeta,
+      );
+    }
+  }
+
+  private async handlePrivateOrderSuccess(
+    intent: Stripe.PaymentIntent,
+    metadata: StripeIntentMetadata,
+  ) {
+    const orderId = new Types.ObjectId(metadata.orderId);
+  
+    await this.privateOrderModel.findByIdAndUpdate(orderId, {
+      status: 'CONFIRMED',
+      paymentStatus: 'PAID',
+      stripePaymentIntentId: intent.id,
+    });
   }
   
 }
