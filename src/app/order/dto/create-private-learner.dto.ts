@@ -22,5 +22,17 @@ export class CreatePrivateLearnerDto {
   
     @IsEnum(['AUTO', 'MANUAL'])
     preferredVehicleType!: 'AUTO' | 'MANUAL';
+
+    @IsOptional()
+    @IsString()
+    pickupAddress?: string;
+
+    @IsOptional()
+    @IsString()
+    suburb?: string;
+
+    @IsOptional()
+    @IsString()
+    state?: string;
   }
   

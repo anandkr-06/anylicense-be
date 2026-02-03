@@ -1,52 +1,84 @@
-// dto/create-private-order.dto.ts
 import {
     IsEnum,
     IsMongoId,
     IsString,
     IsBoolean,
     IsOptional,
+    IsArray,
+    ValidateNested,
   } from 'class-validator';
+  import { Type } from 'class-transformer';
   
+  class NewPrivateLearnerDto {
+    @IsString()
+    firstName!: string;
   
-  export class CreatePrivateOrderDto {
-    @IsMongoId()
-    privateLearnerId!: string;
-    
-    newLearner?: {
-      name?: string;
-      phone?: string;
-      vehicleType?: 'AUTO' | 'MANUAL';
-    };
+    @IsString()
+    lastName!: string;
   
-    lessonSlots!: {
-      bookingPeriod: number;
-      date: string;
-      startTime: string;
-      endTime: string;
-      pickupAddress: string;
-      suburb: string;
-      state: string;
-    }[];
+    @IsString()
+    mobileNumber!: string;
   
-    testPackage?: {
-      date: string;
-      time: string;
-      testLocation: string;
-      pickupPoint: string;
-      dropPoint: string;
-    };
+    @IsOptional()
+    @IsString()
+    email?: string;
   
     @IsEnum(['AUTO', 'MANUAL'])
     vehicleType!: 'AUTO' | 'MANUAL';
   
     @IsString()
-    bookingDate!: string;
+    pickupAddress!: string;
   
     @IsString()
+    suburb!: string;
+  
+    @IsString()
+    state!: string;
+  }
+  
+  class LessonSlotDto {
+    bookingPeriod!: number;
+    date!: string;
     startTime!: string;
+    endTime!: string;
   
     @IsString()
-    endTime!: string;
+    pickupAddress!: string;
+  
+    @IsString()
+    suburb!: string;
+  
+    @IsString()
+    state!: string;
+  }
+  
+  class TestPackageDto {
+    date!: string;
+    time!: string;
+    testLocation!: string;
+    pickupPoint!: string;
+    dropPoint!: string;
+  }
+  
+  export class CreatePrivateOrderDto {
+    @IsOptional()
+    @IsMongoId()
+    privateLearnerId?: string;
+  
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => NewPrivateLearnerDto)
+    newLearner?: NewPrivateLearnerDto;
+  
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => LessonSlotDto)
+    lessonSlots!: LessonSlotDto[];
+  
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => TestPackageDto)
+    testPackage?: TestPackageDto;
   
     @IsOptional()
     @IsBoolean()

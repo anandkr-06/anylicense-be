@@ -95,29 +95,30 @@ export class OrderService {
     dto: CreatePrivateOrderDto,
   ) {
     let learner;
-  
+
     // 1️⃣ Resolve learner
     if (dto.privateLearnerId) {
       learner = await this.privateLearnerService.findOne(
         instructorId,
         dto.privateLearnerId,
       );
-  
+    
       if (!learner) {
         throw new BadRequestException('Private learner not found');
       }
     } else {
-      if (
-        !dto.newLearner?.name ||
-        !dto.newLearner?.phone ||
-        !dto.newLearner?.vehicleType
-      ) {
-        throw new BadRequestException('Incomplete learner details');
+      if (!dto.newLearner) {
+        throw new BadRequestException('New learner details required');
       }
-  
+    
       learner = await this.privateLearnerService.create(instructorId, {
-        firstName: dto.newLearner.name,
-        mobileNumber: dto.newLearner.phone,
+        firstName: dto.newLearner.firstName,
+        lastName: dto.newLearner.lastName,
+        mobileNumber: dto.newLearner.mobileNumber,
+        email: dto.newLearner.email,
+        pickupAddress: dto.newLearner.pickupAddress,
+        suburb: dto.newLearner.suburb,
+        state: dto.newLearner.state,
         preferredVehicleType: dto.newLearner.vehicleType,
       });
     }

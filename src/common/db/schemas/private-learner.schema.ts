@@ -16,6 +16,15 @@ export class PrivateLearner {
   @Prop()
   email?: string;
 
+  @Prop()
+  pickupAddress?: string;
+
+  @Prop()
+  suburb?: string;
+
+  @Prop()
+  state?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   instructorId!: Types.ObjectId;
 
