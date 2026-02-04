@@ -22,6 +22,7 @@ import { NotificationService } from 'modules/notifications/notification.service'
 import { courseStatus } from '@constant/enum';
 import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
 import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
+import { PinoLogger } from 'nestjs-pino';
 
 
 export class CourseService {
@@ -34,6 +35,7 @@ export class CourseService {
     //Notification Service
     private readonly notificationService: NotificationService,
     private readonly smtpErrorHandler: SmtpErrorHandlerService,
+    private readonly logger: PinoLogger,
   ) { }
 
   async signup(dto: CourseSignupDto) {
@@ -177,16 +179,46 @@ export class CourseService {
     if (!Types.ObjectId.isValid(providerId)) {
       throw new BadRequestException('Invalid provider id');
     }
-
+  
+    // 🔴 REQUIRED: Validate schedules
+    if (!dto.schedules || !Array.isArray(dto.schedules) || dto.schedules.length === 0) {
+      throw new BadRequestException('At least one course schedule is required');
+    }
+  
+    // 🔴 REQUIRED: Validate date ranges
+    const schedules = dto.schedules.map((slot) => {
+      const start = new Date(slot.startDateTime);
+      const end = new Date(slot.endDateTime);
+  
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid schedule date format');
+      }
+  
+      if (end <= start) {
+        throw new BadRequestException('Schedule end time must be after start time');
+      }
+  
+      return {
+        startDateTime: start,
+        endDateTime: end,
+      };
+    });
+  
     const course = await this.courseModel.create({
       ...dto,
+      schedules, // ✅ use processed schedules
       providerId: new Types.ObjectId(providerId),
       status: courseStatus.PENDING,
       isActive: false,
     });
-
-    return { success: true, courseId: course._id, message: 'Course updated successfully', };
+  
+    return {
+      success: true,
+      courseId: course._id,
+      message: 'Course created successfully',
+    };
   }
+  
 
   // 📄 List courses (Provider-wise)
   async listCourses(providerId: string, query: CourseListDto) {
@@ -219,32 +251,42 @@ export class CourseService {
     };
   }
 
-  // ✏️ Edit course
   async updateCourse(
     providerId: string,
     courseId: string,
     dto: UpdateCourseDto,
   ) {
-
+    if (!Types.ObjectId.isValid(courseId)) {
+      throw new BadRequestException('Invalid course id');
+    }
+  
+    const updatePayload: any = { ...dto };
+  
+    // ✅ If schedules provided, replace them fully
+    if (dto.schedules) {
+      updatePayload.schedules = dto.schedules;
+    }
+  
     const course = await this.courseModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(courseId),
         providerId: new Types.ObjectId(providerId),
         $or: [{ isDeleted: false }, { isDeleted: { $exists: false } }],
       },
-      { $set: dto },
+      { $set: updatePayload },
       { new: true },
     );
-
+  
     if (!course) {
       throw new NotFoundException('Course not found or access denied');
     }
-
+  
     return {
       success: true,
       message: 'Course updated successfully',
     };
   }
+  
 
   // 🗑 Soft delete course
   async softDeleteCourse(providerId: string, courseId: string) {

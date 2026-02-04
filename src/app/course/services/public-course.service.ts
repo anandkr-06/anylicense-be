@@ -5,6 +5,9 @@ import { Course } from '../schema/course.schema';
 import { CreateLeadDto } from '../dto/create-lead.dto';
 import { Lead } from '../schema/lead.schema';
 import { CourseProvider } from '../schema/course-provider.schema';
+import { NotificationService } from 'modules/notifications/notification.service';
+import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class PublicCourseService {
@@ -15,18 +18,23 @@ export class PublicCourseService {
     private readonly courseLeadModel: Model<Lead>,
     @InjectModel(CourseProvider.name)
     private readonly courseProviderModel: Model<CourseProvider>,
+    private readonly notificationService: NotificationService,
+        private readonly smtpErrorHandler: SmtpErrorHandlerService,
+        private readonly logger: PinoLogger,
 
   ) { }
 
   async getCourseFilters() {
 
-    const locations = await this.courseModel.distinct('location');
-    const startDates = await this.courseModel.distinct('startDate');
+    const suburb = await this.courseModel.distinct('location.suburb');
+    const state = await this.courseModel.distinct('location.state');
+    const category = await this.courseModel.distinct('category');
     const courseName = await this.courseModel.distinct('courseName');
 
     return {
-      locations,
-      startDates,
+      state,
+      suburb,
+      category,
       courseName
     };
 
@@ -112,16 +120,19 @@ export class PublicCourseService {
   }
 
   async createLead(dto: CreateLeadDto) {
-    // 1️⃣ Fetch course with minimal fields
     const course = await this.courseModel
-      .findOne({
-        _id: dto.courseId,
-        isDeleted: false,
-        // isActive: true,
-      })
-      .select('providerId')
-      .lean();
+  .findOne({
+    _id: dto.courseId,
+    isDeleted: false,
+  })
+  .select('providerId') // only select what exists in Course
+  .populate({
+    path: 'providerId',
+    select: 'instituteName email', // fields from CourseProvider
+  })
+  .lean();
 
+      this.logger.info('Lead course.'+JSON.stringify(course));
     if (!course) {
       throw new NotFoundException('Course not found');
     }
@@ -141,10 +152,29 @@ export class PublicCourseService {
     });
 
     if (!leadExists) {
-      await this.courseLeadModel.create({
+      const payload = await this.courseLeadModel.create({
         ...dto,
         providerId: course.providerId,
       });
+      this.logger.info('customer payload details:'+JSON.stringify(payload));
+      this.notificationService
+      .sendCourseLeadCustomer(payload)
+      .catch(error =>
+        this.smtpErrorHandler.handle(error, {
+          providerId: payload._id,
+          source: 'lead-customer',
+        }),
+      );
+      
+      this.logger.info('Provider.'+JSON.stringify(course.providerId));
+      this.notificationService
+      .sendCourseLeadProvider(payload, course.providerId)
+      .catch(error =>
+        this.smtpErrorHandler.handle(error, {
+          providerId: payload._id,
+          source: 'lead-provider',
+        }),
+      );
     }
 
     // 4️⃣ Unified response
