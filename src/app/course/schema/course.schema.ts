@@ -2,8 +2,6 @@ import { courseCategory, courseStatus, courseType } from '@constant/enum';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-
-
 @Schema({ _id: false })
 class Location {
   @Prop({ required: true })
@@ -13,7 +11,16 @@ class Location {
   state!: string;
 
   @Prop({ required: true })
-    postCode!: string;
+  postCode!: string;
+}
+
+@Schema({ _id: false })
+class CourseSchedule {
+  @Prop({ type: Date, required: true })
+  startDateTime!: Date;
+
+  @Prop({ type: Date, required: true })
+  endDateTime!: Date;
 }
 
 
@@ -25,7 +32,6 @@ export class Course extends Document {
   @Prop({ required: true, trim: true })
   courseName!: string;
 
-
   @Prop({
     enum: courseCategory,
     required: true,
@@ -33,24 +39,29 @@ export class Course extends Document {
   })
   category!: courseCategory;
 
-
   @Prop({ required: true, min: 0 })
   price!: number;
 
-  @Prop({ type: Date, required: true })
-  startDate!: Date;
-
-  @Prop({ type: Date, required: true })
-  endDate!: Date;
+  // ✅ MULTIPLE DATE-TIME SLOTS
+  @Prop({
+    type: [CourseSchedule],
+    required: true,
+    validate: [
+      (value: CourseSchedule[]) => value.length > 0,
+      'At least one schedule is required',
+    ],
+  })
+  schedules!: CourseSchedule[];
 
   @Prop({
-      type: Location,
-      default: () => ({
-        suburb: '',
-        state: '',
-      }),
-    })
-    location!: Location;
+    type: Location,
+    default: () => ({
+      suburb: '',
+      state: '',
+      postCode: '',
+    }),
+  })
+  location!: Location;
 
   @Prop({ min: 1 })
   seats?: number;
@@ -82,3 +93,4 @@ export class Course extends Document {
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
+CourseSchema.index({ 'schedules.startDateTime': 1 });

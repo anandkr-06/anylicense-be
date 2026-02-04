@@ -30,10 +30,39 @@ export class NotificationService {
     });
 
     
+
+    
     // await this.smsService.send(
     //     learner.mobileNumber,
     //     `Your booking is confirmed on ${order.bookedSlots[0].date}`,
     //   );
+  }
+//Lead Customer
+  async sendCourseLeadCustomer(course: any) {
+    await this.mailerService.sendMail({
+      to: course.email,
+      subject: 'Course Interest: Thank you!',
+      template: 'lead-customer',
+      context: { firstName: course.firstName,lastName: course.lastName,
+        phone: course.phone,suburb: course.location.suburb, 
+        email:course.email,  submittedAt:course.createdAt,
+        support_email:process.env['SUPPORT_EMAIL'],
+        website_name:process.env['WEBSITE_NAME'],
+        website_url:process.env['WEBSITE_URL'] },
+    });
+  }
+  async sendCourseLeadProvider(course: any, provider:any) {
+    await this.mailerService.sendMail({
+      to: provider.email,
+      subject: 'Fresh Course Lead: Thank you!',
+      template: 'lead-provider',
+      context: { firstName: course.firstName,lastName: course.lastName,
+        phone: course.phone,suburb: course.location.suburb, 
+        email:course.email,  submittedAt:course.createdAt, instituteName: provider.instituteName,
+        support_email:process.env['SUPPORT_EMAIL'],
+        website_name:process.env['WEBSITE_NAME'],
+        website_url:process.env['WEBSITE_URL'] },
+    });
   }
 
   async sendLearnerConfirmation(learner: any, order:any) {

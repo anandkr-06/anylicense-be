@@ -7,20 +7,11 @@ import {
   IsPositive,
   IsDateString,
   ValidateNested,
+  IsArray,
+  ArrayMinSize,
 } from 'class-validator';
-
-import { courseCategory, courseType } from '@constant/enum';
 import { Type } from 'class-transformer';
-
-
-export class DurationDto {
-  @IsNumber()
-  @IsPositive()
-  value!: number;
-
-  @IsString()
-  unit!: 'Days' | 'Months';
-}
+import { courseCategory, courseType } from '@constant/enum';
 
 export class LocationDto {
   @IsString()
@@ -31,6 +22,14 @@ export class LocationDto {
 
   @IsString()
   postCode!: string;
+}
+
+export class CourseScheduleDto {
+  @IsDateString()
+  startDateTime!: string;
+
+  @IsDateString()
+  endDateTime!: string;
 }
 
 export class CreateCourseDto {
@@ -46,11 +45,12 @@ export class CreateCourseDto {
   @IsPositive()
   price!: number;
 
-  @IsDateString()
-  startDate!: string;
-
-  @IsDateString()
-  endDate!: string;
+  // ✅ NEW FIELD
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CourseScheduleDto)
+  schedules!: CourseScheduleDto[];
 
   @IsOptional()
   @IsNumber()
@@ -61,10 +61,6 @@ export class CreateCourseDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
-
-  // @IsNotEmpty()
-  // @IsString()
-  // location!: string;
 
   @IsEnum(courseType)
   courseType!: courseType;
