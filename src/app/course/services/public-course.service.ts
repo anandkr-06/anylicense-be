@@ -111,8 +111,7 @@ export class PublicCourseService {
         category: course.category,
         // url: course.url,
         location: course.location,
-        startDate: course.startDate,
-        endDate: course.endDate,
+        schedules: course.schedules,
         price: course.price,
         seats: course.seats
       })),
