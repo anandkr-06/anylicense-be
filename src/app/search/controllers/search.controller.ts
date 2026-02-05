@@ -33,6 +33,12 @@ getInstructorProfile(
   return this.searchService.searchInstructors(dto);
 }
 
+@Public()
+@Get("search-test")
+searchTest(@Query() dto: SearchInstructorDto) {
+return this.searchService.searchTestInstructors(dto);
+}
+
   @Public()
   @Post('instructor')
   @HttpCode(HttpStatus.OK)
