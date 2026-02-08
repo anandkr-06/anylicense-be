@@ -17,7 +17,12 @@ import { WalletModule } from '@app/wallet/wallet.module';
 import { ReferralService } from './services/referral.service';
 import { Referral, ReferralSchema } from '@common/db/schemas/referral.schema';
 import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
-
+import { GiftVoucher, GiftVoucherSchema } from '@app/gift-vouchers/schema/gift-voucher-schema';
+import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
+import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
+import { NotificationModule } from 'modules/notifications/notification.module';
+import { SmtpModule } from '@common/smtp/smtp.module';
+import { LearnerService } from '@app/userlearners/services/leaner.service';
 
 @Module({
   imports: [
@@ -36,15 +41,18 @@ import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-ord
       },
       { name: Learner.name, schema: LearnerSchema },
       { name: Referral.name, schema: ReferralSchema },
+      { name: GiftVoucher.name, schema: GiftVoucherSchema },
     ]),
     DbModule,
     OrdersModule,
     InstructorModule,
     WalletModule,
-    
+    GiftVoucherModule,
+    NotificationModule,
+    SmtpModule,
   ],
   controllers: [PaymentController,StripeWebhookController],
-  providers: [StripeService, UserDbService, ReferralService],
+  providers: [StripeService, UserDbService, ReferralService, GiftVoucherService, LearnerService],
   exports: [StripeService],
 })
 export class PaymentsModule {}

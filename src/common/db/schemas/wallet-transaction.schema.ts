@@ -14,6 +14,7 @@ export enum WalletTxnSource {
   STRIPE = 'STRIPE',              // ✅ ADD THIS
   STRIPE_REFUND = 'STRIPE_REFUND',
   ORDER_REMAINING = 'ORDER_REMAINING',
+  GIFT_VOUCHER = 'GIFT_VOUCHER',
 }
 
 

@@ -9,7 +9,8 @@ import { Model } from 'mongoose';
 import Stripe from 'stripe';
 
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
-import { Payment, PaymentDocument } from '@common/db/schemas/payment.schema';
+import { Payment, PaymentDocument, PaymentPurpose } from '@common/db/schemas/payment.schema';
+import { GiftVoucherDocument } from '@app/gift-vouchers/schema/gift-voucher-schema';
 
 export type StripeIntentMetadata = {
   purpose: 'ORDER_PAYMENT' | 'WALLET_TOPUP';
@@ -38,6 +39,10 @@ export class StripeService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel('PrivateOrder')
     private readonly privateOrderModel: Model<any>,
+
+    @InjectModel('GiftVoucher')
+    private readonly giftVoucherModel: Model<GiftVoucherDocument>,
+
   ) {
     this.stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
       apiVersion: '2025-12-15.clover',
@@ -98,8 +103,10 @@ export class StripeService {
       amount: Math.round(order.totalAmount * 100),
       stripePaymentIntentId: paymentIntent.id,
       status: 'INITIATED',
+      purpose: PaymentPurpose.ORDER,
     });
-  
+    
+    
     // 5️⃣ Return to frontend
     return {
       clientSecret: paymentIntent.client_secret,
@@ -137,4 +144,57 @@ export class StripeService {
       metadata,
     };
   }
+
+  async createGiftVoucherPaymentIntent(giftVoucherId: string) {
+    const voucher = await this.giftVoucherModel.findOne({
+      _id: giftVoucherId,
+      status: 'PENDING', // or CREATED or DRAFT
+    });
+  
+    if (!voucher) {
+      throw new BadRequestException('Invalid or already paid voucher');
+    }
+  
+    // 🔒 lock voucher
+    await this.giftVoucherModel.updateOne(
+      { _id: giftVoucherId },
+      {
+        status: 'PAYMENT_PENDING',
+        paymentStartedAt: new Date(),
+      },
+    );
+  
+    const intent = await this.stripe.paymentIntents.create({
+      amount: Math.round(voucher.amount * 100),
+      currency: 'aud',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        purpose: 'GIFT_VOUCHER',
+        giftVoucherId: voucher._id.toString(),
+      },
+    });
+  
+
+    // await this.paymentModel.create({
+    //   amount: voucher.amount,
+    //   currency: 'AUD',
+    //   status: 'PENDING',
+    //   stripePaymentIntentId: intent.id,
+    //   purpose: 'GIFT_VOUCHER',
+    //   giftVoucherId: voucher._id,
+    // });
+    await this.paymentModel.create({
+      purpose: PaymentPurpose.GIFT_VOUCHER,
+      giftVoucherId: voucher._id,
+      amount: voucher.amount,
+      stripePaymentIntentId: intent.id,
+      status: 'INITIATED',
+    });
+    
+  
+    return {
+      clientSecret: intent.client_secret,
+    };
+  }
+  
 }
