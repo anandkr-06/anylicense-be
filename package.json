@@ -36,6 +36,7 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
+    "dayjs": "^1.11.19",
     "joi": "^18.0.1",
     "mongoose": "^8.19.3",
     "multer": "^2.0.2",

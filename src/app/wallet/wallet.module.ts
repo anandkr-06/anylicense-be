@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WalletTransaction, WalletTransactionSchema } from '../../common/db/schemas/wallet-transaction.schema';
 
@@ -10,6 +10,7 @@ import { Order, OrderSchema } from '@common/db/schemas/order.schema';
 import { NotificationModule } from 'modules/notifications/notification.module';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { JwtService } from '@nestjs/jwt';
+import { UserLearnersModule } from '@app/userlearners/user.module';
 
 
 
@@ -20,6 +21,7 @@ import { JwtService } from '@nestjs/jwt';
       { name: Learner.name, schema: LearnerSchema },
       
     ]),
+    forwardRef(() => UserLearnersModule),
   ],
   controllers: [WalletController], // ✅ REQUIRED
   providers: [WalletService,JwtService,JwtAuthGuard], // ✅ REQUIRED

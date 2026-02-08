@@ -2,49 +2,59 @@ import { Body, Controller, Post, Param, BadRequestException, Query } from '@nest
 import { StripeService } from '../services/payment.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
+import { Public } from '@common/decorators/public.decorator';
 
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly stripeService: StripeService) {}
 
   /* ---------------------------------
-     ORDER PAYMENT
+     ORDER PAYMENT (PUBLIC / PRIVATE)
   ---------------------------------- */
-  // @Post('stripe/:orderId')
-  // async createStripePayment(@Param('orderId') orderId: string) {
-  //   if (!orderId) {
-  //     throw new BadRequestException('Order ID is required');
-  //   }
-  //   return this.stripeService.createOrderPaymentIntent(orderId);
-  // }
   @Post('stripe/:orderId')
-async createStripePayment(
-  @Param('orderId') orderId: string,
-  @Query('type') type?: 'PUBLIC' | 'PRIVATE',
-) {
-  if (!orderId) {
-    throw new BadRequestException('Order ID is required');
+  async createStripePayment(
+    @Param('orderId') orderId: string,
+    @Query('type') type?: 'PUBLIC' | 'PRIVATE',
+  ) {
+    if (!orderId) {
+      throw new BadRequestException('Order ID is required');
+    }
+
+    return this.stripeService.createOrderPaymentIntent(
+      orderId,
+      type ?? 'PUBLIC',
+    );
   }
 
-  // 🔥 default PUBLIC → backward compatible
-  return this.stripeService.createOrderPaymentIntent(orderId, type ?? 'PUBLIC');
-}
-
-
   /* ---------------------------------
-     WALLET TOP-UP
-     Body: { learnerId: string, amount: number }
+     WALLET TOP-UP (AUTH REQUIRED)
   ---------------------------------- */
   @Post('wallet/topup')
   async createWalletTopup(
-   @CurrentUser() currentUser: JwtPayload,
+    @CurrentUser() currentUser: JwtPayload,
     @Body('amount') amount: number,
   ) {
     const learnerId = currentUser.sub;
+
     if (!learnerId || !amount || amount <= 0) {
-      throw new BadRequestException('Learner ID and valid amount are required');
+      throw new BadRequestException('Valid amount is required');
     }
 
     return this.stripeService.createWalletTopupIntent(learnerId, amount);
+  }
+
+  /* ---------------------------------
+     🎁 GIFT VOUCHER PAYMENT (PUBLIC)
+  ---------------------------------- */
+  @Public()
+  @Post('stripe/gift-voucher/:giftVoucherId')
+  async createGiftVoucherPayment(
+    @Param('giftVoucherId') giftVoucherId: string,
+  ) {
+    if (!giftVoucherId) {
+      throw new BadRequestException('Gift voucher ID is required');
+    }
+
+    return this.stripeService.createGiftVoucherPaymentIntent(giftVoucherId);
   }
 }

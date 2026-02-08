@@ -1,6 +1,8 @@
 import {
   ConflictException, Injectable, UnauthorizedException, BadRequestException,
-  ForbiddenException, NotFoundException
+  ForbiddenException, NotFoundException,
+  forwardRef,
+  Inject
 } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,6 +24,7 @@ import { NotificationService } from 'modules/notifications/notification.service'
 import { PopulatedInstructor } from '@constant/instructors';
 import { Request } from 'express';
 import { Referral } from '@common/db/schemas/referral.schema';
+import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
 @Injectable()
 export class LearnerService {
   constructor(
@@ -35,6 +38,9 @@ export class LearnerService {
     @InjectModel(Referral.name)
     private referralModel: Model<Referral>,
 
+    @Inject(forwardRef(() => GiftVoucherService)) // 🔥 THIS FIXES IT
+  private giftVoucherService: GiftVoucherService,
+    
 
   ) { }
 
@@ -119,8 +125,8 @@ export class LearnerService {
     return this.createLearner(payload, req);
   }
 
-  
-  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req:string,) {
+
+  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req: string,) {
     return this.createLearner(payload, req);
   }
 
@@ -130,67 +136,72 @@ export class LearnerService {
   ) {
     const hashedPassword = await bcrypt.hash(payload.password, 10);
     payload.password = hashedPassword;
-  try{
-    const learner = await this.learnerModel.create(payload);
-  
-    if (
-      referralCode &&
-      Types.ObjectId.isValid(referralCode)
-    ) {
-      const referrer = await this.learnerModel.findById(
-        new Types.ObjectId(referralCode),
-      );
-  
+    try {
+      const learner = await this.learnerModel.create(payload);
+
+      /* -----------------------------------
+     🎁 AUTO GIFT VOUCHER REDEEM
+  ----------------------------------- */
+      await this.giftVoucherService.tryRedeemForLearner(learner);
+
       if (
-        referrer &&
-        referrer._id.toString() !== learner._id.toString()
+        referralCode &&
+        Types.ObjectId.isValid(referralCode)
       ) {
-        await this.learnerModel.updateOne(
-          { _id: learner._id },
-          { referredBy: referrer._id },
+        const referrer = await this.learnerModel.findById(
+          new Types.ObjectId(referralCode),
         );
-  
-        await this.referralModel.create({
-          referrerId: referrer._id,
-          refereeId: learner._id,
-          status: 'REGISTERED',
-        });
+
+        if (
+          referrer &&
+          referrer._id.toString() !== learner._id.toString()
+        ) {
+          await this.learnerModel.updateOne(
+            { _id: learner._id },
+            { referredBy: referrer._id },
+          );
+
+          await this.referralModel.create({
+            referrerId: referrer._id,
+            refereeId: learner._id,
+            status: 'REGISTERED',
+          });
+        }
       }
+
+      return {
+        accessToken: this.jwtService.sign({
+          sub: learner._id,
+          email: learner.email,
+        }),
+        success: true,
+        message: 'Learner created successfully',
+        learner: {
+          id: learner._id,
+          firstName: learner.firstName,
+          email: learner.email,
+          mobileNumber: learner.mobileNumber,
+        },
+      };
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        if (error?.keyPattern?.email) {
+          throw new ConflictException('Email already registered');
+        }
+
+        if (error?.keyPattern?.mobileNumber) {
+          throw new ConflictException('Mobile number already registered');
+        }
+
+        throw new ConflictException('User already exists');
+      }
+
+      throw new InternalServerErrorException(error?.message);
     }
-  
-    return {
-      accessToken: this.jwtService.sign({
-        sub: learner._id,
-        email: learner.email,
-      }),
-      success: true,
-      message: 'Learner created successfully',
-      learner: {
-        id: learner._id,
-        firstName: learner.firstName,
-        email: learner.email,
-        mobileNumber: learner.mobileNumber,
-      },
-    };
-  } catch (error: any) {
-    if (error?.code === 11000) {
-      if (error?.keyPattern?.email) {
-        throw new ConflictException('Email already registered');
-      }
-  
-      if (error?.keyPattern?.mobileNumber) {
-        throw new ConflictException('Mobile number already registered');
-      }
-  
-      throw new ConflictException('User already exists');
-    }
-  
-    throw new InternalServerErrorException(error?.message);
+
   }
-  
-  }
-  
-  
+
+
   async login(identifier: string, password: string) {
     const learner = await this.learnerModel.findOne({
       $or: [
@@ -396,6 +407,28 @@ export class LearnerService {
       .populate('refereeId', 'firstName email')
       .sort({ createdAt: -1 });
   }
+
+  async findByEmailOrMobile(email?: string, mobile?: string) {
+    const orConditions: any[] = [];
   
+    if (email) {
+      orConditions.push({ email });
+    }
+  
+    if (mobile) {
+      orConditions.push({ mobileNumber: mobile });
+    }
+  
+    if (orConditions.length === 0) {
+      return null;
+    }
+  
+    return this.learnerModel.findOne({
+      $or: orConditions,
+    });
+  }
+  
+  
+
 }
 

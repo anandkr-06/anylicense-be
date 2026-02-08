@@ -23,6 +23,7 @@ import { StripeIntentMetadata, StripeCardMeta } from '@common/stripe/stripe.type
 import { Public } from '@common/decorators/public.decorator';
 import { ReferralService } from '../services/referral.service';
 import { PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
+import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -50,6 +51,7 @@ export class StripeWebhookController {
 
     private readonly walletService: WalletService,
     private readonly referralService: ReferralService,
+    private readonly giftVoucherService: GiftVoucherService,
   ) { }
 
   /* -------------------------------------------
@@ -145,18 +147,32 @@ export class StripeWebhookController {
         metadata.orderId
       ) {
         const orderType = metadata.orderType ?? 'PUBLIC';
-      
+
         if (orderType === 'PUBLIC' && metadata.learnerId) {
           await this.handlePublicOrderSuccess(intent, metadata, cardMeta);
           return { received: true };
         }
-      
+
         if (orderType === 'PRIVATE') {
           await this.handlePrivateOrderSuccess(intent, metadata);
           return { received: true };
         }
       }
-      
+
+      /* -------- GIFT VOUCHER PAYMENT -------- */
+      if (
+        metadata.purpose === 'GIFT_VOUCHER' &&
+        metadata.giftVoucherId
+      ) {
+        await this.giftVoucherService.activateVoucher(
+          metadata.giftVoucherId,
+          intent.id,
+        );
+        
+        return { received: true };
+      }
+
+
 
     }
 
@@ -178,17 +194,24 @@ export class StripeWebhookController {
       if (metadata.orderId) {
         const orderType = metadata.orderType ?? 'PUBLIC';
         const orderId = new Types.ObjectId(metadata.orderId);
-      
+
         if (orderType === 'PUBLIC') {
           await this.orderModel.findByIdAndUpdate(orderId, { status: 'CANCELLED' });
           await this.unlockSlots(orderId);
         }
-      
+
         if (orderType === 'PRIVATE') {
           await this.privateOrderModel.findByIdAndUpdate(orderId, {
             status: 'CANCELLED',
           });
         }
+      }
+
+      if (
+        metadata.purpose === 'GIFT_VOUCHER' &&
+        metadata.giftVoucherId
+      ) {
+        await this.giftVoucherService.markFailed(metadata.giftVoucherId);
       }
       
     }
@@ -246,7 +269,7 @@ export class StripeWebhookController {
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-  
+
     const order = await this.orderModel.findByIdAndUpdate(
       orderId,
       {
@@ -255,19 +278,19 @@ export class StripeWebhookController {
       },
       { new: true },
     );
-  
+
     if (!order) return;
-  
+
     // ✅ Referral (UNCHANGED)
     const confirmedCount = await this.orderModel.countDocuments({
       learnerId: order.learnerId,
       status: 'CONFIRMED',
     });
-  
+
     if (confirmedCount === 1) {
       await this.referralService.rewardReferral(order.learnerId, order._id);
     }
-  
+
     // ✅ Wallet remaining credit (UNCHANGED)
     if (order.walletCreditAfterBooking > 0) {
       await this.walletService.creditWallet(
@@ -286,12 +309,12 @@ export class StripeWebhookController {
     metadata: StripeIntentMetadata,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-  
+
     await this.privateOrderModel.findByIdAndUpdate(orderId, {
       status: 'CONFIRMED',
       paymentStatus: 'PAID',
       stripePaymentIntentId: intent.id,
     });
   }
-  
+
 }

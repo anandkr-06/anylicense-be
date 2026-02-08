@@ -1,5 +1,5 @@
 export type StripeIntentMetadata = {
-  purpose: 'WALLET_TOPUP' | 'ORDER_PAYMENT';
+  purpose: 'WALLET_TOPUP' | 'ORDER_PAYMENT' | 'GIFT_VOUCHER';
 
   orderId?: string;
 
@@ -8,6 +8,8 @@ export type StripeIntentMetadata = {
 
   // 🔥 NEW (OPTIONAL → no breaking change)
   orderType?: 'PUBLIC' | 'PRIVATE';
+  
+  giftVoucherId?: string;
 };
 
   

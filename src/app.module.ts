@@ -28,6 +28,7 @@ import { FeedbackModule } from '@app/feedback/feedback.module';
 import { AddressLocationModule } from '@app/addresslocations/addresslocation.module';
 import { CourseModule } from '@app/course/course.module';
 import { ReviewsModule } from '@app/reviews/reviews.module';
+import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { ReviewsModule } from '@app/reviews/reviews.module';
     AddressLocationModule,
     CourseModule,
     ReviewsModule,
+    GiftVoucherModule,
   ],
   providers: [
     GlobalExceptionFilter,
