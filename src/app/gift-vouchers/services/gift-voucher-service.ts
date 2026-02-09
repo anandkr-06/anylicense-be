@@ -36,7 +36,7 @@ export class GiftVoucherService {
     @Inject(forwardRef(() => WalletService))
     private readonly walletService: WalletService,
     private readonly logger: PinoLogger,
-  ) {}
+  ) { }
 
   /* ------------------------------------
      CREATE VOUCHER (BEFORE PAYMENT)
@@ -78,15 +78,28 @@ export class GiftVoucherService {
     // ✅ EXISTING LEARNER → instant redeem
     await this.tryRedeemForExistingLearner(voucher);
 
+    // Ntofication for sender (confirmation)
+    await this.notificationService.sendGiftVoucherSentConfirmationEmail({
+      senderEmail: voucher.sender.email,
+      senderName: voucher.sender.firstName,
+      recipientName: voucher.recipient.firstName,
+      recipientEmail: voucher.recipient.email,
+      amount: voucher.amount,
+      voucherCode: voucher.code,
+      sentAt: new Date(),
+    });
+    
     // 📧 Notify recipient
-    this.notificationService
-      .sendCourseSignUp(voucher) // rename later if needed
-      .catch(error =>
-        this.smtpErrorHandler.handle(error, {
-          voucherId: voucher._id,
-          source: 'GIFT_VOUCHER_ACTIVATION',
-        }),
-      );
+  
+    await this.notificationService.sendGiftVoucherEmail({
+      recipientEmail: voucher.recipient.email,
+      recipientName: voucher.recipient.firstName,
+      senderName: voucher.sender.firstName,
+      amount: voucher.amount,
+      voucherCode: voucher.code,
+      expiryDate: voucher.expiresAt,
+    });
+
   }
 
   /* ------------------------------------
@@ -113,6 +126,7 @@ export class GiftVoucherService {
     if (!voucher) return;
 
     await this.redeemVoucher(voucher, learner);
+
   }
 
   /* ------------------------------------
@@ -151,7 +165,7 @@ export class GiftVoucherService {
       },
       { new: true },
     );
-  
+
     this.logger.info(`Voucher response:  ${JSON.stringify(updatedVoucher)}`);
 
     if (!updatedVoucher) return;
@@ -164,22 +178,22 @@ export class GiftVoucherService {
       updatedVoucher.amount,
       WalletTxnSource.GIFT_VOUCHER,
       null,
-      (updatedVoucher.code)? updatedVoucher.code : 'GV-Redemption-CODE-MISSING',   
+      (updatedVoucher.code) ? updatedVoucher.code : 'GV-Redemption-CODE-MISSING',
     );
-  
+
     // 📧 Notify learner
-    /*
-    this.notificationService
-      .sendCourseSignUp(updatedVoucher)
-      .catch(error =>
-        this.smtpErrorHandler.handle(error, {
-          voucherId: updatedVoucher._id,
-          source: 'GIFT_VOUCHER_CREDITED',
-        }),
-      );
-      */
+
+    await this.notificationService.sendVoucherCreditedEmail({
+      recipientEmail: learner.email,
+      recipientName: learner.firstName,
+      amount: updatedVoucher.amount,
+      voucherCode: updatedVoucher.code,
+      creditedAt: new Date(),
+    });
+
+
   }
-  
+
 
   /* ------------------------------------
      HELPERS
