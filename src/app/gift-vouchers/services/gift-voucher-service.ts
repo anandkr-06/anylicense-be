@@ -79,27 +79,40 @@ export class GiftVoucherService {
     await this.tryRedeemForExistingLearner(voucher);
 
     // Ntofication for sender (confirmation)
-    await this.notificationService.sendGiftVoucherSentConfirmationEmail({
-      senderEmail: voucher.sender.email,
-      senderName: voucher.sender.firstName,
-      recipientName: voucher.recipient.firstName,
-      recipientEmail: voucher.recipient.email,
-      amount: voucher.amount,
-      voucherCode: voucher.code,
-      sentAt: new Date(),
-    });
-    
-    // 📧 Notify recipient
-  
-    await this.notificationService.sendGiftVoucherEmail({
-      recipientEmail: voucher.recipient.email,
-      recipientName: voucher.recipient.firstName,
-      senderName: voucher.sender.firstName,
-      amount: voucher.amount,
-      voucherCode: voucher.code,
-      expiryDate: voucher.expiresAt,
-    });
+    try {
+      await this.notificationService.sendGiftVoucherSentConfirmationEmail({
+        senderEmail: voucher.sender.email,
+        senderName: voucher.sender.firstName,
+        recipientName: voucher.recipient.firstName,
+        recipientEmail: voucher.recipient.email,
+        amount: voucher.amount,
+        voucherCode: voucher.code,
+        sentAt: new Date(),
+      });
+    } catch (err) {
+      this.logger.error('Voucher credited email failed', err);
+    }
 
+
+    // 📧 Notify recipient
+
+    try {
+      await this.notificationService.sendGiftVoucherEmail({
+        recipientEmail: voucher.recipient.email,
+        recipientName: voucher.recipient.firstName,
+        senderName: voucher.sender.firstName,
+        amount: voucher.amount,
+        voucherCode: voucher.code,
+        expiryDate: voucher.expiresAt,
+      });
+    }
+    catch (err) {
+      this.logger.error('Gift voucher email failed', err);
+      this.smtpErrorHandler.handle(err, {
+        source: 'gift-voucher-email',
+        voucherId: voucher._id,
+      });
+    }
   }
 
   /* ------------------------------------
@@ -182,7 +195,7 @@ export class GiftVoucherService {
     );
 
     // 📧 Notify learner
-
+    try {
     await this.notificationService.sendVoucherCreditedEmail({
       recipientEmail: learner.email,
       recipientName: learner.firstName,
@@ -190,7 +203,13 @@ export class GiftVoucherService {
       voucherCode: updatedVoucher.code,
       creditedAt: new Date(),
     });
-
+  } catch (err) {    this.logger.error('Voucher credited email failed', err);
+      this.smtpErrorHandler.handle(err, {
+        source: 'voucher-credited-email',
+        voucherId: updatedVoucher._id,
+        learnerId: learner._id,
+      });
+    }
 
   }
 
