@@ -32,11 +32,26 @@ enum OrderStatus {
 
 @Schema({ timestamps: true, collection: 'privateorders' })
 export class PrivateOrder {
-  @Prop({ required: true })
-  instructorId!: string;
+  // @Prop({ required: true })
+  // instructorId!: string;
+  @Prop({
+    type: Types.ObjectId,
+    ref: "user",
+    required: true,
+  })
+  instructorId!: Types.ObjectId;
 
-  @Prop({ required: true })
-  privateLearnerId!: string;
+
+  // @Prop({ required: true })
+  // privateLearnerId!: string;
+  @Prop({
+    type: Types.ObjectId,
+    ref: "privatelearner",
+    required: true,
+  })
+  privateLearnerId!: Types.ObjectId;
+
+
 
   @Prop({ enum: ['AUTO', 'MANUAL'], required: true })
   vehicleType!: 'AUTO' | 'MANUAL';
@@ -55,15 +70,15 @@ export class PrivateOrder {
 
   @Prop({ default: 'PENDING_PAYMENT' })
   status!: OrderStatus;
-  
+
   @Prop({ default: 'PENDING' })
   paymentStatus!: 'PENDING' | 'PAID' | 'FAILED';
 
-@Prop()
-stripePaymentIntentId?: string;
+  @Prop()
+  stripePaymentIntentId?: string;
 
-@Prop()
-paidAt?: Date;
+  @Prop()
+  paidAt?: Date;
 }
 
 

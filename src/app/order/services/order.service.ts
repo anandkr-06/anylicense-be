@@ -169,7 +169,7 @@ export class OrderService {
   
     // 6️⃣ Create private order
 const orderData = await this.privateOrderModel.create({
-  instructorId,
+  instructorId: new Types.ObjectId(instructorId),
   privateLearnerId: learner._id,
   vehicleType: learner.preferredVehicleType,
   lessonSlots,
