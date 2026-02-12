@@ -1,6 +1,7 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { PrivateLearner } from './private-learner.schema';
 
 export class PrivateLessonSlot {
   bookingPeriod!: number; // 1 | 2 | 2.5
@@ -44,12 +45,15 @@ export class PrivateOrder {
 
   // @Prop({ required: true })
   // privateLearnerId!: string;
-  @Prop({
-    type: Types.ObjectId,
-    ref: "privatelearner",
-    required: true,
-  })
-  privateLearnerId!: Types.ObjectId;
+  // @Prop({
+  //   type: Types.ObjectId,
+  //   ref: "privatelearner",
+  //   required: true,
+  // })
+  // privateLearnerId!: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: PrivateLearner.name, required: true })
+privateLearnerId!: Types.ObjectId;
 
 
 
