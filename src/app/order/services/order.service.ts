@@ -331,8 +331,8 @@ return {
     orderId: string,
   ) {
     const order = await this.privateOrderModel.findOne({
-      _id: orderId,
-      instructorId,
+      _id: new Types.ObjectId(orderId),
+      instructorId: new Types.ObjectId(instructorId),
     });
   
     if (!order) {
@@ -346,7 +346,7 @@ return {
     }
   
     // 1️⃣ Update order
-    //order.status = OrderStatus.CANCELLED;
+    order.status = OrderStatus.CANCELLED;
   
     if (order.paymentStatus === 'PENDING') {
       order.paymentStatus = 'FAILED';
