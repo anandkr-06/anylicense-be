@@ -42,6 +42,7 @@ import { PrivateLearnersController } from './controllers/private-learners.contro
       { name: PrivateOrder.name, schema: PrivateOrderSchema },
       
       { name: PrivateLearner.name, schema: PrivateLearnerSchema },
+    
     ]),
     AddressModule,
     DbModule,

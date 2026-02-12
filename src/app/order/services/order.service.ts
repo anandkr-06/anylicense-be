@@ -23,13 +23,13 @@ import { PLATFORM_CHARGE } from '@constant/packages';
 import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
-import { RescheduleResponseDto } from '../dto/reschedule-response.dto';
+
 import { ActionMetaRequestDto } from '../dto/action-meta.dto';
 import { FeedbackOwnerType, OrderStatus } from '@constant/enum';
 import { calculateSlotDurationInHours, normalizeTime } from '@constant/order-actions';
 import { CreatePrivateOrderDto } from '../dto/create-private-order.dto';
 import { PrivateLearnerService } from '../services/private-order.service';
-import { PrivateLearner } from '@common/db/schemas/private-learner.schema';
+
 import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 import Stripe from 'stripe';
 import { OrderStatusType, PrivateOrderDetailsResponseDto } from '../dto/private-order-details.response';
@@ -67,6 +67,7 @@ export class OrderService {
   constructor(
     private readonly userDbService: UserDbService,
     private readonly walletService: WalletService,
+    
     private readonly privateLearnerService: PrivateLearnerService,
 
     @InjectModel(InstructorProfile.name)
@@ -84,6 +85,8 @@ export class OrderService {
     private readonly logger: Logger,
     @InjectModel(PrivateOrder.name)
     private readonly privateOrderModel: Model<PrivateOrderDocument>,
+
+
     
   ) { }
 
