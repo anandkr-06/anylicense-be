@@ -238,7 +238,7 @@ return orderData;
     const query: any = {
       instructorId: new Types.ObjectId(instructorId),
     };
-  
+    query.paymentStatus = 'PAID';
     if (status) {
       query.status = status;
     }
