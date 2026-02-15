@@ -72,12 +72,14 @@ export class CourseService {
     //     source: 'course-provider-signup',
     //   })
     // }
+
+    
       this.notificationService
     .sendCourseSignUp(payload)
     .catch(error =>
       this.smtpErrorHandler.handle(error, {
         providerId: payload._id,
-        source: 'course-provider-signup',
+        source: 'course/course-booking',
       }),
     );
   

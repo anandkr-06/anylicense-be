@@ -31,7 +31,7 @@ export class NotificationService {
     await this.mailerService.sendMail({
       to: course.email,
       subject: 'Course Sign Up: Thank you!',
-      template: 'course-booking',
+      template: 'course/course-booking',
       context: { instituteName: course.instituteName, email:course.email },
     });
 
