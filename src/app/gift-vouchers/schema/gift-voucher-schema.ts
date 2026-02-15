@@ -53,13 +53,13 @@ export class GiftVoucher {
 }
 export type GiftVoucherDocument = GiftVoucher & Document & { _id: Types.ObjectId };
 export const GiftVoucherSchema = SchemaFactory.createForClass(GiftVoucher);
-GiftVoucherSchema.index(
-  { code: 1 },
-  {
-    unique: true,
-    partialFilterExpression: {
-      code: { $exists: true, $ne: null },
-    },
-  },
-);
+// GiftVoucherSchema.index(
+//   { code: 1 },
+//   {
+//     unique: true,
+//     partialFilterExpression: {
+//       code: { $exists: true, $ne: null },
+//     },
+//   },
+// );
 
