@@ -11,6 +11,8 @@ import { JwtPayload } from '@interfaces/user.interface';
 import { CourseListDto } from '../dto/course-list.dto';
 import { UpdateCourseDto } from '../dto/update-course.dto';
 import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
+import { CreateLeadDto } from '../dto/create-lead.dto';
+import { GetLeadsQueryDto } from '../dto/get-leads-query.dto';
 
 @Controller('course')
 export class CourseController {
@@ -90,5 +92,17 @@ export class CourseController {
   ) {
     return this.courseService.softDeleteCourse(user.sub, id);
   }
+
+  @Get('leads')
+  getMyLeads(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: GetLeadsQueryDto,
+  ) {
+    return this.courseService.getLeadsForProvider(
+      user.sub,
+      query,
+    );
+  }
+  
 
 }

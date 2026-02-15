@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, PipelineStage } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
@@ -23,6 +23,9 @@ import { courseStatus } from '@constant/enum';
 import { UpdateCourseProviderProfileDto } from '../dto/update-profile.dto';
 import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
 import { PinoLogger } from 'nestjs-pino';
+import { GetLeadsQueryDto } from '../dto/get-leads-query.dto';
+import { Lead } from '../schema/lead.schema';
+import { first } from 'rxjs';
 
 
 export class CourseService {
@@ -36,6 +39,9 @@ export class CourseService {
     private readonly notificationService: NotificationService,
     private readonly smtpErrorHandler: SmtpErrorHandlerService,
     private readonly logger: PinoLogger,
+
+    @InjectModel(Lead.name)
+        private readonly leadModel: Model<Lead>,
   ) { }
 
   async signup(dto: CourseSignupDto) {
@@ -364,4 +370,103 @@ export class CourseService {
       status: courseStatus.PENDING,
     });
   }
+
+
+
+  // 📄 List of Leads (on courses)
+  async getLeadsForProvider(
+    providerId: string,
+    query: GetLeadsQueryDto,
+  ) {
+    if (!Types.ObjectId.isValid(providerId)) {
+      throw new BadRequestException('Invalid provider id');
+    }
+  
+    const pageNum = parseInt(String(query.page), 10) || 1;
+    const limitNum = parseInt(String(query.limit), 10) || 10;
+    
+    const skip = (pageNum - 1) * limitNum;
+    
+
+
+    const { page = 1, limit = 10, fromDate, toDate } = query;
+//    const skip = (page - 1) * limit;
+  
+    const dateFilter: any = {};
+    if (fromDate) dateFilter.$gte = new Date(fromDate);
+    if (toDate) dateFilter.$lte = new Date(toDate);
+  
+    const matchStage: any = {};
+    if (fromDate || toDate) {
+      matchStage.createdAt = dateFilter;
+    }
+  
+    const pipeline: PipelineStage[] = [
+      {
+        $lookup: {
+          from: 'courses',
+          localField: 'courseId',
+          foreignField: '_id',
+          as: 'course',
+        },
+      },
+      { $unwind: '$course' },
+      {
+        $match: {
+          'course.providerId': new Types.ObjectId(providerId),
+          'course.isDeleted': false,
+          ...(fromDate || toDate
+            ? {
+                createdAt: {
+                  ...(fromDate && { $gte: new Date(fromDate) }),
+                  ...(toDate && { $lte: new Date(toDate) }),
+                },
+              }
+            : {}),
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          phone: 1,
+          email: 1,
+          createdAt: 1,
+          firstName: 1,
+          lastName: 1, 
+          courseName: '$course.courseName',
+        },
+      },
+      {
+        $facet: {
+          data: [
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limitNum }, // ✅ GUARANTEED number
+          ],
+          total: [{ $count: 'count' }],
+        },
+      }
+    ];
+  
+    const result = await this.leadModel.aggregate(pipeline);
+    console.log({
+      page: query.page,
+      limit: query.limit,
+      typeofLimit: typeof query.limit,
+      limitNum,
+      typeofLimitNum: typeof limitNum,
+    });
+    const leads = result[0]?.data || [];
+    const total = result[0]?.total[0]?.count || 0;
+  
+    return {
+      success: true,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      leads,
+    };
+  }
+  
 }

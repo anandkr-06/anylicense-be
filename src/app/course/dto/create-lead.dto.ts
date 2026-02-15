@@ -1,4 +1,18 @@
-import {IsString} from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
+
+export class LocationDto {
+  @IsOptional()
+  @IsString()
+  suburb?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  postCode?: string;
+}
 
 export class CreateLeadDto {
   firstName!: string;
@@ -8,18 +22,10 @@ export class CreateLeadDto {
   userType!: 'New Learner' | 'Experienced';
   courseId!: string;
   source!: 'COURSE_EXPLORE';
+
   isAgreedToTermsAndConditions?: boolean;
   isAgreedToCommunicationAndOffers?: boolean;
+
+  @IsOptional()
   location?: LocationDto;
-}
-
-export class LocationDto {
-  @IsString()
-  suburb!: string;
-
-  @IsString()
-  state!: string;
-
-  @IsString()
-  postCode!: string;
 }

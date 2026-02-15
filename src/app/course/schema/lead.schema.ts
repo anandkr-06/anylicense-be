@@ -3,14 +3,14 @@ import { Types } from 'mongoose';
 
 @Schema({ _id: false })
 class Location {
-  @Prop({ required: true })
-  suburb!: string;
+  @Prop()
+  suburb?: string;
 
-  @Prop({ required: true })
-  state!: string;
+  @Prop()
+  state?: string;
 
-  @Prop({ required: true })
-    postCode!: string;
+  @Prop()
+  postCode?: string;
 }
 
 @Schema({ timestamps: true })
@@ -21,27 +21,21 @@ export class Lead {
   @Prop() phone!: string;
   @Prop() userType!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Course' })
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
   courseId!: Types.ObjectId;
 
-  @Prop({
-        type: Location,
-        default: () => ({
-          suburb: '',
-          state: '',
-          postCode: '',
-        }),
-      })
-      location!: Location;
+  // ✅ NO default
+  // ✅ NO required
+  @Prop({ type: Location })
+  location?: Location;
 
   @Prop() source!: string;
-  
+
   @Prop({ default: true })
-    isAgreedToTermsAndConditions!: boolean;
-  
-    @Prop({ default: true })
-    isAgreedToCommunicationAndOffers!: boolean;
+  isAgreedToTermsAndConditions!: boolean;
+
+  @Prop({ default: true })
+  isAgreedToCommunicationAndOffers!: boolean;
 }
 
-export const LeadSchema =
-  SchemaFactory.createForClass(Lead);
+export const LeadSchema = SchemaFactory.createForClass(Lead);

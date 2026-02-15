@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Course } from '../schema/course.schema';
 import { CreateLeadDto } from '../dto/create-lead.dto';
 import { Lead } from '../schema/lead.schema';
@@ -147,13 +147,22 @@ export class PublicCourseService {
     // 3️⃣ Check duplicate lead
     const leadExists = await this.courseLeadModel.exists({
       email: dto.email,
-      courseId: dto.courseId,
+      courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
     });
 
     if (!leadExists) {
       const payload = await this.courseLeadModel.create({
-        ...dto,
-        providerId: course.providerId,
+        firstName: dto.firstName,
+        email: dto.email,
+        lastName: dto.lastName,
+        phone: dto.phone,
+        userType: dto.userType,
+        courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+        source: dto.source,
+        location: dto.location,
+        isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
+        isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
+        
       });
       this.logger.info('customer payload details:'+JSON.stringify(payload));
       this.notificationService
@@ -183,6 +192,4 @@ export class PublicCourseService {
       redirectUrl,
     };
   }
-
-
 }
