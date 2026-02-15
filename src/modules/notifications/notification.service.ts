@@ -48,7 +48,7 @@ export class NotificationService {
     await this.mailerService.sendMail({
       to: course.email,
       subject: 'Course Interest: Thank you!',
-      template: 'lead-customer',
+      template: 'course/lead-customer',
       context: { firstName: course.firstName,lastName: course.lastName,
         phone: course.phone,suburb: course.location.suburb, 
         email:course.email,  submittedAt:course.createdAt,
@@ -61,7 +61,7 @@ export class NotificationService {
     await this.mailerService.sendMail({
       to: provider.email,
       subject: 'Fresh Course Lead: Thank you!',
-      template: 'lead-provider',
+      template: 'course/lead-provider',
       context: { firstName: course.firstName,lastName: course.lastName,
         phone: course.phone,suburb: course.location.suburb, 
         email:course.email,  submittedAt:course.createdAt, instituteName: provider.instituteName,

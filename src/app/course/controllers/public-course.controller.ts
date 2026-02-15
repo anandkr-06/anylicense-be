@@ -2,6 +2,8 @@ import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PublicCourseService } from '../services/public-course.service';
 import { Public } from '@common/decorators/public.decorator';
 import { CreateLeadDto } from '../dto/create-lead.dto';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { JwtPayload } from '@interfaces/user.interface';
 
 @Controller('public/courses')
 export class PublicCourseController {
@@ -25,7 +27,5 @@ export class PublicCourseController {
   getFilters(@Query() query: any) {
     return this.service.getCourseFilters();
   }
-
-
 
 }
