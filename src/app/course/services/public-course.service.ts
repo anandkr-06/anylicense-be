@@ -121,7 +121,7 @@ export class PublicCourseService {
   async createLead(dto: CreateLeadDto) {
     const course = await this.courseModel
   .findOne({
-    _id: dto.courseId,
+    _id: new Types.ObjectId(dto.courseId),
     isDeleted: false,
   })
   .select('providerId') // only select what exists in Course
@@ -162,7 +162,7 @@ export class PublicCourseService {
         location: dto.location,
         isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
         isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
-        
+
       });
       this.logger.info('customer payload details:'+JSON.stringify(payload));
       this.notificationService
