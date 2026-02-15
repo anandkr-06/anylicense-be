@@ -186,7 +186,7 @@ export class StripeService {
     await this.paymentModel.create({
       purpose: PaymentPurpose.GIFT_VOUCHER,
       giftVoucherId: voucher._id,
-      amount: Math.round(voucher.amount * 100),
+      amount: voucher.amount,
       stripePaymentIntentId: intent.id,
       status: 'INITIATED',
     });
