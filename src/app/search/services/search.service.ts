@@ -438,15 +438,15 @@ async getInstructorProfile(instructorId: string) {
           profileImage: { $first: '$user.profileImage' },
           rating: { $first: { $ifNull: ['$rating', 0] } },
           noOfLessons: { $first: { $ifNull: ['$totalLessons', 0] } },
-          vehicleType: { $first: vehicleType },
+          vehicleType: { $first: vehicleType ? 'auto' : 'manual' },
           model: {
-            $first: `$vehicles.${vehicleType}.details.model`,
+            $first: `$vehicles.${vehicleType? 'auto':'manual'}.details.model`,
           },
           make: {
-            $first: `$vehicles.${vehicleType}.details.make`,
+            $first: `$vehicles.${vehicleType? 'auto':'manual'}.details.make`,
           },
           pricePerHour: {
-            $first: `$vehicles.${vehicleType}.pricePerHour`,
+            $first: `$vehicles.${vehicleType? 'auto':'manual'}.pricePerHour`,
           },
         },
       },
