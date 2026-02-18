@@ -27,6 +27,44 @@ export class NotificationService {
     
   }
 
+/* ------------------------------------
+     INSTRUCTOR SIGN UP CONFIRMATION
+  ------------------------------------ */
+  async sendInstructorWelcomeEmail(payload: {
+    recipientEmail: string;
+    instructorName: string;
+  }) {
+    await this.mailerService.sendMail({
+      to: payload.recipientEmail,
+      subject: 'Welcome to AnyLicence - Let’s Get You Started 🚗',
+      template: MAILER_TEMPLATES.INSTRUCTOR_WELCOME,
+      context: {
+        instructorName: payload.instructorName,
+  
+        // URLs
+        login_url: `${process.env['WEBSITE_URL']}/login`,
+        profile_url: `${process.env['WEBSITE_URL']}/profile`,
+        dashboard_url: `${process.env['WEBSITE_URL']}/dashboard`,
+  
+        // Branding
+        support_email: process.env['SUPPORT_EMAIL'],
+        website_name: process.env['WEBSITE_NAME'],
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+  }
+  
+
+
+
+
+
+
+
+
+
+
+
   async sendCourseSignUp(course: any) {
     await this.mailerService.sendMail({
       to: course.email,

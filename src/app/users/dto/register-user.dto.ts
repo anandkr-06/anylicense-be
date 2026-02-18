@@ -47,9 +47,9 @@ export class RegisterUserDto {
   postCode!: string;
 
 
-  @IsNotEmpty()
-  @MinLength(8)
-  public password!: string;
+  @IsOptional()
+  @IsString()
+  public password?: string;
 
   @IsNotEmpty()
   @IsEnum(TransmissionType)
