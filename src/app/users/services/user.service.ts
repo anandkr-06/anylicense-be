@@ -22,6 +22,7 @@ import { NotFoundException } from "@nestjs/common";
 
 import { PinoLogger } from 'nestjs-pino';
 import { NotificationService } from 'modules/notifications/notification.service';
+import { createRandomString } from '@lib/methods';
 
 
 @Injectable()
@@ -42,7 +43,8 @@ export class UserService {
       if (!dto.transmissionType) {
         throw new BadRequestException('transmissionType is required');
       }
-  
+      const randomString = createRandomString(10);
+      const hashedPassword = await hashPassword(randomString);
       const user = await this.userDbService.createUser({
         firstName: dto.firstName,
         lastName: dto.lastName,
@@ -54,9 +56,10 @@ export class UserService {
         postCode: dto.postCode,
         isTncApproved: dto.isTncApproved,
         isNotificationSent: dto.isNotificationSent,
-        isActive: false, // until verification
+        isActive: true, // until verification
         state: dto.state,
         transmissionType: dto.transmissionType,
+        password: hashedPassword,
       });
   
       const vehicles = this.buildDefaultVehicles(dto.transmissionType);
@@ -70,6 +73,7 @@ export class UserService {
       this.notificationService.sendInstructorWelcomeEmail({
         recipientEmail: user.email,
         instructorName: user.firstName,
+        password:randomString,
       }).catch(err =>
         this.logger.error(err, 'Welcome email failed'),
       );

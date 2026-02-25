@@ -33,6 +33,7 @@ export class NotificationService {
   async sendInstructorWelcomeEmail(payload: {
     recipientEmail: string;
     instructorName: string;
+    password:string;
   }) {
     await this.mailerService.sendMail({
       to: payload.recipientEmail,
@@ -40,6 +41,8 @@ export class NotificationService {
       template: MAILER_TEMPLATES.INSTRUCTOR_WELCOME,
       context: {
         instructorName: payload.instructorName,
+        recipientEmail:payload.recipientEmail,
+        password:payload.password,
   
         // URLs
         login_url: `${process.env['WEBSITE_URL']}/login`,
