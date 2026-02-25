@@ -54,13 +54,13 @@ export class AuthService {
           { email: identifier },
           { mobileNumber: identifier },
         ],
-        //isActive: true,
+        isActive: true,
       });
   
       if (!instructor) {
         throw new UnauthorizedException('Invalid credentials');
       }
-  
+
       const isPasswordValid = await bcrypt.compare(
         password,
         instructor.password,
@@ -94,12 +94,6 @@ export class AuthService {
       { email },
       { expiresIn: '15m', secret: process.env['JWT_SECRET'] },
     );
-
-    /**
-     * TODO: Intergrate email services
-     * Todo: resetToken will send to mail,
-     * In prod, we have to remove this
-     */
 
     return successResponse(
       {

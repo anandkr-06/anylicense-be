@@ -29,7 +29,7 @@ export class User {
   @Prop({ required: true, trim: true })
   public mobileNumber!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, trim: true })
   public password!: string;
 
   @Prop({ type: String, default: null })
@@ -83,7 +83,7 @@ export class User {
 
   @Prop({ enum: TransmissionType, default: TransmissionType.MANUAL })
   transmissionType!:  TransmissionType; 
-  @Prop({ default: true })
+  @Prop({ default: false })
   public isActive!: boolean;
 }
 

@@ -6,11 +6,10 @@ import { UserDbService } from '../../common/db/services/user.db.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../../common/db/schemas/user.schema';
 import { JwtModule } from '@nestjs/jwt';
-import { AddressModule } from '@app/address/address.module';
-import { AddressSchema, UserAddress } from '@common/db/schemas/address.schema';
 import { DbModule } from '@common/db/ db.module';
 import { Package, PackageSchema } from '@common/db/schemas/package.schema';
-import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+import { NotificationModule } from 'modules/notifications/notification.module';
 
 
 @Module({
@@ -21,16 +20,14 @@ import { InstructorProfile,InstructorProfileSchema } from '@common/db/schemas/in
     }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      //{ name: UserAddress.name, schema: AddressSchema },
       { name: Package.name, schema: PackageSchema },
       { name: InstructorProfile.name, schema: InstructorProfileSchema },
     ]),
-    // AddressModule,
-
+    NotificationModule,
     DbModule,
   ],
-  controllers: [UserController, ],
+  controllers: [UserController,],
   providers: [UserService, UserDbService, MoreProfile],
-  exports: [UserService,MoreProfile],
+  exports: [UserService, MoreProfile],
 })
-export class UserModule {}
+export class UserModule { }
