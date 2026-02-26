@@ -16,3 +16,28 @@ declare module 'express-serve-static-core' {
     user?: JwtPayload;
   }
 }
+
+export type NormalizedSlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  type: 'LESSON' | 'TEST';
+
+  // LESSON
+  pickupAddress?: string;
+  suburb?: string;
+  state?: string;
+
+  // TEST
+  testLocation?: string;
+  pickupPoint?: {
+    pickupPoint: string;
+    suburb: string;
+    state: string;
+  };
+  dropPoint?: {
+    dropPoint: string;
+    suburb: string;
+    state: string;
+  };
+};
