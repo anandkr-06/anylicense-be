@@ -34,6 +34,7 @@ import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-o
 import Stripe from 'stripe';
 import { OrderStatusType, PrivateOrderDetailsResponseDto } from '../dto/private-order-details.response';
 import { PrivateOrderPopulated } from '@interfaces/order.interface';
+import { NormalizedSlot } from '@common/types/express';
 
 interface InstructorHour {
   startTime: string;
@@ -47,15 +48,15 @@ interface InstructorDay {
   hours: InstructorHour[];
 }
 
-interface NormalizedSlot {
-  date: string;
-  startTime: string; // 24h HH:mm
-  endTime: string;
-  type: SlotType;
-  pickupAddress: string;
-  suburb: string;
-  state: string;
-}
+// interface NormalizedSlot {
+//   date: string;
+//   startTime: string; // 24h HH:mm
+//   endTime: string;
+//   type: SlotType;
+//   pickupAddress: string;
+//   suburb: string;
+//   state: string;
+// }
 
 
 @Injectable()
@@ -951,15 +952,41 @@ if (isLearner && hoursBefore >= 24) {
     // =====================================================
     // 3️⃣ Normalize + Validate Slots
     // =====================================================
-    const normalizedSlots: NormalizedSlot[] = (dto.slots ?? []).map(s => ({
-      date: s.date,
-      type: s.type,
-      startTime: this.amPmTo24(s.startTime),
-      endTime: this.amPmTo24(s.endTime),
-      pickupAddress: s.pickupAddress,
-      suburb: s.suburb,
-      state: s.state,
-    }));
+    // const normalizedSlots: NormalizedSlot[] = (dto.slots ?? []).map(s => ({
+    //   date: s.date,
+    //   type: s.type,
+    //   startTime: this.amPmTo24(s.startTime),
+    //   endTime: this.amPmTo24(s.endTime),
+    //   pickupAddress: s.pickupAddress,
+    //   suburb: s.suburb,
+    //   state: s.state,
+    // }));
+    const normalizedSlots: NormalizedSlot[] = (dto.slots ?? []).map(s => {
+      if (s.type === 'TEST') {
+        return {
+          date: s.date,
+          type: s.type,
+          startTime: this.amPmTo24(s.startTime),
+          endTime: this.amPmTo24(s.endTime),
+    
+          testLocation: s.testLocation,
+          pickupPoint: s.pickupPoint,
+          dropPoint: s.dropPoint,
+        };
+      }
+    
+      // LESSON
+      return {
+        date: s.date,
+        type: s.type,
+        startTime: this.amPmTo24(s.startTime),
+        endTime: this.amPmTo24(s.endTime),
+    
+        pickupAddress: s.pickupAddress,
+        suburb: s.suburb,
+        state: s.state,
+      };
+    });
 
     let usedHours = 0;
     let consumedAmount = 0;
@@ -1122,17 +1149,45 @@ if (isLearner && hoursBefore >= 24) {
       status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
       paymentStatus: stripeAmount === 0 ? 'PAID' : 'PENDING',
 
-      bookedSlots: normalizedSlots.map(s => ({
-        date: s.date,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        type: s.type,
-        pickupLocation: {
-          pickupAddress: s.pickupAddress,
-          suburb: s.suburb,
-          state: s.state,
-        },
-      })),
+      // bookedSlots: normalizedSlots.map(s => ({
+      //   date: s.date,
+      //   startTime: s.startTime,
+      //   endTime: s.endTime,
+      //   type: s.type,
+      //   pickupLocation: {
+      //     pickupAddress: s.pickupAddress,
+      //     suburb: s.suburb,
+      //     state: s.state,
+      //   },
+      // })),
+      bookedSlots: normalizedSlots.map(s => {
+        if (s.type === 'TEST') {
+          return {
+            date: s.date,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            type: s.type,
+            testLocation: s.testLocation,
+            pickupPoint: s.pickupPoint,
+            dropPoint: s.dropPoint,
+            status: 'BOOKED',
+          };
+        }
+      
+        // LESSON
+        return {
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          type: s.type,
+          pickupLocation: {
+            pickupAddress: s.pickupAddress,
+            suburb: s.suburb,
+            state: s.state,
+          },
+          status: 'BOOKED',
+        };
+      }),
     });
 
     // =====================================================

@@ -8,8 +8,11 @@ import {
     IsMongoId,
     ValidateNested,
     Min,
+    ValidateIf,
+  
   } from 'class-validator';
   import { Type } from 'class-transformer';
+import { DropPointDto, PickupPointDto } from './location.dto';
 
   export enum SlotType {
     LESSON = 'LESSON',
@@ -77,32 +80,49 @@ import {
   export class SlotDto {
     @IsNotEmpty()
     @IsString()
-    date!: string; // YYYY-MM-DD
+    date!: string;
   
     @IsNotEmpty()
     @IsString()
-    startTime!: string; // hh:mm AM/PM
+    startTime!: string;
   
     @IsNotEmpty()
     @IsString()
     endTime!: string;
   
     @IsNotEmpty()
-    @IsEnum(SlotType) // ✅ FIX
+    @IsEnum(SlotType)
     type!: SlotType;
   
-    // pickup is required ONLY if slot exists
+    /* ------------------ LESSON FIELDS ------------------ */
+    @ValidateIf((o) => o.type === SlotType.LESSON)
     @IsNotEmpty()
     @IsString()
     pickupAddress!: string;
   
+    @ValidateIf((o) => o.type === SlotType.LESSON)
     @IsNotEmpty()
     @IsString()
     suburb!: string;
   
+    @ValidateIf((o) => o.type === SlotType.LESSON)
     @IsNotEmpty()
     @IsString()
     state!: string;
+  
+    /* ------------------ TEST FIELDS ------------------ */
+    @ValidateIf((o) => o.type === SlotType.TEST)
+    @IsNotEmpty()
+    @IsString()
+    testLocation!: string;
+  
+    @ValidateIf((o) => o.type === SlotType.TEST)
+    @ValidateNested()
+    @Type(() => PickupPointDto)
+    pickupPoint!: PickupPointDto;
+  
+    @ValidateIf((o) => o.type === SlotType.TEST)
+    @ValidateNested()
+    @Type(() => DropPointDto)
+    dropPoint!: DropPointDto;
   }
-  
-  
