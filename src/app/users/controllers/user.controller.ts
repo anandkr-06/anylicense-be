@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { Public } from '@common/decorators/public.decorator';
 import { ApiSecurity } from '@nestjs/swagger';
 import { MoreProfile } from '../services/moreprofile.service';
+import { UseInterceptors } from '@nestjs/common';
+import { FinancialMaskInterceptor } from '@common/interceptors/financial-mask.interceptor';
 
 
 @Controller('users/v1')
@@ -37,10 +39,11 @@ export class UserController {
   }
   
   @UseGuards(JwtAuthGuard)
-  @Get('me')
-  getProfile(@Req() req: any) {
-    return this.userService.getProfile(req.user.sub);
-  }
+@Get('me')
+@UseInterceptors(FinancialMaskInterceptor)
+async getMe(@Req() req: any) {
+  return this.userService.getProfile(req.user.sub);
+}
   
   @UseGuards(JwtAuthGuard)
 
