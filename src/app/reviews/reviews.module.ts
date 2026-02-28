@@ -10,6 +10,8 @@ import {InstructorReview, InstructorReviewSchema} from '../reviews/schema/instru
 
 import { NotificationModule } from 'modules/notifications/notification.module';
 import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
+import { LearnerSchema } from '@common/db/schemas/learner.schema';
+import { UserSchema } from '@common/db/schemas/user.schema';
 
 
 
@@ -18,6 +20,8 @@ import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/i
     MongooseModule.forFeature([
       { name: InstructorReview.name, schema: InstructorReviewSchema },
       { name: InstructorProfile.name, schema: InstructorProfileSchema },
+      { name: 'Learner', schema: LearnerSchema }, // ✅ REQUIRED
+      { name: 'User', schema: UserSchema },
     ]),
     JwtModule.register({
       secret: process.env['JWT_SECRET'],
