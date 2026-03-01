@@ -102,8 +102,29 @@ export class InstructorReviewService {
 
 
 
+// findByInstructor(instructorId: string) {
+//   const filter: any = {};
+
+//   if (instructorId.toLowerCase() !== 'all') {
+//     filter.instructorId = new Types.ObjectId(instructorId);
+//   }
+
+//   return this.model
+//     .find(filter)
+//     .populate({
+//       path: 'learnerId',               // ✅ MUST match schema
+//       select: 'firstName profileImage -_id',
+//     })
+//     .select('rating comment learnerId createdAt') // ✅ keep needed fields
+//     .sort({ createdAt: -1 })
+//     .limit(10)
+//     .lean();
+// }
+
 findByInstructor(instructorId: string) {
-  const filter: any = {};
+  const filter: any = {
+    status: 'approved', // ✅ ONLY approved reviews
+  };
 
   if (instructorId.toLowerCase() !== 'all') {
     filter.instructorId = new Types.ObjectId(instructorId);
@@ -111,11 +132,24 @@ findByInstructor(instructorId: string) {
 
   return this.model
     .find(filter)
+
+    // ✅ Learner details
     .populate({
-      path: 'learnerId',               // ✅ MUST match schema
+      path: 'learnerId',
       select: 'firstName profileImage -_id',
     })
-    .select('rating comment learnerId createdAt') // ✅ keep needed fields
+
+    // ✅ InstructorProfile → User
+    .populate({
+      path: 'instructorId',
+      select: 'userId -_id',
+      populate: {
+        path: 'userId',
+        select: 'firstName profileImage -_id',
+      },
+    })
+
+    .select('rating comment learnerId instructorId createdAt')
     .sort({ createdAt: -1 })
     .limit(10)
     .lean();
