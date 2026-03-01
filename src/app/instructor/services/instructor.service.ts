@@ -338,6 +338,11 @@ export class InstructorService {
     duration: 1 | 2 | 2.5,
     timeOfDay?: 'AM' | 'PM',
   ) {
+
+    const now = new Date();
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+
     const instructor = await this.instructorProfileModel
       .findOne({ userId: new Types.ObjectId(instructorId) })
       .lean<InstructorProfile>();
@@ -350,14 +355,25 @@ export class InstructorService {
     const durationMinutes = duration * 60;
     const result = [];
   
+    // const bookedSessions = await this.orderModel
+    //   .find({
+    //     instructorId,
+    //     status: { $in: ['CONFIRMED', 'PAID'] },
+    //     date: { $gte: today },
+    //   })
+    //   .select('date startTime endTime')
+    //   .lean<BookedSlot[]>();
     const bookedSessions = await this.orderModel
-      .find({
-        instructorId,
-        status: { $in: ['CONFIRMED', 'PAID'] },
-        date: { $gte: today },
-      })
-      .select('date startTime endTime')
-      .lean<BookedSlot[]>();
+  .find({
+    instructorId,
+    status: { $in: ['CONFIRMED', 'PAID'] },
+    startDateTime: {
+      $gte: now,
+      $lte: next24Hours,
+    },
+  })
+  .select('date startTime endTime startDateTime')
+  .lean<BookedSlot[]>();
   
     const bookedMap = new Map<string, { start: string; end: string }[]>();
   
@@ -382,12 +398,52 @@ export class InstructorService {
             durationMinutes,
           );
     
+          // for (const s of splitSlots) {
+          //   const sStart = normalizeTime(s.startTime);
+          //   const sEnd = normalizeTime(s.endTime);
+    
+          //   const key = `${sStart}-${sEnd}`;
+    
+          //   const booking = bookedForDay.find(b =>
+          //     isOverlapping(
+          //       sStart,
+          //       sEnd,
+          //       normalizeTime(b.start),
+          //       normalizeTime(b.end),
+          //     ),
+          //   );
+    
+          //   if (booking) {
+          //     slotMap.set(key, {
+          //       startTime: toAmPm(sStart),
+          //       endTime: toAmPm(sEnd),
+          //       duration,
+          //       isBooked: true,
+          //     });
+          //   } else if (!slotMap.has(key)) {
+          //     slotMap.set(key, {
+          //       startTime: toAmPm(sStart),
+          //       endTime: toAmPm(sEnd),
+          //       duration,
+          //       isBooked: false,
+          //     });
+          //   }
+          // }
           for (const s of splitSlots) {
             const sStart = normalizeTime(s.startTime);
             const sEnd = normalizeTime(s.endTime);
-    
+          
+            const slotStartDateTime = new Date(
+              `${day.date}T${sStart}:00`
+            );
+          
+            // ✅ NEXT 24 HOURS FILTER
+            if (slotStartDateTime < now || slotStartDateTime > next24Hours) {
+              continue;
+            }
+          
             const key = `${sStart}-${sEnd}`;
-    
+          
             const booking = bookedForDay.find(b =>
               isOverlapping(
                 sStart,
@@ -396,22 +452,13 @@ export class InstructorService {
                 normalizeTime(b.end),
               ),
             );
-    
-            if (booking) {
-              slotMap.set(key, {
-                startTime: toAmPm(sStart),
-                endTime: toAmPm(sEnd),
-                duration,
-                isBooked: true,
-              });
-            } else if (!slotMap.has(key)) {
-              slotMap.set(key, {
-                startTime: toAmPm(sStart),
-                endTime: toAmPm(sEnd),
-                duration,
-                isBooked: false,
-              });
-            }
+          
+            slotMap.set(key, {
+              startTime: toAmPm(sStart),
+              endTime: toAmPm(sEnd),
+              duration,
+              isBooked: !!booking,
+            });
           }
         }
     
