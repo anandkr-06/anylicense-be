@@ -121,13 +121,47 @@ export class InstructorReviewService {
 //     .lean();
 // }
 
+// findByInstructor(instructorId: string) {
+//   const filter: any = {
+//     status: 'approved', // ✅ ONLY approved reviews
+//   };
+
+//   if (instructorId.toLowerCase() !== 'all') {
+//     filter.instructorId = new Types.ObjectId(instructorId);
+//   }
+
+//   return this.model
+//     .find(filter)
+
+//     // ✅ Learner details
+//     .populate({
+//       path: 'learnerId',
+//       select: 'firstName profileImage -_id',
+//     })
+
+//     // ✅ InstructorProfile → User
+//     .populate({
+//       path: 'instructorId',
+//       select: 'userId -_id',
+//       populate: {
+//         path: 'userId',
+//         select: 'firstName profileImage -_id',
+//       },
+//     })
+
+//     .select('rating comment learnerId instructorId createdAt')
+//     .sort({ createdAt: -1 })
+//     .limit(10)
+//     .lean();
+// }
+
 findByInstructor(instructorId: string) {
   const filter: any = {
     status: 'approved', // ✅ ONLY approved reviews
   };
 
   if (instructorId.toLowerCase() !== 'all') {
-    filter.instructorId = new Types.ObjectId(instructorId);
+    filter.instructorId = new Types.ObjectId(instructorId); // users._id
   }
 
   return this.model
@@ -139,14 +173,10 @@ findByInstructor(instructorId: string) {
       select: 'firstName profileImage -_id',
     })
 
-    // ✅ InstructorProfile → User
+    // ✅ Instructor details DIRECTLY from users
     .populate({
       path: 'instructorId',
-      select: 'userId -_id',
-      populate: {
-        path: 'userId',
-        select: 'firstName profileImage -_id',
-      },
+      select: 'firstName profileImage -_id',
     })
 
     .select('rating comment learnerId instructorId createdAt')

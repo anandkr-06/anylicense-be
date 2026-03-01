@@ -10,8 +10,10 @@ export enum ReviewStatus {
 
 export class InstructorReview extends Document {
 
-  @Prop({ type: Types.ObjectId, required: true, ref: 'InstructorProfile' })
-  instructorId!: Types.ObjectId;
+  // @Prop({ type: Types.ObjectId, required: true, ref: 'InstructorProfile' })
+  // instructorId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+instructorId!: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Learner' })
   learnerId!: Types.ObjectId;
