@@ -70,25 +70,7 @@ async getInstructorProfile(instructorId: string) {
         vehicles: {
           $filter: {
             input: [
-              // AUTO
-              // {
-              //   $cond: [
-              //     { $eq: ['$vehicles.auto.hasVehicle', true] },
-              //     {
-              //       vehicleType: 'auto',
-              //       make: '$vehicles.auto.details.make',
-              //       model: '$vehicles.auto.details.model',
-              //       prices: {
-              //         perHourPrice: '$vehicles.auto.pricePerHour',
-              //         testPerHourPrice: '$vehicles.auto.testPricePerHour',
-              //         privatePerHourPrice: '$vehicles.private.auto.pricePerHour',
-              //         testPrivatePerHourPrice: '$vehicles.private.auto.testPricePerHour'
-              //       }
-              //     },
-              //     null
-              //   ]
-              // },
-
+              
               {
                 vehicleType: 'auto',
                 hasVehicle: { $ifNull: ['$vehicles.auto.hasVehicle', false] },
@@ -108,25 +90,6 @@ async getInstructorProfile(instructorId: string) {
                     '$vehicles.private.auto.testPricePerHour'
                 }
               },
-    
-              // MANUAL
-              // {
-              //   $cond: [
-              //     { $eq: ['$vehicles.manual.hasVehicle', true] },
-              //     {
-              //       vehicleType: 'manual',
-              //       make: '$vehicles.manual.details.make',
-              //       model: '$vehicles.manual.details.model',
-              //       prices: {
-              //         perHourPrice: '$vehicles.manual.pricePerHour',
-              //         testPerHourPrice: '$vehicles.manual.testPricePerHour',
-              //         privatePerHourPrice: '$vehicles.private.manual.pricePerHour',
-              //         testPrivatePerHourPrice: '$vehicles.private.manual.testPricePerHour'
-              //       }
-              //     },
-              //     null
-              //   ]
-              // }
               {
                 vehicleType: 'manual',
                 hasVehicle: { $ifNull: ['$vehicles.manual.hasVehicle', false] },
