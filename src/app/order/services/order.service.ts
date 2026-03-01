@@ -1064,10 +1064,10 @@ if (isLearner && hoursBefore >= 24) {
     if (stripeRequired) {
       // 🔹 Discounts ONLY when Stripe is used
       if (lessonHours >= 5 && lessonHours < 10) {
-        discount = lessonAmount * 0.1;
+        discount = lessonAmount * 0.05;
       }
       if (lessonHours >= 10) {
-        discount = lessonAmount * 0.15;
+        discount = lessonAmount * 0.10;
       }
 
       if (dto.couponValue) {
