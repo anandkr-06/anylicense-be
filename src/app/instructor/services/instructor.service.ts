@@ -352,11 +352,12 @@ export class InstructorService {
     const durationMinutes = duration * 60;
     const result = [];
   
+    // 🔹 Get ALL future bookings (not limited to 24h)
     const bookedSessions = await this.orderModel
       .find({
         instructorId,
         status: { $in: ['CONFIRMED', 'PAID'] },
-        startDateTime: { $gte: now, $lte: next24Hours },
+        startDateTime: { $gte: now },
       })
       .select('date startTime endTime')
       .lean<BookedSlot[]>();
@@ -370,9 +371,8 @@ export class InstructorService {
   
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
-  
         const dayStart = new Date(`${day.date}T00:00:00`);
-        if (dayStart > next24Hours) continue;
+        if (dayStart <= next24Hours) continue; // ⬅️ skip entire day if within 24h
   
         const bookedForDay = bookedMap.get(day.date) ?? [];
         const slotMap = new Map<string, AvailableSlot>();
@@ -390,7 +390,8 @@ export class InstructorService {
   
             const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
   
-            if (slotStartDateTime < now || slotStartDateTime > next24Hours) continue;
+            // ✅ ONLY after 24 hours
+            if (slotStartDateTime <= next24Hours) continue;
   
             if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
             if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
