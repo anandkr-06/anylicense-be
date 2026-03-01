@@ -122,7 +122,9 @@ export class InstructorReviewService {
 // }
 
 findByInstructor(instructorId: string) {
-  const filter: any = {};
+  const filter: any = {
+    status: 'approved', // ✅ ONLY approved reviews
+  };
 
   if (instructorId.toLowerCase() !== 'all') {
     filter.instructorId = new Types.ObjectId(instructorId);
@@ -131,7 +133,7 @@ findByInstructor(instructorId: string) {
   return this.model
     .find(filter)
 
-    // ✅ Learner (direct from users)
+    // ✅ Learner details
     .populate({
       path: 'learnerId',
       select: 'firstName profileImage -_id',
@@ -139,10 +141,10 @@ findByInstructor(instructorId: string) {
 
     // ✅ InstructorProfile → User
     .populate({
-      path: 'instructorId', // instructorprofiles
+      path: 'instructorId',
       select: 'userId -_id',
       populate: {
-        path: 'userId',     // users
+        path: 'userId',
         select: 'firstName profileImage -_id',
       },
     })
