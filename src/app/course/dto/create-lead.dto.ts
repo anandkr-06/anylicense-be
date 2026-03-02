@@ -19,7 +19,7 @@ export class CreateLeadDto {
   lastName!: string;
   email!: string;
   phone!: string;
-  userType!: 'New Learner' | 'Experienced';
+  userType!: 'New Learner' | 'Refresher' | 'International';
   courseId!: string;
   source!: 'COURSE_EXPLORE';
 
