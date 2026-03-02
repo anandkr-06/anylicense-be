@@ -66,7 +66,7 @@ export class LearnerService {
       .find({ learnerId: new Types.ObjectId(learnerId) })
       .populate({
         path: 'instructorId',
-        select: 'rating vehicles reschedule',
+        select: 'rating vehicles reschedule userId',
         populate: {
           path: 'userId',
           model: 'User',
@@ -74,22 +74,33 @@ export class LearnerService {
         },
       })
       .sort({ createdAt: -1 })
-      .lean<any[]>(); // 👈 important
-
+      .lean<any[]>();
+  
+    // ✅ STEP 1: Check if ANY booked slot exists
+    const hasBookedSlot = orders.some(order =>
+      ['CONFIRMED', 'PAID'].includes(order.status),
+    );
+  
+    // ✅ STEP 2: If NO booked slot → return empty list
+    if (!hasBookedSlot) {
+      return [];
+    }
+  
+    // ✅ STEP 3: Process & return ALL orders
     return orders.map(order => {
-      const instructor = order.instructorId as PopulatedInstructor; // 👈 cast
-
+      const instructor = order.instructorId;
+  
       const vehicleType = order.vehicleType;
-
+  
       if (instructor?.vehicles) {
         order.instructorId = {
           ...instructor,
           vehicle: instructor.vehicles[vehicleType] ?? null,
         };
-
+  
         delete (order.instructorId as any).vehicles;
       }
-
+  
       return order;
     });
   }
