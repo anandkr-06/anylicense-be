@@ -113,7 +113,8 @@ export class PublicCourseService {
         location: course.location,
         schedules: course.schedules,
         price: course.price,
-        seats: course.seats
+        seats: course.seats,
+        createdAt:course.createdAt
       })),
     };
   }
