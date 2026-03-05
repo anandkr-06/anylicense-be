@@ -1568,6 +1568,46 @@ export class OrderService {
   //   return { received: true };
   // }
 
+  async getUpcomingStats(instructorId: string) {
+    const today = new Date().toISOString().split('T')[0];
+    const instructor = await this.instructorProfileModel.findOne({userId:new Types.ObjectId(instructorId)})
+    
+    const result = await this.orderModel.aggregate([
+      {
+        $match: {
+          instructorId: new Types.ObjectId(instructor?._id),
+        },
+      },
+      {
+        $unwind: "$bookedSlots",
+      },
+      {
+        $match: {
+          "bookedSlots.date": { $gte: today },
+          "bookedSlots.status": { $in: ["BOOKED", "RESCHEDULED"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$bookedSlots.type",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+  
+    let lessons = 0;
+    let tests = 0;
+  
+    result.forEach((r) => {
+      if (r._id === "LESSON") lessons = r.count;
+      if (r._id === "TEST") tests = r.count;
+    });
+  
+    return {
+      totalUpcomingBookedLessons: lessons,
+      totalUpcomingTestPackages: tests,
+    };
+  }
 
 }
 

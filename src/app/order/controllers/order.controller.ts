@@ -188,4 +188,13 @@ async cancelPrivateOrder(
   );
 }
 
+@Get("upcoming-stats")
+async getDashboardStats(
+  @CurrentUser() user: JwtPayload,
+) {
+  const instructorId = user.sub;
+
+  return this.ordersService.getUpcomingStats(instructorId);
+}
+
 }
