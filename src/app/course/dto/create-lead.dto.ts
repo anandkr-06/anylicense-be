@@ -19,7 +19,7 @@ export class CreateLeadDto {
   lastName!: string;
   email!: string;
   phone!: string;
-  userType!: 'New Learner' | 'Refresher' | 'International';
+  userType!: 'First-Time Learner' | 'Refresher Lessons' | 'Overseas Licence Holder';
   courseId!: string;
   source!: 'COURSE_EXPLORE';
 
@@ -29,3 +29,4 @@ export class CreateLeadDto {
   @IsOptional()
   location?: LocationDto;
 }
+

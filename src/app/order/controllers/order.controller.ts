@@ -188,6 +188,4 @@ async cancelPrivateOrder(
   );
 }
 
-
-
 }

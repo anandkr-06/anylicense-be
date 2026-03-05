@@ -32,6 +32,8 @@ import { amPmTo24, convertTo24Hour, normalizeAndValidateSlots, toAmPm, validateS
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { OrderLean } from '@constant/helper';
 import { TestLocationDto } from '../dto/testlocation.dto';
+import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
+import { json } from 'stream/consumers';
 
 type BookedSlot = {
   date: string;
@@ -51,6 +53,8 @@ export class InstructorService {
     @InjectModel(InstructorProfile.name) private instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(PrivateOrder.name)
+    private readonly privateOrderModel: Model<PrivateOrderDocument>,
     @InjectPinoLogger(InstructorService.name)
     private readonly logger: PinoLogger,
   ) { }
@@ -1448,6 +1452,194 @@ export class InstructorService {
 
   private _buildUserRespons(user: UserDocument): UserResponse {
     return new UserResponseBuilder(user).build();
+  }
+
+  async getCalendarSlots(instructorId: string) {
+
+    const instructor = await this.instructorProfileModel
+      .findOne({ userId: new Types.ObjectId(instructorId) })
+      .lean();
+  
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
+  
+    const normalizeDate = (d: string | Date) =>
+      new Date(d).toISOString().slice(0, 10);
+  
+    /* ------------------------------------------------
+       FETCH ORDERS IN PARALLEL
+    ------------------------------------------------ */
+  
+    const [publicOrders, privateOrders] = await Promise.all([
+      this.orderModel
+        .find({
+          instructorId: new Types.ObjectId(instructor._id),
+          status: { $in: ['CONFIRMED', 'PAID'] },
+        })
+        .select('_id bookedSlots')
+        .lean<any[]>(),
+  
+      this.privateOrderModel
+        .find({
+          instructorId: new Types.ObjectId(instructorId),
+          status: { $in: ['PENDING_PAYMENT', 'PAID'] },
+        })
+        .select('_id lessonSlots')
+        .lean<any[]>(),
+    ]);
+  
+    /* ------------------------------------------------
+       BUILD BOOKED MAP
+    ------------------------------------------------ */
+  
+    const bookedMap = new Map<
+      string,
+      {
+        start: string;
+        end: string;
+        orderId: string;
+        orderType: 'PUBLIC' | 'PRIVATE';
+      }[]
+    >();
+  
+    const addBooking = (
+      date: string,
+      start: string,
+      end: string,
+      orderId: string,
+      orderType: 'PUBLIC' | 'PRIVATE',
+    ) => {
+  
+      if (!date || !start || !end) return;
+  
+      const key = normalizeDate(date);
+  
+      if (!bookedMap.has(key)) {
+        bookedMap.set(key, []);
+      }
+  
+      bookedMap.get(key)!.push({
+        start: normalizeTime(start),
+        end: normalizeTime(end),
+        orderId,
+        orderType,
+      });
+    };
+  
+    /* ------------------------------------------------
+       PUBLIC BOOKINGS
+    ------------------------------------------------ */
+  
+    for (const order of publicOrders) {
+      for (const slot of order.bookedSlots || []) {
+        if (slot.status === 'BOOKED') {
+          addBooking(
+            slot.date,
+            slot.startTime,
+            slot.endTime,
+            String(order._id),
+            'PUBLIC',
+          );
+        }
+      }
+    }
+  
+    /* ------------------------------------------------
+       PRIVATE BOOKINGS
+    ------------------------------------------------ */
+  
+    for (const order of privateOrders) {
+      for (const slot of order.lessonSlots || []) {
+        addBooking(
+          slot.bookingDate,
+          slot.startTime,
+          slot.endTime,
+          String(order._id),
+          'PRIVATE',
+        );
+      }
+    }
+  
+    /* ------------------------------------------------
+       GENERATE CALENDAR
+    ------------------------------------------------ */
+  
+    const calendarSlots: any[] = [];
+  
+    for (const week of instructor.availability?.weeks || []) {
+  
+      for (const day of week.days || []) {
+  
+        const dateKey = normalizeDate(day.date);
+        const bookedForDay = bookedMap.get(dateKey) || [];
+  
+        for (const avail of day.slots || []) {
+  
+          const splitSlots = splitSlotByDuration(
+            normalizeTime(avail.startTime),
+            normalizeTime(avail.endTime),
+            60,
+          );
+  
+          for (const s of splitSlots) {
+  
+            const sStart = normalizeTime(s.startTime);
+            const sEnd = normalizeTime(s.endTime);
+  
+            const bookings = bookedForDay.filter(
+              b => !(sEnd <= b.start || sStart >= b.end),
+            );
+  
+            calendarSlots.push({
+              date: dateKey,
+              startTime: toAmPm(sStart),
+              endTime: toAmPm(sEnd),
+              isBooked: bookings.length > 0,
+              orders: bookings.map(b => ({
+                orderId: b.orderId,
+                orderType: b.orderType,
+              })),
+            });
+          }
+        }
+      }
+    }
+  
+    /* ------------------------------------------------
+       ADD BOOKINGS OUTSIDE AVAILABILITY
+       (Manual Private Slots)
+    ------------------------------------------------ */
+  
+    for (const [date, bookings] of bookedMap.entries()) {
+  
+      for (const b of bookings) {
+  
+        const exists = calendarSlots.some(
+          s =>
+            s.date === date &&
+            normalizeTime(s.startTime) === b.start &&
+            normalizeTime(s.endTime) === b.end,
+        );
+  
+        if (!exists) {
+          calendarSlots.push({
+            date,
+            startTime: toAmPm(b.start),
+            endTime: toAmPm(b.end),
+            isBooked: true,
+            orders: [
+              {
+                orderId: b.orderId,
+                orderType: b.orderType,
+              },
+            ],
+          });
+        }
+      }
+    }
+  
+    return calendarSlots;
   }
 }
 
