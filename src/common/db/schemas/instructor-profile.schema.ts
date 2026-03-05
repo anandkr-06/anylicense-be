@@ -357,6 +357,9 @@ export class InstructorProfile {
   @Prop({ default: false })
   isVerified!: boolean;
 
+  @Prop({ default: 0 })
+  totalHours!: number;
+
   @Prop({ type: InstructorDocuments, default: defaultDocuments })
   documents?: InstructorDocuments;
 }
