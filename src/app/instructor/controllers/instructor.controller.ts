@@ -289,4 +289,11 @@ async updateDocuments(
     const user = await this.instructorService.getProfile(currentUser);
     return user;
   }
+
+
+  @Get('calendar-slots')
+async getCalendarSlots(
+  @CurrentUser() currentUser: JwtPayload,) {
+  return this.instructorService.getCalendarSlots(currentUser.sub);
+}
 }

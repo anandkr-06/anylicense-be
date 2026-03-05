@@ -18,6 +18,7 @@ import {
   InstructorProfileSchema,
 } from '@common/db/schemas/instructor-profile.schema';
 import { Order, OrderSchema } from '@common/db/schemas/order.schema';
+import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { Order, OrderSchema } from '@common/db/schemas/order.schema';
       { name: UserAddress.name, schema: AddressSchema },
       { name: Package.name, schema: PackageSchema },
       { name: Order.name, schema: OrderSchema },
+      { name: PrivateOrder.name, schema: PrivateOrderSchema },
       {
         name: Slot.name,
         schema: SlotSchema,

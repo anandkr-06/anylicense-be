@@ -18,3 +18,14 @@ export interface PrivateOrderPopulated {
   testPackage?: any;
   privateLearnerId: PrivateLearnerPopulated;
 }
+
+export interface PrivateOrder {
+  instructorId: Types.ObjectId;
+  privateLearnerId: Types.ObjectId;
+  vehicleType: string;
+  pricePerHour: number;
+  bookingDate: string;   // ✅ ADD THIS
+  startTime: string;
+  endTime: string;
+  status: string;
+}
