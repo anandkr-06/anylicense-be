@@ -85,6 +85,13 @@ export class User {
   transmissionType!:  TransmissionType; 
   @Prop({ default: false })
   public isActive!: boolean;
+
+  @Prop({ default: "" })
+  public stripeAccountId?: string;
+
+  @Prop({ default: 0 })
+walletBalance!: number;
+  
 }
 
 export type UserDocument = User & Document & { _id: Types.ObjectId };

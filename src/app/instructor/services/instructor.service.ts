@@ -34,6 +34,8 @@ import { OrderLean } from '@constant/helper';
 import { TestLocationDto } from '../dto/testlocation.dto';
 import { PrivateOrder, PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 import { json } from 'stream/consumers';
+import { InstructorTransaction, InstructorTransactionDocument } from '@common/db/schemas/instructor-transactions.schema';
+import { Payout, PayoutDocument } from '@common/db/schemas/payout.schema';
 
 type BookedSlot = {
   date: string;
@@ -57,6 +59,12 @@ export class InstructorService {
     private readonly privateOrderModel: Model<PrivateOrderDocument>,
     @InjectPinoLogger(InstructorService.name)
     private readonly logger: PinoLogger,
+
+    @InjectModel(InstructorTransaction.name)
+    private transactionModel: Model<InstructorTransactionDocument>,
+
+    @InjectModel(Payout.name)
+    private payoutModel: Model<PayoutDocument>,
   ) { }
 
 
@@ -1641,6 +1649,79 @@ export class InstructorService {
     }
   
     return calendarSlots;
+  }
+
+
+   // 1️⃣ Total Earnings
+   async getTotalEarnings(instructorId: string) {
+    const instructor = await this.instructorProfileModel
+      .findOne({ userId: new Types.ObjectId(instructorId) })
+      .lean();
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: {
+          instructorId: new (require('mongoose').Types.ObjectId)(instructor?._id),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$instructorEarning' },
+        },
+      },
+    ]);
+
+    return {
+      totalEarnings: result[0]?.total || 0,
+    };
+  }
+
+  // 2️⃣ Pending payout
+  async getPendingPayout(instructorId: string) {
+    const instructor = await this.instructorProfileModel
+      .findOne({ userId: new Types.ObjectId(instructorId) })
+      .lean();
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: {
+          instructorId: new (require('mongoose').Types.ObjectId)(instructor?._id),
+          payoutStatus: 'PENDING_PAYOUT',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$instructorEarning' },
+        },
+      },
+    ]);
+
+    return {
+      pendingPayout: result[0]?.total || 0,
+    };
+  }
+
+  // 3️⃣ Payout history
+  async getPayoutHistory(instructorId: string) {
+    const instructor = await this.instructorProfileModel
+      .findOne({ userId: new Types.ObjectId(instructorId) })
+      .lean();
+
+    return this.payoutModel
+      .find({ instructorId: new (require('mongoose').Types.ObjectId)(instructor?._id) })
+      .sort({ createdAt: -1 });
+  }
+
+  // 4️⃣ Next payout date
+  async getNextPayoutDate() {
+    const today = new Date();
+
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + (7 - today.getDay()));
+
+    return {
+      nextPayoutDate: nextSunday,
+    };
   }
 }
 

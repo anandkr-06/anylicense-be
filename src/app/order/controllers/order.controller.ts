@@ -188,4 +188,21 @@ async cancelPrivateOrder(
   );
 }
 
+@Get("upcoming-stats")
+async getDashboardStats(
+  @CurrentUser() user: JwtPayload,
+) {
+  const instructorId = user.sub;
+
+  return this.ordersService.getUpcomingStats(instructorId);
+}
+
+@Get("pending-payout")
+async getPendingPayout(
+  @CurrentUser() user: JwtPayload,  
+) {
+  const instructorId = user.sub;
+  return this.ordersService.getPendingPayout(instructorId);
+}
+
 }

@@ -29,6 +29,9 @@ import { AddressLocationModule } from '@app/addresslocations/addresslocation.mod
 import { CourseModule } from '@app/course/course.module';
 import { ReviewsModule } from '@app/reviews/reviews.module';
 import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
+import { PayoutService } from '@app/payouts/payout.service';
+import { PayoutScheduler } from '@app/schedulers/payout.scheduler';
+import { PayoutModule } from '@app/payouts/payout.module';
 
 @Module({
   imports: [
@@ -75,9 +78,12 @@ import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
     CourseModule,
     ReviewsModule,
     GiftVoucherModule,
+    PayoutModule,
   ],
   providers: [
     GlobalExceptionFilter,
+    // PayoutService, 
+    // PayoutScheduler,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

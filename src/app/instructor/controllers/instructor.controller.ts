@@ -296,4 +296,32 @@ async getCalendarSlots(
   @CurrentUser() currentUser: JwtPayload,) {
   return this.instructorService.getCalendarSlots(currentUser.sub);
 }
+
+
+@Get('earnings')
+  async getEarnings(
+    @CurrentUser() currentUser: JwtPayload
+  ) {
+    return this.instructorService.getTotalEarnings(currentUser.sub);
+  }
+
+  @Get('pending-payout')
+  async getPendingPayout(
+    @CurrentUser() currentUser: JwtPayload
+  ) {
+    return this.instructorService.getPendingPayout(currentUser.sub);
+  }
+
+  @Get('payout-history')
+  async getPayoutHistory(
+    @CurrentUser() currentUser: JwtPayload
+  ) {
+    return this.instructorService.getPayoutHistory(currentUser.sub);
+  }
+
+  @Get('next-payout-date')
+  async getNextPayoutDate() {
+    return this.instructorService.getNextPayoutDate();
+  }
+
 }

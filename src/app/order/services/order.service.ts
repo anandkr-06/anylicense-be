@@ -35,6 +35,7 @@ import Stripe from 'stripe';
 import { OrderStatusType, PrivateOrderDetailsResponseDto } from '../dto/private-order-details.response';
 import { PrivateOrderPopulated } from '@interfaces/order.interface';
 import { NormalizedSlot } from '@common/types/express';
+import { InstructorTransaction, InstructorTransactionDocument } from '@common/db/schemas/instructor-transactions.schema';
 
 interface InstructorHour {
   startTime: string;
@@ -87,7 +88,8 @@ export class OrderService {
     @InjectModel(PrivateOrder.name)
     private readonly privateOrderModel: Model<PrivateOrderDocument>,
 
-
+    @InjectModel(InstructorTransaction.name)
+    private readonly instructorTransactionModel: Model<InstructorTransactionDocument>,
 
   ) { }
 
@@ -485,124 +487,6 @@ export class OrderService {
     return { success: true, message: 'Slot marked as no-show' };
   }
 
-  // async completeSlot(orderId: string, slotId: string) {
-  //   const order = await this.orderModel.findById(orderId);
-  //   if (!order) throw new NotFoundException('Order not found');
-
-  //   const slot = order.bookedSlots.id(slotId);
-  //   if (!slot) throw new NotFoundException('Slot not found');
-
-  //   if (slot.status !== 'BOOKED')
-  //     throw new BadRequestException('Slot cannot be completed');
-
-  //   slot.status = 'COMPLETED';
-
-  //   const hours = this.calculateSlotHours(
-  //     slot.startTime,
-  //     slot.endTime,
-  //   );
-
-  //   order.usedHours += hours;
-  //   order.remainingHours -= hours;
-  //   order.consumedAmount += hours * order.pricePerHour;
-
-  //   await order.save();
-
-  //   return { success: true, message: 'Slot completed' };
-  // }
-
-
-  // async respondSlotReschedule(
-  //   orderId: string,
-  //   slotId: string,
-  //   userId: string,
-  //   action: 'ACCEPTED' | 'REJECTED',
-  // ) {
-  //   const order = await this.orderModel.findById(orderId);
-  //   if (!order) throw new NotFoundException('Order not found');
-
-  //   const slot = order.bookedSlots.find(
-  //     s => String(s._id) === slotId
-  //   );
-
-
-  //   if (!slot || !slot.reschedule) {
-  //     throw new NotFoundException('No reschedule request found');
-  //   }
-
-  //   const isRequester =
-  //     (slot.reschedule.requestedBy === 'LEARNER' &&
-  //       order.learnerId.toString() === userId) ||
-  //     (slot.reschedule.requestedBy === 'INSTRUCTOR' &&
-  //       order.instructorId.toString() === userId);
-
-  //   if (isRequester) {
-  //     throw new ForbiddenException('Cannot respond to your own request');
-  //   }
-
-  //   slot.reschedule.status = action;
-  //   slot.reschedule.respondedAt = new Date();
-
-  //   if (action === 'ACCEPTED') {
-  //     slot.date = slot.reschedule.proposedSlot.date;
-  //     slot.startTime = slot.reschedule.proposedSlot.startTime;
-  //     slot.endTime = slot.reschedule.proposedSlot.endTime;
-  //   }
-
-  //   await order.save();
-
-  //   return {
-  //     success: true,
-  //     message: `Slot reschedule ${action.toLowerCase()}`,
-  //   };
-  // }
-
-
-
-
-  // async requestSlotReschedule(
-  //   orderId: string,
-  //   slotId: string,
-  //   userId: string,
-  //   dto: RescheduleRequestDto,
-  // ) {
-  //   const order = await this.orderModel.findById(orderId);
-  //   if (!order) throw new NotFoundException('Order not found');
-
-  //   const slot = order.bookedSlots.find(
-  //     s => String(s._id) === slotId
-  //   );
-
-  //   if (!slot) {
-  //     throw new NotFoundException('Slot not found');
-  //   }
-
-
-  //   if (slot.reschedule?.status === 'PENDING') {
-  //     throw new BadRequestException('Reschedule already pending for this slot');
-  //   }
-
-  //   const requestedBy =
-  //     order.learnerId.toString() === userId ? 'LEARNER' : 'INSTRUCTOR';
-
-  //   slot.reschedule = {
-  //     requestedBy,
-  //     status: 'PENDING',
-  //     proposedSlot: {
-  //       date: dto.date,
-  //       startTime: this.amPmTo24(dto.startTime),
-  //       endTime: this.amPmTo24(dto.endTime),
-  //     },
-  //     requestedAt: new Date(),
-  //   };
-
-  //   await order.save();
-
-  //   return {
-  //     success: true,
-  //     message: 'Slot reschedule request sent',
-  //   };
-  // }
 
   async completeSlot(
     orderId: string,
@@ -654,6 +538,20 @@ export class OrderService {
       },
     );
 
+    await this.instructorTransactionModel.create({
+      orderId: order._id,
+      slotId: slot._id,
+      learnerId: order.learnerId,
+      instructorId: order.instructorId,
+      type: slot.type,
+      hours: hours,
+      pricePerHour: order.pricePerHour,
+      grossAmount: hours * order.pricePerHour,
+      platformCommission: order.platformCharge,
+      instructorEarning:
+        (hours * order.pricePerHour) - order.platformCharge,
+    });
+    
     return {
       success: true,
       message: 'Slot marked as completed',
@@ -1568,6 +1466,70 @@ export class OrderService {
   //   return { received: true };
   // }
 
+  async getUpcomingStats(instructorId: string) {
+    const today = new Date().toISOString().split('T')[0];
+    const instructor = await this.instructorProfileModel.findOne({userId:new Types.ObjectId(instructorId)})
+    
+    const result = await this.orderModel.aggregate([
+      {
+        $match: {
+          instructorId: new Types.ObjectId(instructor?._id),
+        },
+      },
+      {
+        $unwind: "$bookedSlots",
+      },
+      {
+        $match: {
+          "bookedSlots.date": { $gte: today },
+          "bookedSlots.status": { $in: ["BOOKED", "RESCHEDULED"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$bookedSlots.type",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+  
+    let lessons = 0;
+    let tests = 0;
+  
+    result.forEach((r) => {
+      if (r._id === "LESSON") lessons = r.count;
+      if (r._id === "TEST") tests = r.count;
+    });
+  
+    return {
+      totalUpcomingBookedLessons: lessons,
+      totalUpcomingTestPackages: tests,
+    };
+  }
+
+  async getPendingPayout(instructorId: string) {
+
+    const instructor = await this.instructorProfileModel.findOne({userId:new Types.ObjectId(instructorId)})
+
+    const result = await this.instructorTransactionModel.aggregate([
+      {
+        $match: {
+          instructorId: new Types.ObjectId(instructor?._id),
+          payoutStatus: "PENDING_PAYOUT",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: "$instructorEarning" },
+        },
+      },
+    ]);
+  
+    return {
+      pendingPayout: result[0]?.totalPending || 0,
+    };
+  }
 
 }
 
