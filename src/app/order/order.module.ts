@@ -20,6 +20,7 @@ import { PrivateLearnerSchema, PrivateLearner } from '@common/db/schemas/private
 import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
 import { PrivateLearnerService } from './services/private-order.service';
 import { PrivateLearnersController } from './controllers/private-learners.controller';
+import { InstructorTransaction, InstructorTransactionSchema } from '@common/db/schemas/instructor-transactions.schema';
 
 
 @Module({
@@ -42,6 +43,7 @@ import { PrivateLearnersController } from './controllers/private-learners.contro
       { name: PrivateOrder.name, schema: PrivateOrderSchema },
       
       { name: PrivateLearner.name, schema: PrivateLearnerSchema },
+      { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
     
     ]),
     AddressModule,

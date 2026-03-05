@@ -19,6 +19,8 @@ import {
 } from '@common/db/schemas/instructor-profile.schema';
 import { Order, OrderSchema } from '@common/db/schemas/order.schema';
 import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-order.schema';
+import { InstructorTransaction, InstructorTransactionSchema } from '@common/db/schemas/instructor-transactions.schema';
+import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-ord
         name: InstructorProfile.name,
         schema: InstructorProfileSchema,
       },
+      {name:InstructorTransaction.name,schema:InstructorTransactionSchema},
+      {name:Payout.name,schema:PayoutSchema},
     ]),
     AddressModule,
     DbModule,
