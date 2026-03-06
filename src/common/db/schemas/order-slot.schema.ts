@@ -151,6 +151,17 @@ export class OrderSlot {
     default: 'BOOKED',
   })
   status!: string;
+  @Prop({
+    type: {
+      learner: { type: Boolean, default: false },
+      instructor: { type: Boolean, default: false },
+    },
+    default: { learner: false, instructor: false },
+  })
+  notification!: {
+    learner: boolean;
+    instructor: boolean;
+  };
 
   @Prop({
     type: {

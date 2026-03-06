@@ -205,4 +205,27 @@ async getPendingPayout(
   return this.ordersService.getPendingPayout(instructorId);
 }
 
+
+@Get(':role/notifications')
+async getNotifications(
+  @CurrentUser() user: JwtPayload,
+  @Param('role') role: 'learner' | 'instructor',
+) {
+  const userId = user.sub;
+
+  return this.ordersService.getNotifications(userId, role);
+}
+
+@Patch('notifications/:slotId/read')
+async markNotificationRead(
+  @Param('slotId') slotId: string,
+  @CurrentUser() user: JwtPayload,
+  @Query('role') role: 'learner' | 'instructor',
+) {
+  const userId = user.sub;
+
+  return this.ordersService.markNotificationRead(userId, slotId, role);
+}
+
+
 }
