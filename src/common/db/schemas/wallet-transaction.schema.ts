@@ -75,6 +75,7 @@ export class WalletTransaction {
    stripeChargeId?: string;
 }
 
+export type WalletTransactionDocument = WalletTransaction & Document & { _id: Types.ObjectId };
 export const WalletTransactionSchema =
   SchemaFactory.createForClass(WalletTransaction);
 
