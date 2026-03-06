@@ -102,7 +102,7 @@ export class PayoutService {
     return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
   }
 
-  async instructorFastCash(instructorId: string) {
+  async instructorFastCash(instructorId: string, amount: number) {
 
     const instructor = await this.userModel
       .findById(instructorId)
@@ -114,7 +114,7 @@ export class PayoutService {
   
     let stripeAccountId = instructor.stripeAccountId;
   
-    // Create Stripe account if not exists
+    // Create Stripe account if missing
     if (!stripeAccountId) {
   
       const account = await this.stripeService.createExpressAccount(
@@ -136,16 +136,32 @@ export class PayoutService {
       };
     }
   
-    const availableAmount = instructor.walletBalance;
+    const walletBalance = Number((instructor as any).walletBalance ?? 0);
   
-    if (availableAmount <= 0) {
+    if (walletBalance <= 0) {
       throw new BadRequestException('No balance available');
     }
   
+    // ❗ Validate requested amount
+    if (!amount || amount <= 0) {
+      throw new BadRequestException('Invalid payout amount');
+    }
+  
+    if (amount > walletBalance) {
+      throw new BadRequestException('Requested amount exceeds wallet balance');
+    }
+  
+    const payoutAmount = Math.round(amount * 100); // Stripe needs cents
+  
     const payout = await this.stripeService.instantPayout(
       stripeAccountId,
-      availableAmount * 100,
+      payoutAmount,
     );
+  
+    // ✅ Deduct from wallet
+    await this.userModel.findByIdAndUpdate(instructorId, {
+      $inc: { walletBalance: -amount },
+    });
   
     return payout;
   }
