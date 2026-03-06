@@ -1647,6 +1647,50 @@ export class OrderService {
     };
   }
 
+  async markAllNotificationsRead(
+    userId: string,
+    role: 'learner' | 'instructor',
+  ) {
+    let instructorId: Types.ObjectId | null = null;
+  
+    if (role === 'instructor') {
+      const instructor = await this.instructorProfileModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .select({ _id: 1 })
+        .lean();
+  
+      if (!instructor) {
+        throw new NotFoundException('Instructor profile not found');
+      }
+  
+      instructorId = instructor._id;
+    }
+  
+    const match =
+      role === 'learner'
+        ? { learnerId: new Types.ObjectId(userId) }
+        : { instructorId };
+  
+    const updateField =
+      role === 'learner'
+        ? 'bookedSlots.$[].notification.learner'
+        : 'bookedSlots.$[].notification.instructor';
+  
+    await this.orderModel.updateMany(
+      match,
+      {
+        $set: {
+          [updateField]: false,
+        },
+      },
+    );
+  
+    return {
+      success: true,
+      message: 'All notifications marked as read',
+    };
+  }
+
 }
 
 
