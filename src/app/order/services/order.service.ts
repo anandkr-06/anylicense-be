@@ -429,6 +429,10 @@ export class OrderService {
       );
 
       slot.status = 'CANCELLED';
+      slot.notification = {
+        learner: true,
+        instructor: true,
+      };
       slot.actionMeta = {
         actedBy: role,
         actedAt: new Date(),
@@ -473,6 +477,10 @@ export class OrderService {
       throw new BadRequestException('Invalid slot state');
 
     slot.status = 'NOSHOW';
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
     slot.actionMeta = {
       actedBy: role,
       reasonType: body.reasonType,
@@ -514,7 +522,10 @@ export class OrderService {
 
     // ✅ Update slot
     slot.status = 'COMPLETED';
-
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
     // ✅ Update order usage
     order.usedHours += hours;
     order.remainingHours = Math.max(
@@ -551,7 +562,7 @@ export class OrderService {
       instructorEarning:
         (hours * order.pricePerHour) - order.platformCharge,
     });
-    
+
     return {
       success: true,
       message: 'Slot marked as completed',
@@ -608,7 +619,10 @@ export class OrderService {
       slot.reschedule.status = 'REJECTED';
       slot.reschedule.respondedAt = new Date();
     }
-
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
     slot.reschedule = undefined;
 
     await order.save();
@@ -735,6 +749,10 @@ export class OrderService {
       slot.startTime = this.amPmTo24(dto.startTime);
       slot.endTime = this.amPmTo24(dto.endTime);
       slot.status = 'RESCHEDULED';
+      slot.notification = {
+        learner: true,
+        instructor: true,
+      };
       slot.reschedule = undefined;
 
       await order.save();
@@ -764,6 +782,10 @@ export class OrderService {
     };
 
     slot.status = 'PENDING_RESCHEDULE';
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
 
     await order.save();
 
@@ -1468,8 +1490,8 @@ export class OrderService {
 
   async getUpcomingStats(instructorId: string) {
     const today = new Date().toISOString().split('T')[0];
-    const instructor = await this.instructorProfileModel.findOne({userId:new Types.ObjectId(instructorId)})
-    
+    const instructor = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(instructorId) })
+
     const result = await this.orderModel.aggregate([
       {
         $match: {
@@ -1492,15 +1514,15 @@ export class OrderService {
         },
       },
     ]);
-  
+
     let lessons = 0;
     let tests = 0;
-  
+
     result.forEach((r) => {
       if (r._id === "LESSON") lessons = r.count;
       if (r._id === "TEST") tests = r.count;
     });
-  
+
     return {
       totalUpcomingBookedLessons: lessons,
       totalUpcomingTestPackages: tests,
@@ -1509,7 +1531,7 @@ export class OrderService {
 
   async getPendingPayout(instructorId: string) {
 
-    const instructor = await this.instructorProfileModel.findOne({userId:new Types.ObjectId(instructorId)})
+    const instructor = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(instructorId) })
 
     const result = await this.instructorTransactionModel.aggregate([
       {
@@ -1525,9 +1547,103 @@ export class OrderService {
         },
       },
     ]);
-  
+
     return {
       pendingPayout: result[0]?.totalPending || 0,
+    };
+  }
+
+
+  async getNotifications(
+    userId: string,
+    role: 'learner' | 'instructor',
+  ) {
+    let instructorId: Types.ObjectId | null = null;
+
+    if (role === 'instructor') {
+      const instructorData = await this.instructorProfileModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .select({ _id: 1 })
+        .lean();
+
+      if (!instructorData) {
+        throw new NotFoundException('Instructor profile not found');
+      }
+
+      instructorId = instructorData._id;
+    }
+
+    const match =
+      role === 'learner'
+        ? { learnerId: new Types.ObjectId(userId) }
+        : { instructorId };
+
+    const notificationField =
+      role === 'learner'
+        ? 'bookedSlots.notification.learner'
+        : 'bookedSlots.notification.instructor';
+
+    const orders = await this.orderModel.find({
+      ...match,
+      [notificationField]: true,
+    });
+
+    return orders;
+  }
+
+  async markNotificationRead(
+    userId: string,
+    slotId: string,
+    role: 'learner' | 'instructor',
+  ) {
+    let instructorId: Types.ObjectId | null = null;
+
+    if (role === 'instructor') {
+      const instructor = await this.instructorProfileModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .select({ _id: 1 })
+        .lean();
+
+      if (!instructor) {
+        throw new NotFoundException('Instructor profile not found');
+      }
+
+      instructorId = instructor._id;
+    }
+
+    const match =
+      role === 'learner'
+        ? {
+          learnerId: new Types.ObjectId(userId),
+          'bookedSlots._id': new Types.ObjectId(slotId),
+        }
+        : {
+          instructorId,
+          'bookedSlots._id': new Types.ObjectId(slotId),
+        };
+
+    const updateField =
+      role === 'learner'
+        ? 'bookedSlots.$.notification.learner'
+        : 'bookedSlots.$.notification.instructor';
+
+    const updated = await this.orderModel.findOneAndUpdate(
+      match,
+      {
+        $set: {
+          [updateField]: false,
+        },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    return {
+      success: true,
+      message: 'Notification marked as read',
     };
   }
 
