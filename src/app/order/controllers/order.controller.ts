@@ -227,5 +227,14 @@ async markNotificationRead(
   return this.ordersService.markNotificationRead(userId, slotId, role);
 }
 
+@Patch('notifications/read-all')
+async markAllNotificationsRead(
+  @CurrentUser() user: JwtPayload,
+  @Query('role') role: 'learner' | 'instructor',
+) {
+  const userId = user.sub;
+
+  return this.ordersService.markAllNotificationsRead(userId, role);
+}
 
 }
