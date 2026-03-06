@@ -4,13 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import Stripe from 'stripe';
 
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { Payment, PaymentDocument, PaymentPurpose } from '@common/db/schemas/payment.schema';
 import { GiftVoucherDocument } from '@app/gift-vouchers/schema/gift-voucher-schema';
+import { WalletTransaction, WalletTransactionDocument } from '@common/db/schemas/wallet-transaction.schema';
+import { LearnerDocument } from '@common/db/schemas/learner.schema';
 
 export type StripeIntentMetadata = {
   purpose: 'ORDER_PAYMENT' | 'WALLET_TOPUP';
@@ -42,6 +44,14 @@ export class StripeService {
 
     @InjectModel('GiftVoucher')
     private readonly giftVoucherModel: Model<GiftVoucherDocument>,
+
+    // @InjectModel('Wallet')
+    // private readonly walletModel: Model<WalletTransactionDocument>,
+
+    @InjectModel(WalletTransaction.name) private walletModel: Model<WalletTransaction>,
+
+    @InjectModel('Learner')
+    private readonly learnerModel: Model<LearnerDocument>,
 
   ) {
     this.stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
@@ -197,4 +207,85 @@ export class StripeService {
     };
   }
   
+
+  /* -----------------------------
+   WITHDRAW WALLET BALANCE
+-------------------------------- */
+
+// async withdrawFromWallet(userId: string, amount: number) {
+
+//   if (amount <= 0) {
+//     throw new BadRequestException('Invalid withdrawal amount');
+//   }
+
+//   const wallet = await this.walletModel.findOne({ userId });
+
+//   if (!wallet) {
+//     throw new NotFoundException('Wallet not found');
+//   }
+
+//   if (wallet.balance < amount) {
+//     throw new BadRequestException('Insufficient wallet balance');
+//   }
+
+//   const user = await this.learnerModel.findById(userId);
+
+//   if (!user?.stripeAccountId) {
+//     throw new BadRequestException('Stripe account not connected');
+//   }
+
+//   // Transfer money to connected account
+//   const transfer = await this.stripe.transfers.create({
+//     amount: Math.round(amount * 100),
+//     currency: 'AUD',
+//     destination: user.stripeAccountId,
+//     metadata: {
+//       purpose: 'WALLET_WITHDRAWAL',
+//       userId,
+//     },
+//   });
+
+//   // deduct wallet balance
+//   wallet.balance -= amount;
+//   await wallet.save();
+
+//   return {
+//     message: 'Withdrawal initiated successfully',
+//     amount,
+//     transferId: transfer.id,
+//   };
+// }
+async withdrawFromWallet(learnerId: string, amount: number) {
+  if (amount <= 0) {
+    throw new BadRequestException('Invalid withdrawal amount');
+  }
+
+  // get last wallet transaction
+  const lastTxn = await this.walletModel
+    .findOne({ learnerId: new Types.ObjectId(learnerId) })
+    .sort({ createdAt: -1 });
+console.log("lastTxn",lastTxn)
+  const currentBalance = lastTxn?.balanceAfter || 0;
+
+  if (currentBalance < amount) {
+    throw new BadRequestException('Insufficient wallet balance');
+  }
+
+  const newBalance = currentBalance - amount;
+
+  const withdrawalTxn = await this.walletModel.create({
+    learnerId,
+    type: 'DEBIT',
+    amount,
+    balanceAfter: newBalance,
+    source: 'STRIPE_REFUND',
+    referenceEntityId: null,
+    status: 'COMPLETED',
+  });
+
+  return {
+    message: 'Withdrawal successful',
+    transaction: withdrawalTxn,
+  };
+}
 }

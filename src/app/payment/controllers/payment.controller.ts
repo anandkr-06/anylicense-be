@@ -3,10 +3,15 @@ import { StripeService } from '../services/payment.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
 import { Public } from '@common/decorators/public.decorator';
+import { WithdrawDto } from '../dto/withdraw.dto';
+
 
 @Controller('payments')
 export class PaymentController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(private readonly stripeService: StripeService,
+    
+
+  ) {}
 
   /* ---------------------------------
      ORDER PAYMENT (PUBLIC / PRIVATE)
@@ -56,5 +61,18 @@ export class PaymentController {
     }
 
     return this.stripeService.createGiftVoucherPaymentIntent(giftVoucherId);
+  }
+
+  @Post('withdraw')
+  async withdraw(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() withdrawDto: WithdrawDto,
+  ) {
+    const learnerId = currentUser.sub; // from JWT
+
+    return this.stripeService.withdrawFromWallet(
+      learnerId,
+      withdrawDto.amount,
+    );
   }
 }

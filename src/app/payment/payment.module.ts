@@ -23,6 +23,7 @@ import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
 import { NotificationModule } from 'modules/notifications/notification.module';
 import { SmtpModule } from '@common/smtp/smtp.module';
 import { LearnerService } from '@app/userlearners/services/leaner.service';
+import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/wallet-transaction.schema';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { LearnerService } from '@app/userlearners/services/leaner.service';
       { name: Learner.name, schema: LearnerSchema },
       { name: Referral.name, schema: ReferralSchema },
       { name: GiftVoucher.name, schema: GiftVoucherSchema },
+      { name: WalletTransaction.name, schema: WalletTransactionSchema },
+      
     ]),
     DbModule,
     OrdersModule,
