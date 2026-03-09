@@ -1269,13 +1269,22 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   const totalAmount = subtotal + platformCharge;
 
   // 9️⃣ Wallet + Stripe split
-  const payment = this.paymentService.calculatePayment(
-    purchaseAmount,
-    bookingAmount + platformCharge,
-    learner.walletBalance,
-  );
 
-  const walletUsed = payment.walletUsed;
+  let walletUsed = 0;
+  let stripeAmount = totalAmount;
+
+  // Wallet should only apply for slot/test booking
+  if (lessonHours === 0) {
+
+    const payment = this.paymentService.calculatePayment(
+      purchaseAmount,
+      bookingAmount + platformCharge,
+      learner.walletBalance,
+    );
+
+    walletUsed = payment.walletUsed;
+    stripeAmount = payment.stripeAmount;
+  }
 
   const payableAmount = totalAmount - walletUsed;
 
@@ -1309,14 +1318,14 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     totalAmount,
 
     walletUsed,
-    stripeAmount: payment.stripeAmount,
+    stripeAmount,
     payableAmount,
 
     bookingMode,
     bookedSlots: slots,
 
-    paymentStatus: payment.stripeAmount > 0 ? 'PENDING' : 'PAID',
-    status: payment.stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
+    paymentStatus: stripeAmount > 0 ? 'PENDING' : 'PAID',
+    status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
   });
 
   // 1️⃣2️⃣ Debit wallet AFTER order creation
