@@ -1230,7 +1230,6 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   // 6️⃣ Lesson purchase
   const lessonPurchaseAmount = lessonHours * pricePerHour;
 
-  // Discount rule
   let discountPercent = 0;
 
   if (lessonHours >= 5 && lessonHours < 10) {
@@ -1245,13 +1244,13 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   const discountedLessonAmount =
     lessonPurchaseAmount - discount;
 
-  // 7️⃣ Slot/Test booking cost
+  // 7️⃣ Slot/Test booking
   const lessonSlotAmount = lessonSlotHours * pricePerHour;
   const testBookingAmount = testSlots.length * testPrice;
 
   const bookingAmount = lessonSlotAmount + testBookingAmount;
 
-  // 8️⃣ Platform charge calculation
+  // 8️⃣ Platform charge
   const bookingHours = Math.ceil(lessonSlotHours + testSlotHours);
 
   let platformCharge = 0;
@@ -1280,6 +1279,14 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   );
 
   const payableAmount = totalAmount - payment.walletUsed;
+
+  // 🔹 Deduct wallet balance
+  if (payment.walletUsed > 0) {
+    await this.learnerModel.updateOne(
+      { _id: learnerId },
+      { $inc: { walletBalance: -payment.walletUsed } }
+    );
+  }
 
   const bookingMode =
     slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
@@ -1318,7 +1325,9 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     bookingMode,
     bookedSlots: slots,
 
-    paymentStatus: 'PENDING',
+    // 🔹 auto paid if no stripe needed
+    paymentStatus:
+      payment.stripeAmount > 0 ? 'PENDING' : 'PAID',
   });
 
   return order;
