@@ -1316,6 +1316,7 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     bookedSlots: slots,
 
     paymentStatus: payment.stripeAmount > 0 ? 'PENDING' : 'PAID',
+    status: payment.stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
   });
 
   // 1️⃣2️⃣ Debit wallet AFTER order creation
