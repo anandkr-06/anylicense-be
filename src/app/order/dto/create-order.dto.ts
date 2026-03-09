@@ -13,6 +13,9 @@ import {
   } from 'class-validator';
   import { Type } from 'class-transformer';
 import { DropPointDto, PickupPointDto } from './location.dto';
+import { VehicleType } from '@constant/enum';
+
+
 
   export enum SlotType {
     LESSON = 'LESSON',
@@ -26,8 +29,8 @@ import { DropPointDto, PickupPointDto } from './location.dto';
     instructorId!: string;
   
     @IsNotEmpty()
-    @IsEnum(['auto', 'manual'])
-    vehicleType!: 'auto' | 'manual';
+    @IsEnum(VehicleType)
+vehicleType!: VehicleType;
   
     /**
      * LESSON HOURS (optional)
@@ -61,10 +64,6 @@ import { DropPointDto, PickupPointDto } from './location.dto';
     @IsOptional()
     useWallet?: boolean;
   
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    walletUsed?: number;
   
     // 🎟 COUPON
     @IsOptional()

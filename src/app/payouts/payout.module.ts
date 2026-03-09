@@ -11,6 +11,7 @@ import {
 } from '@common/db/schemas/instructor-transactions.schema';
 import { StripeService } from './stripe.service';
 import { User, UserSchema } from '@common/db/schemas/user.schema';
+import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/instructor-profile.schema';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { User, UserSchema } from '@common/db/schemas/user.schema';
       { name: Payout.name, schema: PayoutSchema },
       { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
       { name: User.name, schema: UserSchema },
+      
     ]),
     
   ],

@@ -21,6 +21,10 @@ import { PrivateOrder, PrivateOrderSchema } from '@common/db/schemas/private-ord
 import { PrivateLearnerService } from './services/private-order.service';
 import { PrivateLearnersController } from './controllers/private-learners.controller';
 import { InstructorTransaction, InstructorTransactionSchema } from '@common/db/schemas/instructor-transactions.schema';
+import { InstructorService } from './services/instructorService';
+import { SlotService } from './services/slotService';
+import { PricingService } from './services/pricingService';
+import { PaymentService } from './services/paymentService';
 
 
 @Module({
@@ -53,7 +57,7 @@ import { InstructorTransaction, InstructorTransactionSchema } from '@common/db/s
     WalletModule, // ✅ ADD THIS
   ],
   controllers: [OrdersController, PrivateLearnersController],
-  providers: [OrderService, UserDbService, PrivateLearnerService],
+  providers: [OrderService, UserDbService, PrivateLearnerService, InstructorService,SlotService,PricingService,PaymentService],
   exports: [OrderService],
 })
 export class OrdersModule {}
