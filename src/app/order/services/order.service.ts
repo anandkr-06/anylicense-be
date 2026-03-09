@@ -1170,6 +1170,8 @@ if (dto.useWallet) {
 
 async createOrder(learnerId: string, dto: CreateOrderDto) {
 
+  const learnerObjectId = new Types.ObjectId(learnerId);
+
   // 1️⃣ Instructor pricing
   const { instructor, pricePerHour, testPrice } =
     await this.instructorService.getVehiclePricing(
@@ -1193,7 +1195,6 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   );
 
   const testSlotHours = testSlots.length * 2.5;
-
   const usedHours = lessonSlotHours + testSlotHours;
 
   // 4️⃣ Validate learner
@@ -1209,7 +1210,7 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   if (lessonSlots.length > 0 && !lessonHours) {
 
     existingOrder = await this.orderModel.findOne({
-      learnerId: new Types.ObjectId(learnerId),
+      learnerId: learnerObjectId,
       instructorId: new Types.ObjectId(dto.instructorId),
       paymentStatus: { $in: ['PAID', 'PENDING'] },
     });
@@ -1238,13 +1239,11 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     discountPercent = 10;
   }
 
-  const discount =
-    (lessonPurchaseAmount * discountPercent) / 100;
+  const discount = (lessonPurchaseAmount * discountPercent) / 100;
 
-  const discountedLessonAmount =
-    lessonPurchaseAmount - discount;
+  const discountedLessonAmount = lessonPurchaseAmount - discount;
 
-  // 7️⃣ Slot/Test booking
+  // 7️⃣ Slot/Test booking cost
   const lessonSlotAmount = lessonSlotHours * pricePerHour;
   const testBookingAmount = testSlots.length * testPrice;
 
@@ -1255,12 +1254,10 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
 
   let platformCharge = 0;
 
-  // Buy lessons → always charge
   if (lessonHours > 0) {
     platformCharge += lessonHours * 2;
   }
 
-  // Slot/Test → only if wallet insufficient
   if (bookingHours > 0 && learner.walletBalance < bookingAmount) {
     platformCharge += bookingHours * 2;
   }
@@ -1278,18 +1275,11 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     learner.walletBalance,
   );
 
-  const payableAmount = totalAmount - payment.walletUsed;
+  const walletUsed = payment.walletUsed;
 
-  // 🔹 Deduct wallet balance
-  if (payment.walletUsed > 0) {
-    await this.learnerModel.updateOne(
-      { _id: learnerId },
-      { $inc: { walletBalance: -payment.walletUsed } }
-    );
-  }
+  const payableAmount = totalAmount - walletUsed;
 
-  const bookingMode =
-    slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
+  const bookingMode = slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
 
   // 🔟 Total hours
   const totalHours = lessonHours;
@@ -1318,17 +1308,28 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
 
     totalAmount,
 
-    walletUsed: payment.walletUsed,
+    walletUsed,
     stripeAmount: payment.stripeAmount,
     payableAmount,
 
     bookingMode,
     bookedSlots: slots,
 
-    // 🔹 auto paid if no stripe needed
-    paymentStatus:
-      payment.stripeAmount > 0 ? 'PENDING' : 'PAID',
+    paymentStatus: payment.stripeAmount > 0 ? 'PENDING' : 'PAID',
   });
+
+  // 1️⃣2️⃣ Debit wallet AFTER order creation
+  if (walletUsed > 0) {
+
+    await this.walletService.debitWallet(
+      learnerObjectId,
+      walletUsed,
+      WalletTxnSource.ORDER,
+      order._id,
+      `wallet-${order._id}`,
+    );
+
+  }
 
   return order;
 }
