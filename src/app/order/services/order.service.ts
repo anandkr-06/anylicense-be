@@ -1185,7 +1185,7 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
 
   const lessonHours = dto.lessonHours ?? 0;
 
-  // 3️⃣ Slot durations
+  // 3️⃣ Slot duration
   const lessonSlotHours = lessonSlots.reduce(
     (sum, slot) =>
       sum + this.slotService.getDuration(slot.startTime, slot.endTime),
@@ -1227,10 +1227,10 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     }
   }
 
-  // 6️⃣ Lesson purchase calculation
+  // 6️⃣ Lesson purchase
   const lessonPurchaseAmount = lessonHours * pricePerHour;
 
-  // 🎯 Discount rules
+  // Discount rule
   let discountPercent = 0;
 
   if (lessonHours >= 5 && lessonHours < 10) {
@@ -1245,19 +1245,25 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   const discountedLessonAmount =
     lessonPurchaseAmount - discount;
 
-  // 7️⃣ Booking calculations
+  // 7️⃣ Slot/Test booking cost
   const lessonSlotAmount = lessonSlotHours * pricePerHour;
   const testBookingAmount = testSlots.length * testPrice;
 
   const bookingAmount = lessonSlotAmount + testBookingAmount;
 
-  // 🎯 Platform charge rule
-  const bookingHours = lessonSlotHours + testSlotHours;
+  // 8️⃣ Platform charge calculation
+  const bookingHours = Math.ceil(lessonSlotHours + testSlotHours);
 
   let platformCharge = 0;
 
-  if (bookingAmount > learner.walletBalance) {
-    platformCharge = bookingHours * 2;
+  // Buy lessons → always charge
+  if (lessonHours > 0) {
+    platformCharge += lessonHours * 2;
+  }
+
+  // Slot/Test → only if wallet insufficient
+  if (bookingHours > 0 && learner.walletBalance < bookingAmount) {
+    platformCharge += bookingHours * 2;
   }
 
   const purchaseAmount = discountedLessonAmount;
@@ -1266,7 +1272,7 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
 
   const totalAmount = subtotal + platformCharge;
 
-  // 8️⃣ Wallet + Stripe split
+  // 9️⃣ Wallet + Stripe split
   const payment = this.paymentService.calculatePayment(
     purchaseAmount,
     bookingAmount + platformCharge,
@@ -1278,13 +1284,13 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   const bookingMode =
     slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
 
-  // 9️⃣ Total hours
+  // 🔟 Total hours
   const totalHours = lessonHours;
 
   const remainingHours =
     lessonHours > 0 ? lessonHours - lessonSlotHours : 0;
 
-  // 🔟 Create order
+  // 1️⃣1️⃣ Create order
   const order = await this.orderModel.create({
 
     learnerId,
