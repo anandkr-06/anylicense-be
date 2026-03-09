@@ -36,6 +36,10 @@ import { OrderStatusType, PrivateOrderDetailsResponseDto } from '../dto/private-
 import { PrivateOrderPopulated } from '@interfaces/order.interface';
 import { NormalizedSlot } from '@common/types/express';
 import { InstructorTransaction, InstructorTransactionDocument } from '@common/db/schemas/instructor-transactions.schema';
+import { InstructorService } from './instructorService';
+import { SlotService } from './slotService';
+import { PricingService } from './pricingService';
+import { PaymentService } from './paymentService';
 
 interface InstructorHour {
   startTime: string;
@@ -69,6 +73,12 @@ export class OrderService {
   constructor(
     private readonly userDbService: UserDbService,
     private readonly walletService: WalletService,
+    
+    private readonly instructorService: InstructorService,
+    private readonly slotService:SlotService,
+    private readonly pricingService:PricingService,
+    private readonly paymentService:PaymentService,
+
 
     private readonly privateLearnerService: PrivateLearnerService,
 
@@ -836,7 +846,7 @@ export class OrderService {
 
 
 
-
+/*
   async createOrder(
     learnerId: string,
     dto: CreateOrderDto,
@@ -1015,10 +1025,18 @@ export class OrderService {
       0,
     );
 
-    const walletUsed = Math.min(
-      learner.walletBalance,
-      payableAmount,
-    );
+    // const walletUsed = Math.min(
+    //   learner.walletBalance,
+    //   payableAmount,
+    // );
+    let walletUsed = 0;
+
+if (dto.useWallet) {
+  walletUsed = Math.min(
+    learner.walletBalance,
+    payableAmount,
+  );
+}
 
     const stripeAmount = Math.max(
       payableAmount + platformCharge - walletUsed,
@@ -1144,10 +1162,161 @@ export class OrderService {
     return order;
   }
 
+*/
 
 
 
 
+
+async createOrder(learnerId: string, dto: CreateOrderDto) {
+
+  // 1️⃣ Instructor pricing
+  const { instructor, pricePerHour, testPrice } =
+    await this.instructorService.getVehiclePricing(
+      dto.instructorId,
+      dto.vehicleType,
+    );
+
+  // 2️⃣ Normalize slots
+  const slots = this.slotService.normalizeSlots(dto.slots ?? []);
+
+  const lessonSlots = slots.filter(s => s.type === 'LESSON');
+  const testSlots = slots.filter(s => s.type === 'TEST');
+
+  const lessonHours = dto.lessonHours ?? 0;
+
+  // 3️⃣ Slot durations
+  const lessonSlotHours = lessonSlots.reduce(
+    (sum, slot) =>
+      sum + this.slotService.getDuration(slot.startTime, slot.endTime),
+    0,
+  );
+
+  const testSlotHours = testSlots.length * 2.5;
+
+  const usedHours = lessonSlotHours + testSlotHours;
+
+  // 4️⃣ Validate learner
+  const learner = await this.learnerModel.findById(learnerId);
+
+  if (!learner) {
+    throw new NotFoundException('Learner not found');
+  }
+
+  // 5️⃣ Existing package check
+  let existingOrder = null;
+
+  if (lessonSlots.length > 0 && !lessonHours) {
+
+    existingOrder = await this.orderModel.findOne({
+      learnerId: new Types.ObjectId(learnerId),
+      instructorId: new Types.ObjectId(dto.instructorId),
+      paymentStatus: { $in: ['PAID', 'PENDING'] },
+    });
+
+    if (existingOrder && existingOrder.remainingHours >= lessonSlotHours) {
+
+      existingOrder.usedHours += lessonSlotHours;
+      existingOrder.remainingHours -= lessonSlotHours;
+
+      existingOrder.bookedSlots.push(...slots);
+
+      await existingOrder.save();
+
+      return existingOrder;
+    }
+  }
+
+  // 6️⃣ Lesson purchase calculation
+  const lessonPurchaseAmount = lessonHours * pricePerHour;
+
+  // 🎯 Discount rules
+  let discountPercent = 0;
+
+  if (lessonHours >= 5 && lessonHours < 10) {
+    discountPercent = 5;
+  } else if (lessonHours >= 10) {
+    discountPercent = 10;
+  }
+
+  const discount =
+    (lessonPurchaseAmount * discountPercent) / 100;
+
+  const discountedLessonAmount =
+    lessonPurchaseAmount - discount;
+
+  // 7️⃣ Booking calculations
+  const lessonSlotAmount = lessonSlotHours * pricePerHour;
+  const testBookingAmount = testSlots.length * testPrice;
+
+  const bookingAmount = lessonSlotAmount + testBookingAmount;
+
+  // 🎯 Platform charge rule
+  const bookingHours = lessonSlotHours + testSlotHours;
+
+  let platformCharge = 0;
+
+  if (bookingAmount > learner.walletBalance) {
+    platformCharge = bookingHours * 2;
+  }
+
+  const purchaseAmount = discountedLessonAmount;
+
+  const subtotal = purchaseAmount + bookingAmount;
+
+  const totalAmount = subtotal + platformCharge;
+
+  // 8️⃣ Wallet + Stripe split
+  const payment = this.paymentService.calculatePayment(
+    purchaseAmount,
+    bookingAmount + platformCharge,
+    learner.walletBalance,
+  );
+
+  const payableAmount = totalAmount - payment.walletUsed;
+
+  const bookingMode =
+    slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
+
+  // 9️⃣ Total hours
+  const totalHours = lessonHours;
+
+  const remainingHours =
+    lessonHours > 0 ? lessonHours - lessonSlotHours : 0;
+
+  // 🔟 Create order
+  const order = await this.orderModel.create({
+
+    learnerId,
+    instructorId: instructor._id,
+
+    vehicleType: dto.vehicleType,
+    pricePerHour,
+
+    totalHours,
+    usedHours,
+    remainingHours,
+
+    purchaseAmount,
+    bookingAmount,
+
+    discount,
+    platformCharge,
+
+    totalAmount,
+
+    walletUsed: payment.walletUsed,
+    stripeAmount: payment.stripeAmount,
+    payableAmount,
+
+    bookingMode,
+    bookedSlots: slots,
+
+    paymentStatus: 'PENDING',
+  });
+
+  return order;
+}
 
   // =========================================
   private amPmTo24(time: string): string {

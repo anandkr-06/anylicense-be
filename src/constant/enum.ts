@@ -40,3 +40,7 @@ export enum FeedbackType {
     CANCELLED = 'CANCELLED',
   }
   
+  export enum VehicleType {
+    AUTO = 'auto',
+    MANUAL = 'manual',
+  }
