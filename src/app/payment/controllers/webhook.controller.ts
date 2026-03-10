@@ -96,7 +96,7 @@ console.log("webhook",process.env['STRIPE_WEBHOOK_SECRET']);
     try {
 
       const rawBody = (req as any).rawBody;
-
+      console.log("rawBody:", rawBody);
       console.log("IsBuffer:", Buffer.isBuffer(rawBody));
       
       event = this.stripe.webhooks.constructEvent(
