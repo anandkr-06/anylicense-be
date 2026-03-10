@@ -1,25 +1,47 @@
+// import { NestFactory } from '@nestjs/core';
+// import { AppModule } from './app.module';
+// import * as bodyParser from 'body-parser';
+// const cookieParser = require("cookie-parser"); // ✅ CORRECT
+// async function bootstrap() {
+//   const app = await NestFactory.create(AppModule, {
+//     bodyParser: false, // 🔥 REQUIRED
+//   });
+
+//   // 🔥 Stripe webhook MUST be raw
+//   app.use(
+//     '/webhooks/stripe',
+//     bodyParser.raw({ type: 'application/json' }),
+//   );
+//   app.use(cookieParser());   // 👈 REQUIRED
+//   // ✅ JSON for rest of app
+//   app.use(bodyParser.json());
+
+//   app.setGlobalPrefix('api');
+//   app.enableCors({ origin: '*' });
+
+//   await app.listen(3001);
+//   console.log('🚀 Server running on http://localhost:3001');
+// }
+
+// bootstrap();
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import * as bodyParser from 'body-parser';
-const cookieParser = require("cookie-parser"); // ✅ CORRECT
+// const cookieParser = require('cookie-parser');
+
 async function bootstrap() {
+
   const app = await NestFactory.create(AppModule, {
-    bodyParser: false, // 🔥 REQUIRED
+    rawBody: true,
   });
 
-  // 🔥 Stripe webhook MUST be raw
-  app.use(
-    '/webhooks/stripe',
-    bodyParser.raw({ type: 'application/json' }),
-  );
-  app.use(cookieParser());   // 👈 REQUIRED
-  // ✅ JSON for rest of app
-  app.use(bodyParser.json());
+  //app.use(cookieParser());
 
   app.setGlobalPrefix('api');
   app.enableCors({ origin: '*' });
 
   await app.listen(3001);
+
   console.log('🚀 Server running on http://localhost:3001');
 }
 
