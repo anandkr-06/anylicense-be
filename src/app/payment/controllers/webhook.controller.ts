@@ -96,6 +96,7 @@ export class StripeWebhookController {
       signature,
       process.env['STRIPE_WEBHOOK_SECRET']!,
     );
+    console.log("IsBuffer:", Buffer.isBuffer(req.body));
   } catch (err) {
     console.error('❌ Stripe signature verification failed:', err);
     return { received: false };
