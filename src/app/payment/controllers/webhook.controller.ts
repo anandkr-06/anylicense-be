@@ -101,6 +101,7 @@ export class StripeWebhookController {
     console.error('❌ Stripe signature verification failed:', err);
     return { received: false };
   }
+  console.log('✅ Stripe Event:', event.type);
 
     /* -------------------------------------------
        PAYMENT SUCCESS
