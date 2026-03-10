@@ -9,8 +9,8 @@ async function bootstrap() {
   });
 
   // Normal parsers for other routes
-  app.use(bodyParser.json());
-  app.use(bodyParser.urlencoded({ extended: true }));
+  // app.use(bodyParser.json());
+  // app.use(bodyParser.urlencoded({ extended: true }));
 
   app.setGlobalPrefix('api');
   app.enableCors({ origin: '*' });
@@ -21,3 +21,5 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
