@@ -93,9 +93,9 @@ export class StripeWebhookController {
 
     try {
 
-      const rawBody = (req as any).rawBody ?? req.body;
+      const rawBody = (req as any).rawBody;
     
-      console.log("rawBody exists:", !!rawBody);
+      console.log("IsBuffer:", Buffer.isBuffer(rawBody));
     
       event = this.stripe.webhooks.constructEvent(
         rawBody,
