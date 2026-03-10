@@ -90,8 +90,9 @@ export class StripeWebhookController {
   ) {
     let event: Stripe.Event;
     const sig = req.headers['stripe-signature'];
-    console.log("sig",sig)
-
+    console.log("sig=",sig)
+    console.log("signature=",sig)
+console.log("webhook",process.env['STRIPE_WEBHOOK_SECRET']);
     try {
 
       const rawBody = (req as any).rawBody;
