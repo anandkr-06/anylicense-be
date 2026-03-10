@@ -89,27 +89,27 @@ export class StripeWebhookController {
     @Headers('stripe-signature') signature: string,
   ) {
     let event: Stripe.Event;
-    const sig = req.headers['stripe-signature'];
-    console.log("sig=",sig)
-    console.log("signature=",sig)
-    console.log("webhook",process.env['STRIPE_WEBHOOK_SECRET']);
+
     try {
 
       const rawBody = (req as any).rawBody;
-      console.log("req.body:", req.body);
-      console.log("IsBuffer:", Buffer.isBuffer(rawBody));
-      
+
+      console.log('IsBuffer:', Buffer.isBuffer(rawBody));
+      console.log('Signature:', signature);
+
       event = this.stripe.webhooks.constructEvent(
-        req.body, // must be Buffer,
+        rawBody, // ✅ MUST be raw body
         signature,
         process.env['STRIPE_WEBHOOK_SECRET']!,
       );
 
-} catch (err) {
-  console.error('❌ Stripe signature verification failed:', err);
-  return { received: false };
-}
-  
+    } catch (err) {
+
+      console.error('❌ Stripe signature verification failed:', err);
+      return { received: false };
+
+    }
+
     console.log('✅ Stripe Event:', event.type);
 
     /* -------------------------------------------
