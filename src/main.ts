@@ -8,8 +8,8 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  // ✅ Stripe webhook raw body
-  app.use('/webhooks/stripe', bodyParser.raw({ type: 'application/json' }));
+  // Stripe webhook MUST stay raw
+  app.use('/webhooks/stripe', bodyParser.raw({ type: '*/*' }));
 
   app.use(cookieParser());
 
