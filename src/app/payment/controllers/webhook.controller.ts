@@ -310,17 +310,11 @@ console.log('Updated order result:', order);
       await this.referralService.rewardReferral(order.learnerId, order._id);
     }
 
-    console.log("wallet update",order.learnerId,
-      order.walletCreditAfterBooking,
-      WalletTxnSource.ORDER_REMAINING,
-      order._id,
-      intent.id,
-      cardMeta,)
     // ✅ Wallet remaining credit (UNCHANGED)
-    if (order.walletCreditAfterBooking > 0) {
+    if (order.stripeAmount > 0) {
       await this.walletService.creditWallet(
         order.learnerId,
-        order.walletCreditAfterBooking,
+        order.stripeAmount,
         WalletTxnSource.ORDER_REMAINING,
         order._id,
         intent.id,
