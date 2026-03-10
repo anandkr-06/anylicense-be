@@ -10,14 +10,22 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // ⭐ Capture RAW body for Stripe
+  // app.use(
+  //   bodyParser.json({
+  //     verify: (req: any, res, buf) => {
+  //       if (req.originalUrl.includes('/webhooks/stripe')) {
+  //         req.rawBody = buf;
+  //       }
+  //     },
+  //   }),
+  // );
+
+  
+
+  // Stripe webhook raw body
   app.use(
-    bodyParser.json({
-      verify: (req: any, res, buf) => {
-        if (req.originalUrl.includes('/webhooks/stripe')) {
-          req.rawBody = buf;
-        }
-      },
-    }),
+    '/api/webhooks/stripe',
+    bodyParser.raw({ type: 'application/json' }),
   );
 
   app.setGlobalPrefix('api');
