@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
+    rawBody: true,
   });
 
   // Stripe webhook MUST stay raw
