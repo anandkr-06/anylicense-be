@@ -29,7 +29,6 @@ import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-ser
 @Controller('webhooks/stripe')
 export class StripeWebhookController {
   private stripe = new Stripe(process.env['STRIPE_SECRET_KEY']!, {
-    //apiVersion: '2024-06-20',
     apiVersion: '2025-12-15.clover',
   });
 
@@ -88,11 +87,29 @@ export class StripeWebhookController {
     @Req() req: Request,
     @Headers('stripe-signature') signature: string,
   ) {
-    const event = this.stripe.webhooks.constructEvent(
-      req.body,
-      signature,
+    const rawBody = (req as any).rawBody;
+
+    console.log('IsBuffer:', Buffer.isBuffer(rawBody));
+    console.log('Body length:', rawBody?.length);
+
+    let event: Stripe.Event;
+
+    try {
+
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
       process.env['STRIPE_WEBHOOK_SECRET']!,
-    );
+      );
+
+    } catch (err) {
+
+      console.error('❌ Stripe signature verification failed:', err);
+      return { received: false };
+
+    }
+
+    console.log('✅ Stripe event:', event.type);
 
     /* -------------------------------------------
        PAYMENT SUCCESS
