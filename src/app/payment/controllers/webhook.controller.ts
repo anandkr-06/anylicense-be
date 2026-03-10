@@ -89,7 +89,8 @@ export class StripeWebhookController {
     @Headers('stripe-signature') signature: string,
   ) {
     let event: Stripe.Event;
-  
+    const sig = req.headers['stripe-signature'];
+    console.log("sig",sig)
 
     try {
 
