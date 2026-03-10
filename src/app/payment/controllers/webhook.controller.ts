@@ -280,72 +280,56 @@ export class StripeWebhookController {
 
 
 
-//   private async handlePublicOrderSuccess(
-//     intent: Stripe.PaymentIntent,
-//     metadata: StripeIntentMetadata,
-//     cardMeta: StripeCardMeta,
-//   ) {
-//     const orderId = new Types.ObjectId(metadata.orderId);
+  private async handlePublicOrderSuccess(
+    intent: Stripe.PaymentIntent,
+    metadata: StripeIntentMetadata,
+    cardMeta: StripeCardMeta,
+  ) {
+    const orderId = new Types.ObjectId(metadata.orderId);
 
-//     console.log('Updating order:', metadata.orderId);
+    console.log('Updating order:', metadata.orderId);
 
-//     const order = await this.orderModel.findByIdAndUpdate(
-//       orderId,
-//       {
-//         status: 'CONFIRMED',
-//         paymentStatus: 'PAID',
-//       },
-//       { new: true },
-//     );
-// console.log('Updated order result:', order);
-//     if (!order) return;
+    const order = await this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+      },
+      { new: true },
+    );
+console.log('Updated order result:', order);
+    if (!order) return;
 
-//     // ✅ Referral (UNCHANGED)
-//     const confirmedCount = await this.orderModel.countDocuments({
-//       learnerId: order.learnerId,
-//       status: 'CONFIRMED',
-//     });
-
-//     if (confirmedCount === 1) {
-//       await this.referralService.rewardReferral(order.learnerId, order._id);
-//     }
-
-//     // ✅ Wallet remaining credit (UNCHANGED)
-//     if (order.walletCreditAfterBooking > 0) {
-//       await this.walletService.creditWallet(
-//         order.learnerId,
-//         order.walletCreditAfterBooking,
-//         WalletTxnSource.ORDER_REMAINING,
-//         order._id,
-//         intent.id,
-//         cardMeta,
-//       );
-//     }
-//   }
-
-private async handlePublicOrderSuccess(
-  intent: Stripe.PaymentIntent,
-  metadata: StripeIntentMetadata,
-  cardMeta: StripeCardMeta,
-) {
-
-  console.log('Updating order:', metadata.orderId);
-
-  const orderId = new Types.ObjectId(metadata.orderId);
-
-  const order = await this.orderModel.findByIdAndUpdate(
-    orderId,
-    {
+    // ✅ Referral (UNCHANGED)
+    const confirmedCount = await this.orderModel.countDocuments({
+      learnerId: order.learnerId,
       status: 'CONFIRMED',
-      paymentStatus: 'PAID',
-    },
-    { new: true },
-  );
+    });
 
-  console.log('Updated order result:', order);
+    if (confirmedCount === 1) {
+      await this.referralService.rewardReferral(order.learnerId, order._id);
+    }
 
-  if (!order) return;
-}
+    console.log("wallet update",order.learnerId,
+      order.walletCreditAfterBooking,
+      WalletTxnSource.ORDER_REMAINING,
+      order._id,
+      intent.id,
+      cardMeta,)
+    // ✅ Wallet remaining credit (UNCHANGED)
+    if (order.walletCreditAfterBooking > 0) {
+      await this.walletService.creditWallet(
+        order.learnerId,
+        order.walletCreditAfterBooking,
+        WalletTxnSource.ORDER_REMAINING,
+        order._id,
+        intent.id,
+        cardMeta,
+      );
+    }
+  }
+
+
 
   private async handlePrivateOrderSuccess(
     intent: Stripe.PaymentIntent,
