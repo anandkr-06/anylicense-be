@@ -100,7 +100,7 @@ export class StripeWebhookController {
       event = this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        "whsec_K4f20Jglx6S1lfT44QkhhzREm6mFt30l"
+        process.env['STRIPE_WEBHOOK_SECRET']!,
       );
 
 } catch (err) {
