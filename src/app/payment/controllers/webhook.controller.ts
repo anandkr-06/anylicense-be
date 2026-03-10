@@ -94,6 +94,10 @@ export class StripeWebhookController {
       process.env['STRIPE_WEBHOOK_SECRET']!,
     );
 
+    console.log("Signature:", signature);
+console.log("Webhook Secret:", process.env['STRIPE_WEBHOOK_SECRET']);
+console.log("Is Buffer:", Buffer.isBuffer(req.body));
+
     /* -------------------------------------------
        PAYMENT SUCCESS
     -------------------------------------------- */
