@@ -1,24 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
-const cookieParser = require("cookie-parser");
+const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bodyParser: false,
-    rawBody: true,
-  });
 
-  // Stripe webhook MUST stay raw
-  app.use('/webhooks/stripe', bodyParser.raw({ type: '*/*' }));
+  const app = await NestFactory.create(AppModule);
 
   app.use(cookieParser());
 
-  // normal JSON parser
-  app.use(bodyParser.json());
+  // ⭐ Capture RAW body for Stripe
+  app.use(
+    bodyParser.json({
+      verify: (req: any, res, buf) => {
+        if (req.originalUrl.includes('/webhooks/stripe')) {
+          req.rawBody = buf;
+        }
+      },
+    }),
+  );
 
   app.setGlobalPrefix('api');
-
   app.enableCors({ origin: '*' });
 
   await app.listen(3001);
