@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(
-    '/api/webhooks/stripe',
+    '/webhooks/stripe',
     bodyParser.raw({ type: 'application/json' }),
   );
 
