@@ -92,15 +92,15 @@ export class StripeWebhookController {
     const sig = req.headers['stripe-signature'];
     console.log("sig=",sig)
     console.log("signature=",sig)
-console.log("webhook",process.env['STRIPE_WEBHOOK_SECRET']);
+    console.log("webhook",process.env['STRIPE_WEBHOOK_SECRET']);
     try {
 
       const rawBody = (req as any).rawBody;
-      console.log("rawBody:", rawBody);
+      console.log("req.body:", req.body);
       console.log("IsBuffer:", Buffer.isBuffer(rawBody));
       
       event = this.stripe.webhooks.constructEvent(
-        rawBody,
+        req.body, // must be Buffer,
         signature,
         process.env['STRIPE_WEBHOOK_SECRET']!,
       );

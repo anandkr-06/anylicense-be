@@ -27,13 +27,22 @@
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-// const cookieParser = require('cookie-parser');
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
+    bodyParser: false,
   });
+
+  app.use(
+    '/webhooks/stripe',
+    bodyParser.raw({ type: 'application/json' }),
+  );
+  
+  app.use(bodyParser.json());
+  app.use(bodyParser.urlencoded({ extended: true }));
 
   //app.use(cookieParser());
 
