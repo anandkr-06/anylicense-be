@@ -106,6 +106,8 @@ export class StripeService {
       metadata,
     });
   
+    console.log('Stripe metadata:', metadata);
+    
     // 4️⃣ Save payment record
     await this.paymentModel.create({
       orderId: order._id,
