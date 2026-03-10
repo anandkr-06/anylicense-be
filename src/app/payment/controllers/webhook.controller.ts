@@ -99,7 +99,7 @@ export class StripeWebhookController {
       event = this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
-      process.env['STRIPE_WEBHOOK_SECRET']!,
+        process.env['STRIPE_WEBHOOK_SECRET']!,
       );
 
     } catch (err) {
@@ -185,7 +185,7 @@ export class StripeWebhookController {
           metadata.giftVoucherId,
           intent.id,
         );
-        
+
         return { received: true };
       }
 
@@ -230,7 +230,7 @@ export class StripeWebhookController {
       ) {
         await this.giftVoucherService.markFailed(metadata.giftVoucherId);
       }
-      
+
     }
 
     /* -------------------------------------------
@@ -297,7 +297,7 @@ export class StripeWebhookController {
       },
       { new: true },
     );
-console.log('Updated order result:', order);
+
     if (!order) return;
 
     // ✅ Referral (UNCHANGED)

@@ -1250,7 +1250,8 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   const bookingAmount = lessonSlotAmount + testBookingAmount;
 
   // 8️⃣ Platform charge
-  const bookingHours = Math.ceil(lessonSlotHours + testSlotHours);
+  // const bookingHours = Math.ceil(lessonSlotHours + testSlotHours);
+  const bookingHours = (lessonSlotHours + testSlotHours);
 
   let platformCharge = 0;
 
