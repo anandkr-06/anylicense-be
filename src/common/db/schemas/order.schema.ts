@@ -52,6 +52,9 @@ export class Order {
   @Prop({ default: 0 })
   payableAmount!: number;
 
+  @Prop({ default: 0 })
+  purchaseAmount!: number;   // ✅ ADD THIS
+
   @Prop({ enum: ['NOT_REQUIRED', 'PENDING', 'PAID'], required: true })
   paymentStatus!: 'NOT_REQUIRED' | 'PENDING' | 'PAID';
 
