@@ -280,15 +280,58 @@ export class StripeWebhookController {
 
 
 
+  // private async handlePublicOrderSuccess(
+  //   intent: Stripe.PaymentIntent,
+  //   metadata: StripeIntentMetadata,
+  //   cardMeta: StripeCardMeta,
+  // ) {
+  //   const orderId = new Types.ObjectId(metadata.orderId);
+
+  //   console.log('Updating order:', metadata.orderId);
+
+  //   const order = await this.orderModel.findByIdAndUpdate(
+  //     orderId,
+  //     {
+  //       status: 'CONFIRMED',
+  //       paymentStatus: 'PAID',
+  //     },
+  //     { new: true },
+  //   );
+
+  //   if (!order) return;
+
+  //   // ✅ Referral (UNCHANGED)
+  //   const confirmedCount = await this.orderModel.countDocuments({
+  //     learnerId: order.learnerId,
+  //     status: 'CONFIRMED',
+  //   });
+
+  //   if (confirmedCount === 1) {
+  //     await this.referralService.rewardReferral(order.learnerId, order._id);
+  //   }
+
+  //   // ✅ Wallet remaining credit (UNCHANGED)
+  //   if (order.stripeAmount > 0) {
+  //     await this.walletService.creditWallet(
+  //       order.learnerId,
+  //       order.stripeAmount,
+  //       WalletTxnSource.ORDER_REMAINING,
+  //       order._id,
+  //       intent.id,
+  //       cardMeta,
+  //     );
+  //   }
+  // }
+
   private async handlePublicOrderSuccess(
     intent: Stripe.PaymentIntent,
     metadata: StripeIntentMetadata,
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-
+  
     console.log('Updating order:', metadata.orderId);
-
+  
     const order = await this.orderModel.findByIdAndUpdate(
       orderId,
       {
@@ -297,25 +340,33 @@ export class StripeWebhookController {
       },
       { new: true },
     );
-
+  
     if (!order) return;
-
-    // ✅ Referral (UNCHANGED)
+  
+    /* -----------------------------
+       REFERRAL
+    ----------------------------- */
     const confirmedCount = await this.orderModel.countDocuments({
       learnerId: order.learnerId,
       status: 'CONFIRMED',
     });
-
+  
     if (confirmedCount === 1) {
       await this.referralService.rewardReferral(order.learnerId, order._id);
     }
-
-    // ✅ Wallet remaining credit (UNCHANGED)
-    if (order.stripeAmount > 0) {
+  
+    /* -----------------------------
+       WALLET CREDIT LOGIC
+    ----------------------------- */
+  
+    const lessonAmount = order.totalHours * order.pricePerHour;
+  
+    // Only credit if lessons were purchased
+    if (lessonAmount > 0) {
       await this.walletService.creditWallet(
         order.learnerId,
-        order.stripeAmount,
-        WalletTxnSource.ORDER_REMAINING,
+        lessonAmount,
+        WalletTxnSource.ORDER,
         order._id,
         intent.id,
         cardMeta,
