@@ -3,6 +3,7 @@ import {
   Post,
   Req,
   Headers,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -24,6 +25,7 @@ import { Public } from '@common/decorators/public.decorator';
 import { ReferralService } from '../services/referral.service';
 import { PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
+import { NormalizedSlot } from '@common/types/express';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -330,22 +332,47 @@ export class StripeWebhookController {
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
   
-    console.log('Updating order:', metadata.orderId);
-  
-    const order = await this.orderModel.findByIdAndUpdate(
-      orderId,
-      {
-        status: 'CONFIRMED',
-        paymentStatus: 'PAID',
-      },
-      { new: true },
-    );
+    const order = await this.orderModel.findById(orderId);
   
     if (!order) return;
+  
+    // 🚨 Prevent duplicate webhook processing
+    if (order.status === 'CONFIRMED') {
+      return;
+    }
+  
+    order.status = 'CONFIRMED';
+    order.paymentStatus = 'PAID';
+    await order.save();
+  
+    /* -----------------------------
+       ATTACH SLOTS (IMPORTANT)
+    ----------------------------- */
+  
+    if (order.bookedSlots?.length) {
+  
+      const instructor = await this.instructorProfileModel.findById(
+        order.instructorId,
+      );
+  
+      if (instructor) {
+  
+        for (const slot of order.bookedSlots) {
+          this.attachBookingByRange(
+            instructor,
+            slot,
+            order._id,
+          );
+        }
+  
+        await instructor.save();
+      }
+    }
   
     /* -----------------------------
        REFERRAL
     ----------------------------- */
+  
     const confirmedCount = await this.orderModel.countDocuments({
       learnerId: order.learnerId,
       status: 'CONFIRMED',
@@ -356,12 +383,11 @@ export class StripeWebhookController {
     }
   
     /* -----------------------------
-       WALLET CREDIT LOGIC
+       WALLET CREDIT (LESSON PURCHASE)
     ----------------------------- */
   
     const lessonAmount = order.totalHours * order.pricePerHour;
   
-    // Only credit if lessons were purchased
     if (lessonAmount > 0) {
       await this.walletService.creditWallet(
         order.learnerId,
@@ -388,5 +414,83 @@ export class StripeWebhookController {
       stripePaymentIntentId: intent.id,
     });
   }
+
+
+  private toMinutes(time: string): number {
+    const [t = '0:0', meridian = 'AM'] = time.split(' ');
+  
+    const [hoursStr = '0', minutesStr = '0'] = t.split(':');
+  
+    const hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+  
+    let h = hours;
+  
+    if (meridian === 'PM' && hours !== 12) h += 12;
+    if (meridian === 'AM' && hours === 12) h = 0;
+  
+    return h * 60 + minutes;
+  }
+  
+  private attachBookingByRange(
+     instructor: InstructorProfileDocument,
+     slot: NormalizedSlot,
+     orderId: Types.ObjectId,
+   ): void {
+     const reqStart = this.toMinutes(slot.startTime);
+     const reqEnd = this.toMinutes(slot.endTime);
+ 
+     for (const week of instructor.availability.weeks) {
+       const day = week.days.find(d => d.date === slot.date);
+       if (!day) continue;
+ 
+       // 1️⃣ Validate requested slot fits inside availability
+       const insideAvailability = day.slots.some(s => {
+         const sStart = this.toMinutes(s.startTime);
+         const sEnd = this.toMinutes(s.endTime);
+         return reqStart >= sStart && reqEnd <= sEnd;
+       });
+ 
+       if (!insideAvailability) {
+         throw new BadRequestException(
+           `Requested slot ${slot.startTime}-${slot.endTime} is outside availability`,
+         );
+       }
+ 
+       // 2️⃣ Check overlap with booked slots
+       const conflict = day.slots.some(s => {
+         if (!s.isBooked) return false;
+ 
+         const bStart = this.toMinutes(s.startTime);
+         const bEnd = this.toMinutes(s.endTime);
+ 
+         return reqStart < bEnd && reqEnd > bStart;
+       });
+ 
+       if (conflict) {
+         throw new BadRequestException(
+           `Requested slot overlaps an existing booking on ${slot.date}`,
+         );
+       }
+ 
+       // 3️⃣ Insert booked slot
+       day.slots.push({
+         startTime: slot.startTime,
+         endTime: slot.endTime,
+         isBooked: true,
+         bookingId: orderId,
+         type: slot.type,
+         pickupAddress: slot.pickupAddress,
+         suburb: slot.suburb,
+         state: slot.state,
+       } as any);
+ 
+       return;
+     }
+ 
+     throw new BadRequestException(
+       `Instructor not available on ${slot.date}`,
+     );
+   }
 
 }
