@@ -77,8 +77,12 @@ export class LearnerService {
       .lean<any[]>();
   
     // ✅ STEP 1: Check if ANY booked slot exists
-    const hasBookedSlot = orders.some(order =>
-      ['CONFIRMED', 'PAID'].includes(order.status),
+    // const hasBookedSlot = orders.some(order =>
+    //   ['CONFIRMED', 'PAID'].includes(order.status),
+    // );
+
+    const hasBookedSlot = orders.some(
+      order => order.status === 'CONFIRMED' || order.paymentStatus === 'PAID',
     );
   
     // ✅ STEP 2: If NO booked slot → return empty list
