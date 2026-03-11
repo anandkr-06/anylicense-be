@@ -281,6 +281,7 @@ export class InstructorProfile {
         suburbId: { type: String, default: null },
         lat: { type: Number, default: null },
         long: { type: Number, default: null },
+        state: { type: String, required: false },
       },
     ],
     default: [],
@@ -292,6 +293,7 @@ export class InstructorProfile {
     suburbId?: string;
     lat?: number;
     long?: number;
+    state?: string;   // ✅ ADD THIS
   }[];
 
   @Prop({

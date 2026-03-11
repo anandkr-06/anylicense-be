@@ -1708,7 +1708,7 @@ export class InstructorService {
       .lean();
 
     return this.payoutModel
-      .find({ instructorId: new (require('mongoose').Types.ObjectId)(instructor?._id) })
+      .find({ instructorId: new (require('mongoose').Types.ObjectId)(instructor?._id), })
       .sort({ createdAt: -1 });
   }
 
