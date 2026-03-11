@@ -1217,13 +1217,30 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
 
     if (existingOrder && existingOrder.remainingHours >= lessonSlotHours) {
 
+      const instructorDoc = await this.instructorProfileModel.findById(
+        instructor._id,
+      );
+    
+      if (!instructorDoc) {
+        throw new NotFoundException('Instructor not found');
+      }
+    
+      for (const slot of slots) {
+        this.attachBookingByRange(
+          instructorDoc,
+          slot,
+          existingOrder._id,
+        );
+      }
+    
+      await instructorDoc.save();
+    
       existingOrder.usedHours += lessonSlotHours;
       existingOrder.remainingHours -= lessonSlotHours;
-
       existingOrder.bookedSlots.push(...slots);
-
+    
       await existingOrder.save();
-
+    
       return existingOrder;
     }
   }
@@ -1329,18 +1346,45 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
     status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
   });
 
+
   // 1️⃣2️⃣ Debit wallet AFTER order creation
-  if (walletUsed > 0) {
+if (walletUsed > 0) {
 
-    await this.walletService.debitWallet(
-      learnerObjectId,
-      walletUsed,
-      WalletTxnSource.ORDER,
-      order._id,
-      `wallet-${order._id}`,
-    );
+  await this.walletService.debitWallet(
+    learnerObjectId,
+    walletUsed,
+    WalletTxnSource.ORDER,
+    order._id,
+    `wallet-${order._id}`,
+  );
 
+}
+
+/* 1️⃣3️⃣ Attach slots immediately ONLY if wallet fully paid */
+if (
+  stripeAmount === 0 &&
+  slots.length > 0 &&
+  order.status === 'CONFIRMED'
+) {
+
+  const instructorDoc = await this.instructorProfileModel.findById(
+    instructor._id,
+  );
+
+  if (!instructorDoc) {
+    throw new NotFoundException('Instructor not found');
   }
+
+  for (const slot of slots) {
+    this.attachBookingByRange(
+      instructorDoc,
+      slot,
+      order._id,
+    );
+  }
+
+  await instructorDoc.save();
+}
 
   return order;
 }
