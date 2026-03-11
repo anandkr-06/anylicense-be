@@ -387,18 +387,24 @@ export class StripeWebhookController {
     ----------------------------- */
   
   
-    if (order.purchaseAmount > 0 && order.walletCredited === 0) {
+    const lessonWalletAmount = order.totalHours * order.pricePerHour;
 
+    if (
+      order.totalHours > 0 &&
+      lessonWalletAmount > 0 &&
+      order.walletCredited === 0
+    ) {
+    
       await this.walletService.creditWallet(
         order.learnerId,
-        order.purchaseAmount,
+        lessonWalletAmount,
         WalletTxnSource.ORDER,
         order._id,
         intent.id,
         cardMeta,
       );
     
-      order.walletCredited = order.purchaseAmount;
+      order.walletCredited = lessonWalletAmount;
       await order.save();
     }
   }
