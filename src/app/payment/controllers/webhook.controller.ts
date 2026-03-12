@@ -472,57 +472,57 @@ export class StripeWebhookController {
     slot: NormalizedSlot,
     orderId: Types.ObjectId,
   ): void {
+  
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-
+  
     for (const week of instructor.availability.weeks) {
+  
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-
-      // 1️⃣ Validate requested slot fits inside availability
-      const insideAvailability = day.slots.some(s => {
+  
+      /* CHECK OVERLAP */
+  
+      const conflict = day.slots.some(s => {
+  
+        if (!s.isBooked) return false;
+  
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-        return reqStart >= sStart && reqEnd <= sEnd;
+  
+        return reqStart < sEnd && reqEnd > sStart;
       });
-
-      if (!insideAvailability) {
-        throw new BadRequestException(
-          `Requested slot ${slot.startTime}-${slot.endTime} is outside availability`,
-        );
-      }
-
-      // 2️⃣ Check overlap with booked slots
-      const conflict = day.slots.some(s => {
-        if (!s.isBooked) return false;
-
-        const bStart = this.toMinutes(s.startTime);
-        const bEnd = this.toMinutes(s.endTime);
-
-        return reqStart < bEnd && reqEnd > bStart;
-      });
-
+  
       if (conflict) {
         throw new BadRequestException(
-          `Requested slot overlaps an existing booking on ${slot.date}`,
+          `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
         );
       }
-
-      // 3️⃣ Insert booked slot
-      day.slots.push({
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        isBooked: true,
-        bookingId: orderId,
-        type: slot.type,
-        pickupAddress: slot.pickupAddress,
-        suburb: slot.suburb,
-        state: slot.state,
-      } as any);
-
+  
+      /* FIND AVAILABLE SLOT */
+  
+      const availabilitySlot = day.slots.find(s => {
+  
+        const sStart = this.toMinutes(s.startTime);
+        const sEnd = this.toMinutes(s.endTime);
+  
+        return reqStart >= sStart && reqEnd <= sEnd && !s.isBooked;
+      });
+  
+      if (!availabilitySlot) {
+        throw new BadRequestException(
+          `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
+        );
+      }
+  
+      /* BOOK SLOT */
+  
+      availabilitySlot.isBooked = true;
+      availabilitySlot.bookingId = orderId;
+  
       return;
     }
-
+  
     throw new BadRequestException(
       `Instructor not available on ${slot.date}`,
     );

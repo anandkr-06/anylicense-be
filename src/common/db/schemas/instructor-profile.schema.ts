@@ -176,6 +176,9 @@ export class TimeSlot {
   @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
   bookingId?: Types.ObjectId;
 
+  // @Prop({ enum: ['LESSON', 'TEST'], required: false })
+  // type?: string;
+
   @Prop({ type: String, default: null })
   pickupAddress?: string;
 
@@ -354,7 +357,7 @@ export class InstructorProfile {
     avg: number;
     total: number;
   };
-  
+
 
   @Prop({ default: false })
   isVerified!: boolean;
