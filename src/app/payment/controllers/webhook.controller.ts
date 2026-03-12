@@ -540,29 +540,70 @@ export class StripeWebhookController {
   }
 
 
+  // private async validateSlotConflict(
+  //   order: OrderDocument,
+  //   slot: NormalizedSlot,
+  // ){
+  
+  //   const conflict = await this.orderModel.findOne({
+  //     instructorId: order.instructorId,
+  //     _id: { $ne: order._id },
+  //     paymentStatus: 'PAID',
+  //     status: 'CONFIRMED',
+  //     bookedSlots: {
+  //       $elemMatch: {
+  //         date: slot.date,
+  //         startTime: { $lt: slot.endTime },
+  //         endTime: { $gt: slot.startTime },
+  //       },
+  //     },
+  //   });
+  
+  //   if (conflict) {
+  //     throw new BadRequestException(
+  //       `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
+  //     );
+  //   }
+  // }
+
   private async validateSlotConflict(
     order: OrderDocument,
     slot: NormalizedSlot,
-  ){
+  ) {
   
-    const conflict = await this.orderModel.findOne({
+    const existingOrders = await this.orderModel.find({
       instructorId: order.instructorId,
       _id: { $ne: order._id },
       paymentStatus: 'PAID',
       status: 'CONFIRMED',
-      bookedSlots: {
-        $elemMatch: {
-          date: slot.date,
-          startTime: { $lt: slot.endTime },
-          endTime: { $gt: slot.startTime },
-        },
-      },
+      'bookedSlots.date': slot.date,
     });
   
-    if (conflict) {
-      throw new BadRequestException(
-        `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
-      );
+    const reqStart = this.toMinutes(slot.startTime);
+    const reqEnd = this.toMinutes(slot.endTime);
+  
+    console.log("CHECKING SLOT", {
+      date: slot.date,
+      start: slot.startTime,
+      end: slot.endTime
+    });
+    
+    for (const existingOrder of existingOrders) {
+  
+      for (const s of existingOrder.bookedSlots) {
+  
+        if (s.date !== slot.date) continue;
+  
+        const sStart = this.toMinutes(s.startTime);
+        const sEnd = this.toMinutes(s.endTime);
+  
+        // ✅ TRUE overlap detection
+        if (reqStart < sEnd && reqEnd > sStart) {
+          throw new BadRequestException(
+            `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${s.startTime}-${s.endTime}`,
+          );
+        }
+      }
     }
   }
 }
