@@ -26,6 +26,7 @@ import { ReferralService } from '../services/referral.service';
 import { PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
 import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
 import { NormalizedSlot } from '@common/types/express';
+import { Slot } from '@common/db/schemas/slot.schema';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -370,6 +371,11 @@ export class StripeWebhookController {
   
     if (!order) return;
   
+    // ✅ Prevent duplicate webhook execution
+    if (order.paymentStatus === 'PAID') {
+      return;
+    }
+  
     /* -----------------------------
        WALLET CREDIT
     ----------------------------- */
@@ -409,8 +415,6 @@ export class StripeWebhookController {
       learnerId: order.learnerId
     });
   
-    await order.save();
-  
     /* -----------------------------
        ATTACH SLOTS
     ----------------------------- */
@@ -424,6 +428,11 @@ export class StripeWebhookController {
       if (instructor) {
   
         for (const slot of order.bookedSlots) {
+  
+          // ✅ DB conflict protection
+          await this.validateSlotConflict(order, slot);
+  
+          // ✅ Availability split booking
           this.attachBookingByRange(
             instructor,
             slot,
@@ -434,6 +443,9 @@ export class StripeWebhookController {
         await instructor.save();
       }
     }
+  
+    // ✅ Save order LAST
+    await order.save();
   }
 
 
@@ -482,22 +494,17 @@ export class StripeWebhookController {
       if (!day) continue;
   
       for (let i = 0; i < day.slots.length; i++) {
-  
+
         const s = day.slots[i];
-  if(!s){
-    throw new BadRequestException(
-      `There is no slot data.`,
-    );
-  }
+        if (!s) continue;
+      
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-  
-        // requested slot must be inside availability
+      
         if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
-  
+      
           const newSlots = [];
-  
-          // BEFORE SLOT
+      
           if (reqStart > sStart) {
             newSlots.push({
               startTime: s.startTime,
@@ -505,16 +512,14 @@ export class StripeWebhookController {
               isBooked: false,
             });
           }
-  
-          // BOOKED SLOT
+      
           newSlots.push({
             startTime: slot.startTime,
             endTime: slot.endTime,
             isBooked: true,
             bookingId: orderId,
           });
-  
-          // AFTER SLOT
+      
           if (reqEnd < sEnd) {
             newSlots.push({
               startTime: slot.endTime,
@@ -522,10 +527,8 @@ export class StripeWebhookController {
               isBooked: false,
             });
           }
-  
-          // replace original slot
+      
           day.slots.splice(i, 1, ...newSlots);
-  
           return;
         }
       }
@@ -536,4 +539,30 @@ export class StripeWebhookController {
     );
   }
 
+
+  private async validateSlotConflict(
+    order: OrderDocument,
+    slot: NormalizedSlot,
+  ){
+  
+    const conflict = await this.orderModel.findOne({
+      instructorId: order.instructorId,
+      _id: { $ne: order._id },
+      paymentStatus: 'PAID',
+      status: 'CONFIRMED',
+      bookedSlots: {
+        $elemMatch: {
+          date: slot.date,
+          startTime: { $lt: slot.endTime },
+          endTime: { $gt: slot.startTime },
+        },
+      },
+    });
+  
+    if (conflict) {
+      throw new BadRequestException(
+        `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
+      );
+    }
+  }
 }
