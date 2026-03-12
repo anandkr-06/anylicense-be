@@ -331,32 +331,32 @@ export class StripeWebhookController {
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-  
+
     const order = await this.orderModel.findById(orderId);
-  
+
     if (!order) return;
-  
+
     // ✅ Prevent duplicate webhook execution
     if (order.paymentStatus === 'PAID') {
       return;
     }
-  
+
     order.status = 'CONFIRMED';
     order.paymentStatus = 'PAID';
     await order.save();
-  
+
     /* -----------------------------
        ATTACH SLOTS
     ----------------------------- */
-  
+
     if (order.bookedSlots?.length) {
-  
+
       const instructor = await this.instructorProfileModel.findById(
         order.instructorId,
       );
-  
+
       if (instructor) {
-  
+
         for (const slot of order.bookedSlots) {
           this.attachBookingByRange(
             instructor,
@@ -364,20 +364,21 @@ export class StripeWebhookController {
             order._id,
           );
         }
-  
+
         await instructor.save();
       }
     }
-  
+
     /* -----------------------------
        WALLET CREDIT (LESSONS ONLY)
     ----------------------------- */
-  
-    const lessonWalletAmount =
-      (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
-    if (order.totalHours > 0 && !order.walletCredited) {
-  
+
+    /* WALLET CREDIT (LESSON PURCHASE) */
+
+    const lessonWalletAmount = order.purchaseAmount ?? 0;
+
+    if (lessonWalletAmount > 0 && !order.walletCredited) {
+
       await this.walletService.creditWallet(
         order.learnerId,
         lessonWalletAmount,
@@ -386,8 +387,9 @@ export class StripeWebhookController {
         intent.id,
         cardMeta,
       );
-  
+
       order.walletCredited = lessonWalletAmount;
+
       await order.save();
     }
   }
