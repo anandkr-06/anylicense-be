@@ -463,20 +463,26 @@ export class StripeWebhookController {
   }
 
 
+  // private toMinutes(time: string): number {
+  //   const [t = '0:0', meridian = 'AM'] = time.split(' ');
+
+  //   const [hoursStr = '0', minutesStr = '0'] = t.split(':');
+
+  //   const hours = Number(hoursStr);
+  //   const minutes = Number(minutesStr);
+
+  //   let h = hours;
+
+  //   if (meridian === 'PM' && hours !== 12) h += 12;
+  //   if (meridian === 'AM' && hours === 12) h = 0;
+
+  //   return h * 60 + minutes;
+  // }
   private toMinutes(time: string): number {
-    const [t = '0:0', meridian = 'AM'] = time.split(' ');
 
-    const [hoursStr = '0', minutesStr = '0'] = t.split(':');
-
-    const hours = Number(hoursStr);
-    const minutes = Number(minutesStr);
-
-    let h = hours;
-
-    if (meridian === 'PM' && hours !== 12) h += 12;
-    if (meridian === 'AM' && hours === 12) h = 0;
-
-    return h * 60 + minutes;
+    const [hours = '0', minutes = '0'] = time.split(':');
+  
+    return Number(hours) * 60 + Number(minutes);
   }
 
   private attachBookingByRange(
