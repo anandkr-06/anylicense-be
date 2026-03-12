@@ -481,50 +481,58 @@ export class StripeWebhookController {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
   
-      /* CHECK OVERLAP */
+      for (let i = 0; i < day.slots.length; i++) {
   
-      const conflict = day.slots.some(s => {
-  
-        if (!s.isBooked) return false;
-  
+        const s = day.slots[i];
+  if(!s){
+    throw new BadRequestException(
+      `There is no slot data.`,
+    );
+  }
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
   
-        return reqStart < sEnd && reqEnd > sStart;
-      });
+        // requested slot must be inside availability
+        if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
   
-      if (conflict) {
-        throw new BadRequestException(
-          `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
-        );
+          const newSlots = [];
+  
+          // BEFORE SLOT
+          if (reqStart > sStart) {
+            newSlots.push({
+              startTime: s.startTime,
+              endTime: slot.startTime,
+              isBooked: false,
+            });
+          }
+  
+          // BOOKED SLOT
+          newSlots.push({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isBooked: true,
+            bookingId: orderId,
+          });
+  
+          // AFTER SLOT
+          if (reqEnd < sEnd) {
+            newSlots.push({
+              startTime: slot.endTime,
+              endTime: s.endTime,
+              isBooked: false,
+            });
+          }
+  
+          // replace original slot
+          day.slots.splice(i, 1, ...newSlots);
+  
+          return;
+        }
       }
-  
-      /* FIND AVAILABLE SLOT */
-  
-      const availabilitySlot = day.slots.find(s => {
-  
-        const sStart = this.toMinutes(s.startTime);
-        const sEnd = this.toMinutes(s.endTime);
-  
-        return reqStart >= sStart && reqEnd <= sEnd && !s.isBooked;
-      });
-  
-      if (!availabilitySlot) {
-        throw new BadRequestException(
-          `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
-        );
-      }
-  
-      /* BOOK SLOT */
-  
-      availabilitySlot.isBooked = true;
-      availabilitySlot.bookingId = orderId;
-  
-      return;
     }
   
     throw new BadRequestException(
-      `Instructor not available on ${slot.date}`,
+      `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
     );
   }
 
