@@ -1317,7 +1317,7 @@ async createOrder(learnerId: string, dto: CreateOrderDto) {
   // 1️⃣1️⃣ Create order
   const order = await this.orderModel.create({
 
-    learnerObjectId,
+    learnerId:learnerObjectId,
     instructorId: instructor._id,
 
     vehicleType: dto.vehicleType,
