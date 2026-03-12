@@ -481,9 +481,7 @@ export class StripeWebhookController {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
   
-      /* -----------------------------
-         CHECK OVERLAP
-      ----------------------------- */
+      /* CHECK OVERLAP */
   
       const conflict = day.slots.some(s => {
   
@@ -501,9 +499,7 @@ export class StripeWebhookController {
         );
       }
   
-      /* -----------------------------
-         FIND MATCHING AVAILABILITY
-      ----------------------------- */
+      /* FIND AVAILABLE SLOT */
   
       const availabilitySlot = day.slots.find(s => {
   
@@ -519,16 +515,10 @@ export class StripeWebhookController {
         );
       }
   
-      /* -----------------------------
-         BOOK SLOT
-      ----------------------------- */
+      /* BOOK SLOT */
   
       availabilitySlot.isBooked = true;
       availabilitySlot.bookingId = orderId;
-      availabilitySlot.type = slot.type;
-      availabilitySlot.pickupAddress = slot.pickupAddress;
-      availabilitySlot.suburb = slot.suburb;
-      availabilitySlot.state = slot.state;
   
       return;
     }
