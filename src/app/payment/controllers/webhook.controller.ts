@@ -343,6 +343,14 @@ export class StripeWebhookController {
   
     order.status = 'CONFIRMED';
     order.paymentStatus = 'PAID';
+
+    console.log("WEBHOOK ORDER", {
+      totalHours: order.totalHours,
+      pricePerHour: order.pricePerHour,
+      walletCredited: order.walletCredited,
+      paymentStatus: order.paymentStatus
+    });
+    
     await order.save();
   
     /* -----------------------------
