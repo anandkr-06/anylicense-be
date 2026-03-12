@@ -411,20 +411,26 @@ export function normalizeDate(date: unknown): string {
 
 
 export function normalizeTime(time: unknown): string {
-
   if (time instanceof Date) {
     return time.toISOString().slice(11, 16);
   }
 
   if (typeof time === 'string') {
 
-    // already 24h format
+    // already 24-hour format
     if (/^\d{2}:\d{2}$/.test(time)) {
       return time;
     }
 
-    // convert AM/PM → 24h
-    const [timePart, modifier] = time.split(' ');
+    const parts = time.split(' ');
+
+    const timePart = parts[0];
+    const modifier = parts[1];
+
+    if (!timePart) {
+      throw new Error(`Invalid time format: ${time}`);
+    }
+
     const [hourStr, minute] = timePart.split(':');
 
     let hour = Number(hourStr);
