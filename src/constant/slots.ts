@@ -403,9 +403,44 @@ export function normalizeDate(date: unknown): string {
 
 
 
+// export function normalizeTime(time: unknown): string {
+//   if (typeof time === 'string') return time;
+//   if (time instanceof Date) return time.toISOString().slice(11, 16);
+//   throw new Error(`Invalid time value: ${JSON.stringify(time)}`);
+// }
+
+
 export function normalizeTime(time: unknown): string {
-  if (typeof time === 'string') return time;
-  if (time instanceof Date) return time.toISOString().slice(11, 16);
+  if (time instanceof Date) {
+    return time.toISOString().slice(11, 16);
+  }
+
+  if (typeof time === 'string') {
+
+    // already 24-hour format
+    if (/^\d{2}:\d{2}$/.test(time)) {
+      return time;
+    }
+
+    const parts = time.split(' ');
+
+    const timePart = parts[0];
+    const modifier = parts[1];
+
+    if (!timePart) {
+      throw new Error(`Invalid time format: ${time}`);
+    }
+
+    const [hourStr, minute] = timePart.split(':');
+
+    let hour = Number(hourStr);
+
+    if (modifier === 'PM' && hour !== 12) hour += 12;
+    if (modifier === 'AM' && hour === 12) hour = 0;
+
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
+  }
+
   throw new Error(`Invalid time value: ${JSON.stringify(time)}`);
 }
 
