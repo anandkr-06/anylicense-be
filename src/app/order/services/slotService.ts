@@ -78,4 +78,6 @@ private validateSlotDuration(
   
     return duration;
   }
+
+  
 }
