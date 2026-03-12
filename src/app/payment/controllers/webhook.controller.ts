@@ -330,25 +330,47 @@ export class StripeWebhookController {
     metadata: StripeIntentMetadata,
     cardMeta: StripeCardMeta,
   ) {
+  
     const orderId = new Types.ObjectId(metadata.orderId);
   
     const order = await this.orderModel.findById(orderId);
   
     if (!order) return;
   
-    // Prevent duplicate wallet credit
-    if (order.walletCredited && order.walletCredited > 0) {
-      return;
+    /* -----------------------------
+       WALLET CREDIT
+    ----------------------------- */
+  
+    const lessonWalletAmount =
+      (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
+  
+    if (order.totalHours > 0 && lessonWalletAmount > 0 && !order.walletCredited) {
+  
+      console.log("CREDITING WALLET", lessonWalletAmount);
+  
+      await this.walletService.creditWallet(
+        order.learnerId,
+        lessonWalletAmount,
+        WalletTxnSource.ORDER,
+        order._id,
+        intent.id,
+        cardMeta,
+      );
+  
+      order.walletCredited = lessonWalletAmount;
     }
+  
+    /* -----------------------------
+       ORDER STATUS
+    ----------------------------- */
   
     order.status = 'CONFIRMED';
     order.paymentStatus = 'PAID';
+  
 
-    console.log("WEBHOOK ORDER", {
-      totalHours: order.totalHours,
-      pricePerHour: order.pricePerHour,
-      walletCredited: order.walletCredited,
-      paymentStatus: order.paymentStatus
+    console.log("WALLET CREDIT TRIGGERED", {
+      lessonWalletAmount,
+      learnerId: order.learnerId
     });
     
     await order.save();
@@ -375,29 +397,6 @@ export class StripeWebhookController {
   
         await instructor.save();
       }
-    }
-  
-    /* -----------------------------
-       WALLET CREDIT
-    ----------------------------- */
-  
-    const lessonWalletAmount =
-      (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
-    if (order.totalHours > 0 && lessonWalletAmount > 0) {
-  
-      await this.walletService.creditWallet(
-        order.learnerId,
-        lessonWalletAmount,
-        WalletTxnSource.ORDER,
-        order._id,
-        intent.id,
-        cardMeta,
-      );
-  
-      order.walletCredited = lessonWalletAmount;
-  
-      await order.save();
     }
   }
 
