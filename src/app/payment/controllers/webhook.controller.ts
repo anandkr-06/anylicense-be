@@ -282,46 +282,79 @@ export class StripeWebhookController {
 
 
 
+
   // private async handlePublicOrderSuccess(
   //   intent: Stripe.PaymentIntent,
   //   metadata: StripeIntentMetadata,
   //   cardMeta: StripeCardMeta,
   // ) {
+  
   //   const orderId = new Types.ObjectId(metadata.orderId);
-
-  //   console.log('Updating order:', metadata.orderId);
-
-  //   const order = await this.orderModel.findByIdAndUpdate(
-  //     orderId,
-  //     {
-  //       status: 'CONFIRMED',
-  //       paymentStatus: 'PAID',
-  //     },
-  //     { new: true },
-  //   );
-
+  
+  //   const order = await this.orderModel.findById(orderId);
+  
   //   if (!order) return;
-
-  //   // ✅ Referral (UNCHANGED)
-  //   const confirmedCount = await this.orderModel.countDocuments({
-  //     learnerId: order.learnerId,
-  //     status: 'CONFIRMED',
-  //   });
-
-  //   if (confirmedCount === 1) {
-  //     await this.referralService.rewardReferral(order.learnerId, order._id);
-  //   }
-
-  //   // ✅ Wallet remaining credit (UNCHANGED)
-  //   if (order.stripeAmount > 0) {
+  
+  //   /* -----------------------------
+  //      WALLET CREDIT
+  //   ----------------------------- */
+  
+  //   const lessonWalletAmount =
+  //     (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
+  
+  //   if (order.totalHours > 0 && lessonWalletAmount > 0 && !order.walletCredited) {
+  
+  //     console.log("CREDITING WALLET", lessonWalletAmount);
+  
   //     await this.walletService.creditWallet(
   //       order.learnerId,
-  //       order.stripeAmount,
-  //       WalletTxnSource.ORDER_REMAINING,
+  //       lessonWalletAmount,
+  //       WalletTxnSource.ORDER,
   //       order._id,
   //       intent.id,
   //       cardMeta,
   //     );
+  
+  //     order.walletCredited = lessonWalletAmount;
+  //   }
+  
+  //   /* -----------------------------
+  //      ORDER STATUS
+  //   ----------------------------- */
+  
+  //   order.status = 'CONFIRMED';
+  //   order.paymentStatus = 'PAID';
+  
+
+  //   console.log("WALLET CREDIT TRIGGERED", {
+  //     lessonWalletAmount,
+  //     learnerId: order.learnerId
+  //   });
+
+  //   await order.save();
+  
+  //   /* -----------------------------
+  //      ATTACH SLOTS
+  //   ----------------------------- */
+  
+  //   if (order.bookedSlots?.length) {
+  
+  //     const instructor = await this.instructorProfileModel.findById(
+  //       order.instructorId,
+  //     );
+  
+  //     if (instructor) {
+  
+  //       for (const slot of order.bookedSlots) {
+  //         this.attachBookingByRange(
+  //           instructor,
+  //           slot,
+  //           order._id,
+  //         );
+  //       }
+  
+  //       await instructor.save();
+  //     }
   //   }
   // }
 
@@ -344,12 +377,16 @@ export class StripeWebhookController {
     const lessonWalletAmount =
       (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
   
-    if (order.totalHours > 0 && lessonWalletAmount > 0 && !order.walletCredited) {
+    if (
+      order.totalHours > 0 &&
+      lessonWalletAmount > 0 &&
+      order.walletCredited === 0
+    ) {
   
       console.log("CREDITING WALLET", lessonWalletAmount);
   
       await this.walletService.creditWallet(
-        order.learnerId,
+        new Types.ObjectId(order.learnerId),
         lessonWalletAmount,
         WalletTxnSource.ORDER,
         order._id,
@@ -367,12 +404,11 @@ export class StripeWebhookController {
     order.status = 'CONFIRMED';
     order.paymentStatus = 'PAID';
   
-
     console.log("WALLET CREDIT TRIGGERED", {
       lessonWalletAmount,
       learnerId: order.learnerId
     });
-    
+  
     await order.save();
   
     /* -----------------------------
@@ -399,7 +435,6 @@ export class StripeWebhookController {
       }
     }
   }
-
 
 
   private async handlePrivateOrderSuccess(
