@@ -459,6 +459,7 @@ export class InstructorService {
     const durationMinutes = duration * 60;
     const result = [];
   
+    // ✅ Get booked sessions
     const bookedSessions = await this.orderModel
       .find({
         instructorId: new Types.ObjectId(instructorId),
@@ -468,13 +469,21 @@ export class InstructorService {
       .select('date startTime endTime')
       .lean<BookedSlot[]>();
   
+    // ✅ Map bookings by date
     const bookedMap = new Map<string, { start: string; end: string }[]>();
   
     for (const b of bookedSessions) {
-      if (!bookedMap.has(b.date)) bookedMap.set(b.date, []);
-      bookedMap.get(b.date)!.push({ start: b.startTime, end: b.endTime });
+      if (!bookedMap.has(b.date)) {
+        bookedMap.set(b.date, []);
+      }
+  
+      bookedMap.get(b.date)!.push({
+        start: normalizeTime(b.startTime),
+        end: normalizeTime(b.endTime),
+      });
     }
   
+    // ✅ Iterate instructor availability
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         const bookedForDay = bookedMap.get(day.date) ?? [];
@@ -493,21 +502,19 @@ export class InstructorService {
   
             const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
   
+            // ✅ Skip slots within 24 hours
             if (slotStartDateTime <= next24Hours) continue;
   
+            // ✅ AM / PM filter
             if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
             if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
   
             const key = `${day.date}-${sStart}-${sEnd}`;
   
             if (!slotMap.has(key)) {
+  
               const booking = bookedForDay.find(b =>
-                isOverlapping(
-                  sStart,
-                  sEnd,
-                  normalizeTime(b.start),
-                  normalizeTime(b.end),
-                ),
+                isOverlapping(sStart, sEnd, b.start, b.end)
               );
   
               slotMap.set(key, {
@@ -523,7 +530,10 @@ export class InstructorService {
         const slotsForDay = Array.from(slotMap.values());
   
         if (slotsForDay.length) {
-          result.push({ date: day.date, slots: slotsForDay });
+          result.push({
+            date: day.date,
+            slots: slotsForDay,
+          });
         }
       }
     }
