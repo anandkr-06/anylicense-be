@@ -6,13 +6,10 @@ export class StripeService {
   private stripe: Stripe;
 
   constructor() {
-    const stripeKey = process.env['STRIPE_SECRET_KEY'];
+    const key = process.env['STRIPE_SECRET_KEY'];
+    if (!key) throw new Error('STRIPE_SECRET_KEY missing');
 
-    if (!stripeKey) {
-      throw new Error('STRIPE_SECRET_KEY is not defined');
-    }
-
-    this.stripe = new Stripe(stripeKey, {
+    this.stripe = new Stripe(key, {
         apiVersion: '2025-12-15.clover',
     });
   }
@@ -42,11 +39,40 @@ export class StripeService {
     return accountLink;
   }
 
-  // 3️⃣ Instant payout (Fast Cash)
-  async instantPayout(accountId: string, amount: number) {
-    const payout = await this.stripe.payouts.create(
+  
+  // 4️⃣ Check Stripe balance
+  async getBalance(accountId: string) {
+    return this.stripe.balance.retrieve({
+      stripeAccount: accountId,
+    });
+  }
+
+
+  // Transfer from platform → instructor Stripe account
+  async createTransfer(accountId: string, amount: number, instructorId: string) {
+
+
+    const idempotencyKey = `fastcash_${instructorId}_${Date.now()}`;
+
+    
+
+    return this.stripe.transfers.create(
       {
-        amount: amount,
+        amount,
+        currency: 'usd',
+        destination: accountId,
+      },
+      {
+        idempotencyKey,
+      },
+    );
+  }
+
+  // Instant payout from instructor Stripe account → bank/debit card
+  async instantPayout(accountId: string, amount: number) {
+    return this.stripe.payouts.create(
+      {
+        amount,
         currency: 'usd',
         method: 'instant',
       },
@@ -54,14 +80,10 @@ export class StripeService {
         stripeAccount: accountId,
       },
     );
-
-    return payout;
   }
 
-  // 4️⃣ Check Stripe balance
-  async getBalance(accountId: string) {
-    return this.stripe.balance.retrieve({
-      stripeAccount: accountId,
-    });
+  // Check Stripe account
+  async getAccount(accountId: string) {
+    return this.stripe.accounts.retrieve(accountId);
   }
 }

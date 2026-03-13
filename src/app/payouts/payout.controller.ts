@@ -14,15 +14,28 @@ export class PayoutController {
     return this.payoutService.generateWeeklyPayout();
   }
 
-  @Post('fast-cash')
-  async fastCash(
-    @CurrentUser() currentUser: JwtPayload,
-    @Body() withdrawDto: WithdrawDto,
-  ) {
-    const instructor = currentUser.sub; // from JWT
+  // @Post('fast-cash')
+  // async fastCash(
+  //   @CurrentUser() currentUser: JwtPayload,
+  //   @Body() withdrawDto: WithdrawDto,
+  // ) {
+  //   const instructor = currentUser.sub; // from JWT
 
-    return this.payoutService.instructorFastCash(instructor,withdrawDto.amount);
-  }
+  //   return this.payoutService.instructorFastCash(instructor,withdrawDto.amount);
+  // }
+
+  @Post('fast-cash')
+async fastCash(
+  @CurrentUser() currentUser: JwtPayload,
+  @Body('amount') amount: number,
+) {
+  const instructorId = currentUser.sub;
+
+  return this.payoutService.instructorFastCash(
+    instructorId,
+    amount,
+  );
+}
 
   @Get('instructor-transactions')
   async getTransactions(
