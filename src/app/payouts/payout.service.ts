@@ -14,6 +14,7 @@ import {
 
 import { StripeService } from './stripe.service';
 import { User } from '@common/db/schemas/user.schema';
+import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
 
 @Injectable()
 export class PayoutService {
@@ -27,6 +28,9 @@ export class PayoutService {
 
         @InjectModel(User.name)
         private userModel: Model<User>,
+
+        @InjectModel(InstructorProfile.name)
+            private readonly instructorProfileModel: Model<InstructorProfileDocument>,
         
       ) {}
 
@@ -165,6 +169,95 @@ export class PayoutService {
   });
 
   return payout;
+}
+
+async getTransactions(
+  instructorId: string,
+  page: number,
+  limit: number,
+  startDate?: string,
+  endDate?: string,
+) {
+  const skip = (page - 1) * limit;
+
+  const instructorData = await this.instructorProfileModel.findOne({
+    userId: new Types.ObjectId(instructorId),
+  });
+
+  if (!instructorData) {
+    throw new BadRequestException('Instructor not found');
+  }
+
+  const match: any = {
+    instructorId: new Types.ObjectId(instructorData._id),
+  };
+
+  if (startDate || endDate) {
+    match.createdAt = {};
+    if (startDate) match.createdAt.$gte = new Date(startDate);
+    if (endDate) match.createdAt.$lte = new Date(endDate);
+  }
+
+  const [transactions, totalCount, totalAmount] = await Promise.all([
+    this.transactionModel.aggregate([
+      { $match: match },
+
+      {
+        $lookup: {
+          from: 'learners',
+          localField: 'learnerId',
+          foreignField: '_id',
+          as: 'learner',
+        },
+      },
+
+      { $unwind: { path: '$learner', preserveNullAndEmptyArrays: true } },
+
+      {
+        $project: {
+          orderId: 1,
+          slotId: 1,
+          type: 1,
+          hours: 1,
+          pricePerHour: 1,
+          grossAmount: 1,
+          platformCommission: 1,
+          instructorEarning: 1,
+          payoutStatus: 1,
+          createdAt: 1,
+          // learnerName: {
+          //   $concat: ['$learner.firstName', ' ', '$learner.lastName'],
+          // },
+          learnerFirstName: '$learner.firstName',
+          learnerLastName: '$learner.lastName',
+        },
+      },
+
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ]),
+
+    this.transactionModel.countDocuments(match),
+
+    this.transactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$grossAmount' },
+        },
+      },
+    ]),
+  ]);
+
+  return {
+    page,
+    limit,
+    totalRecords: totalCount,
+    totalAmount: totalAmount[0]?.totalAmount || 0,
+    transactions,
+  };
 }
 
 }
