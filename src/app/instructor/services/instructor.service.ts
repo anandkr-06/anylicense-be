@@ -470,6 +470,10 @@ export class InstructorService {
       .lean<BookedSlot[]>();
 
       console.log("BOOKED SESSIONS:", bookedSessions);
+
+      const testOrders = await this.orderModel.find({}).limit(5).lean();
+console.log("ALL ORDERS:", testOrders);
+
     // ✅ Map bookings by date
     const bookedMap = new Map<string, { start: string; end: string }[]>();
   
