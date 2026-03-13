@@ -405,13 +405,23 @@ export class OrderService {
     return diffMs <= 24 * 60 * 60 * 1000;
   }
 
-  private calculateSlotHours(start: string, end: string): number {
-    const [sh, sm] = start.split(':').map(Number);
-    const [eh, em] = end.split(':').map(Number);
-    if (!eh || !em || !sh || !sm) {
-      throw new BadRequestException("Invalid to calculate slot hours!")
+  private parseTimeToMinutes(time: string): number {
+
+    const [h, m] = normalizeTime(time).split(':').map(Number);
+  
+    if (Number.isNaN(h) || Number.isNaN(m)) {
+      throw new BadRequestException("Invalid time format");
     }
-    return (eh + em / 60) - (sh + sm / 60);
+  
+    return h * 60 + m;
+  }
+  
+  private calculateSlotHours(start: string, end: string): number {
+  
+    const startMinutes = this.parseTimeToMinutes(start);
+    const endMinutes = this.parseTimeToMinutes(end);
+  
+    return (endMinutes - startMinutes) / 60;
   }
 
   async cancelSlot(
