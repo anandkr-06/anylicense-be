@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PayoutService } from './payout.service'
 import { Public } from '@common/decorators/public.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
@@ -22,5 +22,24 @@ export class PayoutController {
     const instructor = currentUser.sub; // from JWT
 
     return this.payoutService.instructorFastCash(instructor,withdrawDto.amount);
+  }
+
+  @Get('instructor-transactions')
+  async getTransactions(
+    @CurrentUser() currentUser: JwtPayload,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const instructorId = currentUser.sub;
+
+    return this.payoutService.getTransactions(
+      instructorId,
+      Number(page),
+      Number(limit),
+      startDate,
+      endDate,
+    );
   }
 }

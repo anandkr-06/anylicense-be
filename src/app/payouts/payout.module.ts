@@ -19,6 +19,7 @@ import { InstructorProfile, InstructorProfileSchema } from '@common/db/schemas/i
       { name: Payout.name, schema: PayoutSchema },
       { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
       { name: User.name, schema: UserSchema },
+      { name: InstructorProfile.name, schema: InstructorProfileSchema },
       
     ]),
     
