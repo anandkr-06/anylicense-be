@@ -407,7 +407,10 @@ export class OrderService {
 
   private parseTimeToMinutes(time: string): number {
 
-    const [h, m] = normalizeTime(time).split(':').map(Number);
+    const [hStr, mStr] = normalizeTime(time).split(':');
+  
+    const h = Number(hStr);
+    const m = Number(mStr);
   
     if (Number.isNaN(h) || Number.isNaN(m)) {
       throw new BadRequestException("Invalid time format");
