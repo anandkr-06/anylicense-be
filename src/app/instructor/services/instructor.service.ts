@@ -463,21 +463,36 @@ export class InstructorService {
     const bookedSessions = await this.orderModel
       .find({
         instructorId: new Types.ObjectId(instructorId),
-        status: { $in: ['CONFIRMED', 'PAID'] },
+        // status: { $in: ['CONFIRMED', 'PAID'] },
         startDateTime: { $gte: now },
       })
       .select('date startTime endTime')
       .lean<BookedSlot[]>();
-  
+
+      console.log("BOOKED SESSIONS:", bookedSessions);
     // ✅ Map bookings by date
     const bookedMap = new Map<string, { start: string; end: string }[]>();
   
-    for (const b of bookedSessions) {
-      if (!bookedMap.has(b.date)) {
-        bookedMap.set(b.date, []);
-      }
+    // for (const b of bookedSessions) {
+    //   if (!bookedMap.has(b.date)) {
+    //     bookedMap.set(b.date, []);
+    //   }
   
-      bookedMap.get(b.date)!.push({
+    //   bookedMap.get(b.date)!.push({
+    //     start: normalizeTime(b.startTime),
+    //     end: normalizeTime(b.endTime),
+    //   });
+    // }
+
+    for (const b of bookedSessions) {
+
+      const dateKey = new Date(b.date).toISOString().slice(0,10);
+    
+      if (!bookedMap.has(dateKey)) {
+        bookedMap.set(dateKey, []);
+      }
+    
+      bookedMap.get(dateKey)!.push({
         start: normalizeTime(b.startTime),
         end: normalizeTime(b.endTime),
       });
@@ -502,6 +517,10 @@ export class InstructorService {
   
             const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
   
+
+            console.log("CHECK SLOT:", sStart, sEnd);
+console.log("BOOKED FOR DAY:", bookedForDay);
+
             // ✅ Skip slots within 24 hours
             if (slotStartDateTime <= next24Hours) continue;
   
@@ -516,7 +535,8 @@ export class InstructorService {
               const booking = bookedForDay.find(b =>
                 isOverlapping(sStart, sEnd, b.start, b.end)
               );
-  
+              console.log("FOUND BOOKING:", booking);
+
               slotMap.set(key, {
                 startTime: toAmPm(sStart),
                 endTime: toAmPm(sEnd),

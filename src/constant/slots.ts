@@ -338,18 +338,40 @@ export function minutesToAmPm(minutes: number): string {
 }
 
 
-export function isOverlapping(
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string,
-): boolean {
-  const aStart = timeToMinutes(startA);
-  const aEnd = timeToMinutes(endA);
-  const bStart = timeToMinutes(startB);
-  const bEnd = timeToMinutes(endB);
+// export function isOverlapping(
+//   startA: string,
+//   endA: string,
+//   startB: string,
+//   endB: string,
+// ): boolean {
+//   const aStart = timeToMinutes(startA);
+//   const aEnd = timeToMinutes(endA);
+//   const bStart = timeToMinutes(startB);
+//   const bEnd = timeToMinutes(endB);
 
-  return aStart < bEnd && aEnd > bStart;
+//   return aStart < bEnd && aEnd > bStart;
+// }
+
+export function isOverlapping(
+  start1: string,
+  end1: string,
+  start2: string,
+  end2: string
+): boolean {
+
+  const [s1h = 0, s1m = 0] = start1.split(':').map(Number);
+  const [e1h = 0, e1m = 0] = end1.split(':').map(Number);
+
+  const [s2h = 0, s2m = 0] = start2.split(':').map(Number);
+  const [e2h = 0, e2m = 0] = end2.split(':').map(Number);
+
+  const slot1Start = s1h * 60 + s1m;
+  const slot1End = e1h * 60 + e1m;
+
+  const slot2Start = s2h * 60 + s2m;
+  const slot2End = e2h * 60 + e2m;
+
+  return slot1Start < slot2End && slot1End > slot2Start;
 }
 
 export function convert12hToMinutes(time: string): number {
