@@ -37,6 +37,15 @@ async fastCash(
   );
 }
 
+@Post('add-wallet')
+addWallet(
+  @CurrentUser() currentUser: JwtPayload,
+  @Body('amount') amount: number,
+) {
+  return this.payoutService.addWalletBalance(currentUser.sub, amount);
+}
+
+
   @Get('instructor-transactions')
   async getTransactions(
     @CurrentUser() currentUser: JwtPayload,
