@@ -248,6 +248,16 @@ async instructorFastCash(instructorId: string, amount: number) {
   };
 }
 
+
+async addWalletBalance(instructorId: string, amount: number) {
+  return this.userModel.findByIdAndUpdate(
+    instructorId,
+    { $inc: { walletBalance: amount } },
+    { new: true }
+  );
+}
+
+
 async getTransactions(
   instructorId: string,
   page: number,
