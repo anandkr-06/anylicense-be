@@ -135,7 +135,8 @@ async getInstructorProfile(instructorId: string) {
         proficientLanguages: '$user.proficientLanguages',
         vehicles: 1,
         serviceAreas: 1,
-        testLocations:1
+        testLocations:1,
+        totalHours:1
       }
     }
   ]);
