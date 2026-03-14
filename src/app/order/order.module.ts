@@ -25,6 +25,7 @@ import { InstructorService } from './services/instructorService';
 import { SlotService } from './services/slotService';
 import { PricingService } from './services/pricingService';
 import { PaymentService } from './services/paymentService';
+import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/wallet-transaction.schema';
 
 
 @Module({
@@ -48,6 +49,8 @@ import { PaymentService } from './services/paymentService';
       
       { name: PrivateLearner.name, schema: PrivateLearnerSchema },
       { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
+
+      { name: WalletTransaction.name, schema: WalletTransactionSchema },
     
     ]),
     AddressModule,
