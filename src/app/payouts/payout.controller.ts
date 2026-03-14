@@ -64,4 +64,17 @@ addWallet(
       endDate,
     );
   }
+
+
+  @Get('wallet-balance')
+  async getPayoutHistory(
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    const instructorId = currentUser.sub;
+
+    return this.payoutService.getInstructorWallet(
+      instructorId
+    );
+  }
+
 }

@@ -40,6 +40,7 @@ import { InstructorService } from './instructorService';
 import { SlotService } from './slotService';
 import { PricingService } from './pricingService';
 import { PaymentService } from './paymentService';
+import { PayoutService } from '@app/payouts/payout.service';
 
 interface InstructorHour {
   startTime: string;
@@ -73,6 +74,7 @@ export class OrderService {
   constructor(
     private readonly userDbService: UserDbService,
     private readonly walletService: WalletService,
+    private readonly payoutService: PayoutService,
 
     private readonly instructorService: InstructorService,
     private readonly slotService: SlotService,
@@ -590,6 +592,80 @@ export class OrderService {
   }
 
 
+  // async completeSlot(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const slot = order.bookedSlots.find(
+  //     s => String(s._id) === slotId,
+  //   );
+  //   if (!slot) throw new NotFoundException('Slot not found');
+
+  //   if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+  //     throw new BadRequestException(
+  //       `Slot cannot be completed from ${slot.status}`,
+  //     );
+  //   }
+
+  //   const start = normalizeTime(slot.startTime);
+  //   const end = normalizeTime(slot.endTime);
+
+  //   const hours = calculateSlotDurationInHours(start, end);
+
+  //   // ✅ Update slot
+  //   slot.status = 'COMPLETED';
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+  //   // ✅ Update order usage
+  //   order.usedHours += hours;
+  //   order.remainingHours = Math.max(
+  //     0,
+  //     order.totalHours - order.usedHours,
+  //   );
+
+  //   if (order.remainingHours === 0) {
+  //     order.scheduleStatus = 'FULLY_SCHEDULED';
+  //   }
+
+  //   await order.save();
+
+  //   // ✅ Increase instructor totalLessons
+  //   await this.instructorProfileModel.updateOne(
+  //     { _id: new Types.ObjectId(order.instructorId) },
+  //     {
+  //       $inc: {
+  //         totalHours: hours,
+  //       },
+  //     },
+  //   );
+
+  //   await this.instructorTransactionModel.create({
+  //     orderId: order._id,
+  //     slotId: slot._id,
+  //     learnerId: order.learnerId,
+  //     instructorId: order.instructorId,
+  //     type: slot.type,
+  //     hours: hours,
+  //     pricePerHour: order.pricePerHour,
+  //     grossAmount: hours * order.pricePerHour,
+  //     platformCommission: order.platformCharge,
+  //     instructorEarning:
+  //       (hours * order.pricePerHour) - order.platformCharge,
+  //   });
+
+  //   return {
+  //     success: true,
+  //     message: 'Slot marked as completed',
+  //     completedHours: hours,
+  //   };
+  // }
+
   async completeSlot(
     orderId: string,
     slotId: string,
@@ -597,43 +673,44 @@ export class OrderService {
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-
+  
     const slot = order.bookedSlots.find(
       s => String(s._id) === slotId,
     );
     if (!slot) throw new NotFoundException('Slot not found');
-
+  
     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
       throw new BadRequestException(
         `Slot cannot be completed from ${slot.status}`,
       );
     }
-
+  
     const start = normalizeTime(slot.startTime);
     const end = normalizeTime(slot.endTime);
-
+  
     const hours = calculateSlotDurationInHours(start, end);
-
+  
     // ✅ Update slot
     slot.status = 'COMPLETED';
     slot.notification = {
       learner: true,
       instructor: true,
     };
+  
     // ✅ Update order usage
     order.usedHours += hours;
     order.remainingHours = Math.max(
       0,
       order.totalHours - order.usedHours,
     );
-
+  
     if (order.remainingHours === 0) {
       order.scheduleStatus = 'FULLY_SCHEDULED';
     }
-
+  
     await order.save();
-
-    // ✅ Increase instructor totalLessons
+  
+    // ✅ Increase instructor hours
     await this.instructorProfileModel.updateOne(
       { _id: new Types.ObjectId(order.instructorId) },
       {
@@ -642,8 +719,9 @@ export class OrderService {
         },
       },
     );
-
-    await this.instructorTransactionModel.create({
+  
+    // ✅ Create instructor transaction
+    const txn = await this.instructorTransactionModel.create({
       orderId: order._id,
       slotId: slot._id,
       learnerId: order.learnerId,
@@ -656,7 +734,10 @@ export class OrderService {
       instructorEarning:
         (hours * order.pricePerHour) - order.platformCharge,
     });
-
+  
+    // ✅ CREDIT instructor wallet
+    await this.payoutService.creditInstructorWallet(txn._id);
+  
     return {
       success: true,
       message: 'Slot marked as completed',

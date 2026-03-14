@@ -86,4 +86,45 @@ export class StripeService {
   async getAccount(accountId: string) {
     return this.stripe.accounts.retrieve(accountId);
   }
+
+
+//   async createTransfer(
+//     stripeAccountId: string,
+//     amount: number,
+//     instructorId: string
+//   ) {
+  
+//     return this.stripe.transfers.create(
+//       {
+//         amount,
+//         currency: 'usd',
+//         destination: stripeAccountId,
+//         description: `Fast cash payout for instructor ${instructorId}`
+//       },
+//       {
+//         idempotencyKey: `transfer_${instructorId}_${Date.now()}`
+//       }
+//     );
+//   }
+
+// async instantPayout(
+//     stripeAccountId: string,
+//     amount: number
+//   ) {
+  
+//     return this.stripe.payouts.create(
+//       {
+//         amount,
+//         currency: 'usd',
+//         method: 'instant'
+//       },
+//       {
+//         stripeAccount: stripeAccountId
+//       }
+//     );
+//   }
+
+async getPlatformBalance() {
+    return this.stripe.balance.retrieve();
+  }
 }
