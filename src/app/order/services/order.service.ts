@@ -580,19 +580,7 @@ export class OrderService {
 
     let refund = 0;
 
-    // if (!within24h) {
-
-    //   const hours = this.calculateSlotHours(
-    //     slot.startTime,
-    //     slot.endTime,
-    //   );
-
-    //   refund = hours * order.pricePerHour;
-
-    //   order.walletCredit += refund;
-    //   order.remainingHours += hours;
-    //   order.usedHours = Math.max(0, order.usedHours - hours);
-    // }
+  
     if (!within24h) {
 
       const hours = this.calculateSlotHours(
@@ -628,23 +616,16 @@ export class OrderService {
     await this.instructorProfileModel.updateOne(
       { _id: order.instructorId },
       {
-        $set: {
-          "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
-        },
-        $unset: {
-          "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": "",
-          "availability.weeks.$[].days.$[day].slots.$[slot].pickupAddress": "",
-          "availability.weeks.$[].days.$[day].slots.$[slot].suburb": "",
-          "availability.weeks.$[].days.$[day].slots.$[slot].state": ""
+        $pull: {
+          "availability.weeks.$[].days.$[day].slots": {
+            startTime: normalizeTime(slot.startTime),
+            endTime: normalizeTime(slot.endTime)
+          }
         }
       },
       {
         arrayFilters: [
-          { "day.date": slot.date },   // ✅ string
-          {
-            "slot.startTime": normalizeTime(slot.startTime),
-            "slot.endTime": normalizeTime(slot.endTime)
-          }
+          { "day.date": slot.date } // date is string
         ]
       }
     );
