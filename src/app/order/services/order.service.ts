@@ -610,7 +610,6 @@ export class OrderService {
 
     await order.save();
 
-    
     /**
      * Free instructor slot
      */
@@ -636,39 +635,24 @@ export class OrderService {
      */
     if (refund > 0) {
 
-      /**
- * Credit wallet back to learner
- */
+      const learner = await this.learnerModel.findById(order.learnerId);
 
-const learner = await this.learnerModel.findById(order.learnerId);
+      if (!learner) {
+        throw new NotFoundException('Learner not found');
+      }
 
-if (!learner) {
-  throw new BadRequestException("Learner not found");
-}
+      learner.walletBalance += refund;
 
+      await learner.save();
 
-const newBalance = learner.walletBalance + refund;
-
-/**
- * Update learner wallet balance
- */
-await this.learnerModel.updateOne(
-  { _id: order.learnerId },
-  { $set: { walletBalance: newBalance } }
-);
-
-/**
- * Insert wallet ledger entry
- */
-await this.walletModel.create({
-  learnerId: order.learnerId,
-  type: "CREDIT",
-  amount: refund,
-  balanceAfter: newBalance,
-  source: "ORDER_CANCELLED",
-  referenceEntityId: order._id,
-  createdAt: new Date()
-});
+      await this.walletModel.create({
+        learnerId: order.learnerId,
+        type: 'CREDIT',
+        amount: refund,
+        balanceAfter: learner.walletBalance,
+        source: 'SLOT_CANCELLED',
+        referenceEntityId: order._id
+      });
     }
 
     return {
