@@ -20,7 +20,7 @@ import {
 
 import { CreateOrderDto, SlotType } from '../dto/create-order.dto';
 import { PLATFORM_CHARGE } from '@constant/packages';
-import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
+import { WalletTransaction, WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
 
@@ -102,6 +102,8 @@ export class OrderService {
 
     @InjectModel(InstructorTransaction.name)
     private readonly instructorTransactionModel: Model<InstructorTransactionDocument>,
+    @InjectModel(InstructorTransaction.name)
+    @InjectModel(WalletTransaction.name) private walletModel: Model<WalletTransaction>,
 
   ) { }
 
@@ -427,15 +429,129 @@ export class OrderService {
     return (endMinutes - startMinutes) / 60;
   }
 
+  // async cancelSlot(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   role: FeedbackOwnerType,
+  // ) {
+  //   try {
+  
+  //     const order = await this.orderModel.findById(orderId);
+  
+  //     if (!order) {
+  //       throw new NotFoundException('Order not found');
+  //     }
+  
+  //     const slot = order.bookedSlots.id(slotId);
+  
+  //     if (!slot) {
+  //       throw new NotFoundException('Slot not found');
+  //     }
+  
+  //     if (slot.status !== 'BOOKED') {
+  //       throw new BadRequestException('Slot not cancellable');
+  //     }
+  
+  //     const within24h = this.isWithin24Hours(
+  //       slot.date,
+  //       slot.startTime,
+  //     );
+  
+  //     /**
+  //      * Cancel slot
+  //      */
+  //     slot.status = 'CANCELLED';
+  
+  //     slot.notification = {
+  //       learner: true,
+  //       instructor: true,
+  //     };
+  
+  //     slot.actionMeta = {
+  //       actedBy: role,
+  //       actedAt: new Date(),
+  //       reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+  //     };
+  
+  //     /**
+  //      * Wallet refund (>24h only)
+  //      */
+  //     if (!within24h) {
+  
+  //       const hours = this.calculateSlotHours(
+  //         slot.startTime,
+  //         slot.endTime,
+  //       );
+  
+  //       const refund = hours * order.pricePerHour;
+  
+  //       order.walletCredit += refund;
+  //       order.remainingHours += hours;
+  //       order.usedHours = Math.max(0, order.usedHours - hours);
+  //     }
+  
+  //     /**
+  //      * Save order first
+  //      */
+  //     await order.save();
+  
+  //     /**
+  //      * Free instructor slot (optimized query)
+  //      */
+  //     await this.instructorProfileModel.updateOne(
+  //       {
+  //         _id: order.instructorId
+  //       },
+  //       {
+  //         $set: {
+  //           "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
+  //         },
+  //         $unset: {
+  //           "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": "",
+  //           "availability.weeks.$[].days.$[day].slots.$[slot].pickupAddress": "",
+  //           "availability.weeks.$[].days.$[day].slots.$[slot].suburb": "",
+  //           "availability.weeks.$[].days.$[day].slots.$[slot].state": ""
+  //         }
+  //       },
+  //       {
+  //         arrayFilters: [
+  //           {
+  //             "day.date": new Date(slot.date)
+  //           },
+  //           {
+  //             "slot.startTime": normalizeTime(slot.startTime),
+  //             "slot.endTime": normalizeTime(slot.endTime)
+  //           }
+  //         ]
+  //       }
+  //     );
+  
+  //     return {
+  //       success: true,
+  //       message: "Slot cancelled and freed successfully"
+  //     };
+  
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
+
   async cancelSlot(
     orderId: string,
     slotId: string,
     userId: string,
     role: FeedbackOwnerType,
   ) {
+  
+    const session = await this.orderModel.db.startSession();
+    session.startTransaction();
+  
     try {
   
-      const order = await this.orderModel.findById(orderId);
+      const order = await this.orderModel
+        .findById(orderId)
+        .session(session);
   
       if (!order) {
         throw new NotFoundException('Order not found');
@@ -472,8 +588,10 @@ export class OrderService {
         reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
       };
   
+      let refund = 0;
+  
       /**
-       * Wallet refund (>24h only)
+       * Refund logic (>24h only)
        */
       if (!within24h) {
   
@@ -482,25 +600,20 @@ export class OrderService {
           slot.endTime,
         );
   
-        const refund = hours * order.pricePerHour;
+        refund = hours * order.pricePerHour;
   
         order.walletCredit += refund;
         order.remainingHours += hours;
         order.usedHours = Math.max(0, order.usedHours - hours);
       }
   
-      /**
-       * Save order first
-       */
-      await order.save();
+      await order.save({ session });
   
       /**
-       * Free instructor slot (optimized query)
+       * Free instructor slot
        */
       await this.instructorProfileModel.updateOne(
-        {
-          _id: order.instructorId
-        },
+        { _id: order.instructorId },
         {
           $set: {
             "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
@@ -513,6 +626,7 @@ export class OrderService {
           }
         },
         {
+          session,
           arrayFilters: [
             {
               "day.date": new Date(slot.date)
@@ -525,12 +639,54 @@ export class OrderService {
         }
       );
   
+      /**
+       * Update learner wallet
+       */
+      if (refund > 0) {
+  
+        const learner = await this.learnerModel.findById(
+          order.learnerId
+        ).session(session);
+  
+        if (!learner) {
+          throw new NotFoundException('Learner not found');
+        }
+  
+        learner.walletBalance += refund;
+  
+        await learner.save({ session });
+  
+        /**
+         * Wallet Ledger Entry
+         */
+        await this.walletModel.create(
+          [
+            {
+              learnerId: order.learnerId,
+              type: 'CREDIT',
+              amount: refund,
+              balanceAfter: learner.walletBalance,
+              source: 'SLOT_CANCELLED',
+              referenceEntityId: order._id
+            }
+          ],
+          { session }
+        );
+      }
+  
+      await session.commitTransaction();
+      session.endSession();
+  
       return {
         success: true,
-        message: "Slot cancelled and freed successfully"
+        message: 'Slot cancelled successfully'
       };
   
     } catch (error) {
+  
+      await session.abortTransaction();
+      session.endSession();
+  
       throw error;
     }
   }
