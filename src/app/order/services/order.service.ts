@@ -102,7 +102,7 @@ export class OrderService {
 
     @InjectModel(InstructorTransaction.name)
     private readonly instructorTransactionModel: Model<InstructorTransactionDocument>,
-    @InjectModel(InstructorTransaction.name)
+    @InjectModel(WalletTransaction.name)
     @InjectModel(WalletTransaction.name) private walletModel: Model<WalletTransaction>,
 
   ) { }
@@ -590,33 +590,9 @@ export class OrderService {
 
       const grossAmount = hours * order.pricePerHour;
       refund = grossAmount;
-      // await this.instructorTransactionModel.create({
-      //   instructorId: order.instructorId,
-      //   learnerId: order.learnerId,   // ✅ REQUIRED
-      //   orderId: order._id,
-      //   slotId: slot._id,
+    
 
-      //   type: 'LESSON',
-
-      //   hours: hours,
-      //   pricePerHour: order.pricePerHour,
-
-      //   grossAmount: grossAmount,
-
-      //   instructorEarning: -grossAmount // reversed earning
-      // });
-
-      console.log("logs check",{
-        instructorId: order.instructorId,
-        learnerId: order.learnerId,
-        orderId: order._id,
-        slotId: slot._id,
-        type: slot.type,
-        hours: hours,
-        pricePerHour: order.pricePerHour,
-        grossAmount: grossAmount,
-        instructorEarning: 0
-      })
+     
       await this.instructorTransactionModel.create({
         instructorId: order.instructorId,
         learnerId: order.learnerId,
