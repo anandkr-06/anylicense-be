@@ -26,6 +26,9 @@ import { SlotService } from './services/slotService';
 import { PricingService } from './services/pricingService';
 import { PaymentService } from './services/paymentService';
 import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/wallet-transaction.schema';
+import { PayoutService } from '@app/payouts/payout.service';
+import { StripeService } from '@app/payouts/stripe.service';
+import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
 
 
 @Module({
@@ -51,6 +54,7 @@ import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/w
       { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
 
       { name: WalletTransaction.name, schema: WalletTransactionSchema },
+      { name: Payout.name, schema: PayoutSchema },
     
     ]),
     AddressModule,
@@ -58,9 +62,10 @@ import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/w
     InstructorModule,
     LeanerModule,
     WalletModule, // ✅ ADD THIS
+
   ],
   controllers: [OrdersController, PrivateLearnersController],
-  providers: [OrderService, UserDbService, PrivateLearnerService, InstructorService,SlotService,PricingService,PaymentService],
+  providers: [OrderService, UserDbService, PrivateLearnerService, InstructorService,SlotService,PricingService,PaymentService,PayoutService, StripeService],
   exports: [OrderService],
 })
 export class OrdersModule {}

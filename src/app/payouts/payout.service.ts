@@ -15,6 +15,7 @@ import {
 import { StripeService } from './stripe.service';
 import { User } from '@common/db/schemas/user.schema';
 import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
+import { WalletTransaction, WalletTransactionDocument } from '@common/db/schemas/wallet-transaction.schema';
 
 @Injectable()
 export class PayoutService {
@@ -31,7 +32,8 @@ export class PayoutService {
 
         @InjectModel(InstructorProfile.name)
             private readonly instructorProfileModel: Model<InstructorProfileDocument>,
-        
+        @InjectModel(WalletTransaction.name)
+            private readonly walletTransactionModel: Model<WalletTransactionDocument>,
       ) {}
 
 
@@ -184,14 +186,8 @@ async instructorFastCash(instructorId: string, amount: number) {
     throw new BadRequestException('Stripe account not connected');
   }
 
-  // 🔹 Get Stripe account
   const account = await this.stripeService.getAccount(stripeAccountId);
 
-  console.log(account.capabilities);
-  console.log(account.payouts_enabled);
-  console.log(account.charges_enabled);
-
-  // 🔹 Check onboarding status
   if (
     !account.payouts_enabled ||
     account.capabilities?.transfers !== 'active'
@@ -211,7 +207,6 @@ async instructorFastCash(instructorId: string, amount: number) {
     throw new BadRequestException('No balance available');
   }
 
-  // 🔹 Validate request amount
   if (!amount || amount <= 0) {
     throw new BadRequestException('Invalid payout amount');
   }
@@ -220,24 +215,40 @@ async instructorFastCash(instructorId: string, amount: number) {
     throw new BadRequestException('Requested amount exceeds wallet balance');
   }
 
-  const payoutAmount = Math.round(amount * 100); // Stripe uses cents
+  const payoutAmount = Math.round(amount * 100);
 
-  // 🔹 Transfer from platform → instructor Stripe account
+  // Check Stripe platform balance
+  const balance = await this.stripeService.getPlatformBalance();
+  const available = balance.available[0]?.amount || 0;
+
+  if (available < payoutAmount) {
+    throw new BadRequestException(
+      'Stripe platform balance insufficient',
+    );
+  }
+
   const transfer = await this.stripeService.createTransfer(
     stripeAccountId,
     payoutAmount,
     instructorId,
   );
 
-  // 🔹 Instant payout → instructor bank/debit card
   const payout = await this.stripeService.instantPayout(
     stripeAccountId,
     payoutAmount,
   );
 
-  // 🔹 Deduct wallet balance
   await this.userModel.findByIdAndUpdate(instructorId, {
     $inc: { walletBalance: -amount },
+  });
+
+  await this.walletTransactionModel.create({
+    userId: instructorId,
+    role: 'instructor',
+    type: 'DEBIT',
+    amount: amount,
+    balanceAfter: walletBalance - amount,
+    source: 'FAST_CASH',
   });
 
   return {
@@ -347,4 +358,67 @@ async getTransactions(
   };
 }
 
+//Instructor wallet Transactions:
+/**
+ * Credit Instructor Wallet (After Lesson Completed)
+ * @param transactionId 
+ * @returns 
+ */
+async creditInstructorWallet(transactionId: Types.ObjectId) {
+
+  const txn = await this.transactionModel.findById(transactionId);
+
+  if (!txn) {
+    throw new BadRequestException('Transaction not found');
+  }
+
+  if (txn.payoutStatus === 'PAID') {
+    throw new BadRequestException('Wallet already credited');
+  }
+
+  const instructorEarning = txn.instructorEarning;
+
+  // 1️⃣ Update wallet balance
+  const instructor = await this.userModel.findByIdAndUpdate(
+    txn.instructorId,
+    { $inc: { walletBalance: instructorEarning } },
+    { new: true }
+  );
+
+  if (!instructor) {
+    throw new BadRequestException('Instructor not found');
+  }
+
+  // 2️⃣ Update payout status
+  await this.transactionModel.findByIdAndUpdate(transactionId, {
+    payoutStatus: 'PAID',
+    payoutDate: new Date()
+  });
+
+  // 3️⃣ Create wallet ledger
+  await this.walletTransactionModel.create({
+    userId: txn.instructorId,
+    type: 'CREDIT',
+    role: 'instructor',
+    amount: instructorEarning,
+    balanceAfter: instructor.walletBalance,
+    source: 'LESSON_COMPLETED',
+    referenceId: txn.orderId
+  });
+
+  return {
+    message: 'Instructor wallet credited',
+    balance: instructor.walletBalance
+  };
+}
+
+//Instructor Wallet History API
+
+async getInstructorWallet(instructorId: string) {
+
+  return this.walletTransactionModel.find({
+    userId: instructorId,
+    role: "instructor"
+  }).sort({ createdAt: -1 });
+}
 }

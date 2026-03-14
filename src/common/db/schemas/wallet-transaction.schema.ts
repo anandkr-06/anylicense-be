@@ -32,6 +32,9 @@ export class WalletTransaction {
   @Prop({ enum: WalletTxnType, required: true })
   type!: WalletTxnType;
 
+  @Prop({ enum: ['learner', 'instructor'], required: true })
+  role!: string;
+
   @Prop({ required: true, min: 0 })
   amount!: number;
 
