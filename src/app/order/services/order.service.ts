@@ -433,55 +433,105 @@ export class OrderService {
     userId: string,
     role: FeedbackOwnerType,
   ) {
-    // const session = await this.orderModel.db.startSession();
-    // session.startTransaction();
-
     try {
-      const order = await this.orderModel
-        .findById(orderId);
-
-      if (!order) throw new NotFoundException('Order not found');
-
+  
+      const order = await this.orderModel.findById(orderId);
+  
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+  
       const slot = order.bookedSlots.id(slotId);
-      if (!slot) throw new NotFoundException('Slot not found');
-
-      if (slot.status !== 'BOOKED')
+  
+      if (!slot) {
+        throw new NotFoundException('Slot not found');
+      }
+  
+      if (slot.status !== 'BOOKED') {
         throw new BadRequestException('Slot not cancellable');
-
+      }
+  
       const within24h = this.isWithin24Hours(
         slot.date,
         slot.startTime,
       );
-
+  
+      /**
+       * Cancel slot
+       */
       slot.status = 'CANCELLED';
+  
       slot.notification = {
         learner: true,
         instructor: true,
       };
+  
       slot.actionMeta = {
         actedBy: role,
         actedAt: new Date(),
         reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
       };
-
-      // 💰 WALLET REFUND (ONLY IF >24h)
+  
+      /**
+       * Wallet refund (>24h only)
+       */
       if (!within24h) {
+  
         const hours = this.calculateSlotHours(
           slot.startTime,
           slot.endTime,
         );
+  
         const refund = hours * order.pricePerHour;
-
+  
         order.walletCredit += refund;
         order.remainingHours += hours;
-        order.usedHours -= hours;
+        order.usedHours = Math.max(0, order.usedHours - hours);
       }
-
+  
+      /**
+       * Save order first
+       */
       await order.save();
-
-      return { success: true, message: 'Slot cancelled' };
-    } catch (e) {
-      throw e;
+  
+      /**
+       * Free instructor slot (optimized query)
+       */
+      await this.instructorProfileModel.updateOne(
+        {
+          _id: order.instructorId
+        },
+        {
+          $set: {
+            "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
+          },
+          $unset: {
+            "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": "",
+            "availability.weeks.$[].days.$[day].slots.$[slot].pickupAddress": "",
+            "availability.weeks.$[].days.$[day].slots.$[slot].suburb": "",
+            "availability.weeks.$[].days.$[day].slots.$[slot].state": ""
+          }
+        },
+        {
+          arrayFilters: [
+            {
+              "day.date": new Date(slot.date)
+            },
+            {
+              "slot.startTime": normalizeTime(slot.startTime),
+              "slot.endTime": normalizeTime(slot.endTime)
+            }
+          ]
+        }
+      );
+  
+      return {
+        success: true,
+        message: "Slot cancelled and freed successfully"
+      };
+  
+    } catch (error) {
+      throw error;
     }
   }
 
