@@ -599,22 +599,23 @@ export class OrderService {
         slot.startTime,
         slot.endTime,
       );
-    
+      
       const grossAmount = hours * order.pricePerHour;
-    
+      
       await this.instructorTransactionModel.create({
         instructorId: order.instructorId,
+        learnerId: order.learnerId,   // ✅ REQUIRED
         orderId: order._id,
         slotId: slot._id,
-    
+      
         type: 'LESSON',
-    
+      
         hours: hours,
         pricePerHour: order.pricePerHour,
-    
+      
         grossAmount: grossAmount,
-    
-        instructorEarning: -grossAmount
+      
+        instructorEarning: -grossAmount // reversed earning
       });
     
     }
