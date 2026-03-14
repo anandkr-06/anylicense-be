@@ -50,7 +50,7 @@ import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/w
       { name: PrivateLearner.name, schema: PrivateLearnerSchema },
       { name: InstructorTransaction.name, schema: InstructorTransactionSchema },
 
-      { name: WalletTransaction.name, schema: WalletTransactionSchema },
+      // { name: WalletTransaction.name, schema: WalletTransactionSchema },
     
     ]),
     AddressModule,
