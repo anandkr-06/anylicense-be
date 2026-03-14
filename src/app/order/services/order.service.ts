@@ -544,151 +544,114 @@ export class OrderService {
     role: FeedbackOwnerType,
   ) {
   
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
+    const order = await this.orderModel.findById(orderId);
   
-    try {
-  
-      const order = await this.orderModel
-        .findById(orderId)
-        .session(session);
-  
-      if (!order) {
-        throw new NotFoundException('Order not found');
-      }
-  
-      const slot = order.bookedSlots.id(slotId);
-  
-      if (!slot) {
-        throw new NotFoundException('Slot not found');
-      }
-  
-      if (slot.status !== 'BOOKED') {
-        throw new BadRequestException('Slot not cancellable');
-      }
-  
-      const within24h = this.isWithin24Hours(
-        slot.date,
-        slot.startTime,
-      );
-  
-      /**
-       * Cancel slot
-       */
-      slot.status = 'CANCELLED';
-  
-      slot.notification = {
-        learner: true,
-        instructor: true,
-      };
-  
-      slot.actionMeta = {
-        actedBy: role,
-        actedAt: new Date(),
-        reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
-      };
-  
-      let refund = 0;
-  
-      /**
-       * Refund logic (>24h only)
-       */
-      if (!within24h) {
-  
-        const hours = this.calculateSlotHours(
-          slot.startTime,
-          slot.endTime,
-        );
-  
-        refund = hours * order.pricePerHour;
-  
-        order.walletCredit += refund;
-        order.remainingHours += hours;
-        order.usedHours = Math.max(0, order.usedHours - hours);
-      }
-  
-      await order.save({ session });
-  
-      /**
-       * Free instructor slot
-       */
-      await this.instructorProfileModel.updateOne(
-        { _id: order.instructorId },
-        {
-          $set: {
-            "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
-          },
-          $unset: {
-            "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": "",
-            "availability.weeks.$[].days.$[day].slots.$[slot].pickupAddress": "",
-            "availability.weeks.$[].days.$[day].slots.$[slot].suburb": "",
-            "availability.weeks.$[].days.$[day].slots.$[slot].state": ""
-          }
-        },
-        {
-          session,
-          arrayFilters: [
-            {
-              "day.date": new Date(slot.date)
-            },
-            {
-              "slot.startTime": normalizeTime(slot.startTime),
-              "slot.endTime": normalizeTime(slot.endTime)
-            }
-          ]
-        }
-      );
-  
-      /**
-       * Update learner wallet
-       */
-      if (refund > 0) {
-  
-        const learner = await this.learnerModel.findById(
-          order.learnerId
-        ).session(session);
-  
-        if (!learner) {
-          throw new NotFoundException('Learner not found');
-        }
-  
-        learner.walletBalance += refund;
-  
-        await learner.save({ session });
-  
-        /**
-         * Wallet Ledger Entry
-         */
-        await this.walletModel.create(
-          [
-            {
-              learnerId: order.learnerId,
-              type: 'CREDIT',
-              amount: refund,
-              balanceAfter: learner.walletBalance,
-              source: 'SLOT_CANCELLED',
-              referenceEntityId: order._id
-            }
-          ],
-          { session }
-        );
-      }
-  
-      await session.commitTransaction();
-      session.endSession();
-  
-      return {
-        success: true,
-        message: 'Slot cancelled successfully'
-      };
-  
-    } catch (error) {
-  
-      await session.abortTransaction();
-      session.endSession();
-  
-      throw error;
+    if (!order) {
+      throw new NotFoundException('Order not found');
     }
+  
+    const slot = order.bookedSlots.id(slotId);
+  
+    if (!slot) {
+      throw new NotFoundException('Slot not found');
+    }
+  
+    if (slot.status !== 'BOOKED') {
+      throw new BadRequestException('Slot not cancellable');
+    }
+  
+    const within24h = this.isWithin24Hours(
+      slot.date,
+      slot.startTime,
+    );
+  
+    slot.status = 'CANCELLED';
+  
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
+  
+    slot.actionMeta = {
+      actedBy: role,
+      actedAt: new Date(),
+      reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+    };
+  
+    let refund = 0;
+  
+    if (!within24h) {
+  
+      const hours = this.calculateSlotHours(
+        slot.startTime,
+        slot.endTime,
+      );
+  
+      refund = hours * order.pricePerHour;
+  
+      order.walletCredit += refund;
+      order.remainingHours += hours;
+      order.usedHours = Math.max(0, order.usedHours - hours);
+    }
+  
+    await order.save();
+  
+    /**
+     * Free instructor slot
+     */
+    await this.instructorProfileModel.updateOne(
+      { _id: order.instructorId },
+      {
+        $set: {
+          "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false
+        },
+        $unset: {
+          "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": "",
+          "availability.weeks.$[].days.$[day].slots.$[slot].pickupAddress": "",
+          "availability.weeks.$[].days.$[day].slots.$[slot].suburb": "",
+          "availability.weeks.$[].days.$[day].slots.$[slot].state": ""
+        }
+      },
+      {
+        arrayFilters: [
+          { "day.date": new Date(slot.date) },
+          {
+            "slot.startTime": normalizeTime(slot.startTime),
+            "slot.endTime": normalizeTime(slot.endTime)
+          }
+        ]
+      }
+    );
+  
+    /**
+     * Wallet refund
+     */
+    if (refund > 0) {
+  
+      const learner = await this.learnerModel.findById(order.learnerId);
+  
+      if (!learner) {
+        throw new NotFoundException('Learner not found');
+      }
+  
+      learner.walletBalance += refund;
+  
+      await learner.save();
+  
+      await this.walletModel.create({
+        learnerId: order.learnerId,
+        type: 'CREDIT',
+        amount: refund,
+        balanceAfter: learner.walletBalance,
+        source: 'SLOT_CANCELLED',
+        referenceEntityId: order._id
+      });
+    }
+  
+    return {
+      success: true,
+      message: 'Slot cancelled successfully'
+    };
   }
 
   async noShowSlot(
