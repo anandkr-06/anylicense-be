@@ -606,6 +606,17 @@ export class OrderService {
       //   instructorEarning: -grossAmount // reversed earning
       // });
 
+      console.log("logs check",{
+        instructorId: order.instructorId,
+        learnerId: order.learnerId,
+        orderId: order._id,
+        slotId: slot._id,
+        type: slot.type,
+        hours: hours,
+        pricePerHour: order.pricePerHour,
+        grossAmount: grossAmount,
+        instructorEarning: 0
+      })
       await this.instructorTransactionModel.create({
         instructorId: order.instructorId,
         learnerId: order.learnerId,
