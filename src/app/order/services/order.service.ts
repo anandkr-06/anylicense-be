@@ -580,18 +580,43 @@ export class OrderService {
   
     let refund = 0;
   
-    if (!within24h) {
+    // if (!within24h) {
   
+    //   const hours = this.calculateSlotHours(
+    //     slot.startTime,
+    //     slot.endTime,
+    //   );
+  
+    //   refund = hours * order.pricePerHour;
+  
+    //   order.walletCredit += refund;
+    //   order.remainingHours += hours;
+    //   order.usedHours = Math.max(0, order.usedHours - hours);
+    // }
+    if (!within24h) {
+
       const hours = this.calculateSlotHours(
         slot.startTime,
         slot.endTime,
       );
-  
-      refund = hours * order.pricePerHour;
-  
-      order.walletCredit += refund;
-      order.remainingHours += hours;
-      order.usedHours = Math.max(0, order.usedHours - hours);
+    
+      const grossAmount = hours * order.pricePerHour;
+    
+      await this.instructorTransactionModel.create({
+        instructorId: order.instructorId,
+        orderId: order._id,
+        slotId: slot._id,
+    
+        type: 'LESSON',
+    
+        hours: hours,
+        pricePerHour: order.pricePerHour,
+    
+        grossAmount: grossAmount,
+    
+        instructorEarning: -grossAmount
+      });
+    
     }
   
     await order.save();
