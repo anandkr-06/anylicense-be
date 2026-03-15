@@ -400,9 +400,15 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
   const instructorEarning = txn.instructorEarning;
 
+  const instructorData = await this.instructorProfileModel.findOne({
+    _id: new Types.ObjectId( txn.instructorId),
+  });
+  if (!instructorData) {
+    throw new BadRequestException('Instructor not found');
+  }
   // 1️⃣ Update wallet balance
   const instructor = await this.userModel.findByIdAndUpdate(
-    txn.instructorId,
+    instructorData.userId,
     { $inc: { walletBalance: instructorEarning } },
     { new: true }
   );
