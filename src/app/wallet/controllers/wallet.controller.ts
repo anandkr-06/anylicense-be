@@ -95,6 +95,7 @@ export class WalletController {
     const txn = await this.walletTxnModel.findOne({
       _id: new Types.ObjectId(txnId),
       learnerId: new Types.ObjectId(currentUser.sub),
+      
     });
   
     if (!txn) {

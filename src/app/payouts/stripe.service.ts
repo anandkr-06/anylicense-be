@@ -31,8 +31,8 @@ export class StripeService {
   async createAccountOnboardingLink(accountId: string) {
     const accountLink = await this.stripe.accountLinks.create({
       account: accountId,
-      refresh_url: 'https://yourapp.com/reauth',
-      return_url: 'https://yourapp.com/dashboard',
+      refresh_url: 'https://dev.anylicence.com/reauth',
+      return_url: 'https://dev.anylicence.com/dashboard',
       type: 'account_onboarding',
     });
 
@@ -127,4 +127,27 @@ export class StripeService {
 async getPlatformBalance() {
     return this.stripe.balance.retrieve();
   }
+
+
+  // 🧪 TEST ONLY - Add funds to Stripe platform balance
+async createTestCharge() {
+
+  const charge = await this.stripe.charges.create({
+    amount: 10000, // $100
+    currency: 'usd',
+    source: 'tok_visa', // Stripe test token
+    description: 'Test charge to add funds to platform balance',
+  });
+
+  return charge;
+}
+
+async addTestBalance() {
+  return this.stripe.topups.create({
+    amount: 10000,
+    currency: 'usd',
+    description: 'Test platform balance topup',
+  });
+}
+
 }

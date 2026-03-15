@@ -4,10 +4,13 @@ import { Public } from '@common/decorators/public.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { WithdrawDto } from '@app/payment/dto/withdraw.dto';
+import { StripeService } from './stripe.service';
 
 @Controller('payouts')
 export class PayoutController {
-  constructor(private readonly payoutService: PayoutService) {}
+  constructor(private readonly payoutService: PayoutService,
+    private readonly stripeService: StripeService
+  ) {}
 @Public()
   @Post('run-weekly')
   async runWeeklyPayout() {
@@ -76,5 +79,17 @@ addWallet(
       instructorId
     );
   }
+
+  @Post('test-charge')
+async createTestCharge() {
+  return this.stripeService.createTestCharge();
+}
+
+  @Post('test-topup')
+async createTestTopup() {
+  return this.stripeService.addTestBalance();
+}
+
+
 
 }

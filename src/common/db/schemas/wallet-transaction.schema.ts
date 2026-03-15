@@ -26,8 +26,14 @@ export enum WalletTxnStatus {
 
 @Schema({ collection: 'wallet_transactions', timestamps: true })
 export class WalletTransaction {
-  @Prop({ type: Types.ObjectId, ref: 'Learner', required: true, index: true })
-  learnerId!: Types.ObjectId;
+  // OLD FIELD (keep for existing learner records)
+  @Prop({ type: Types.ObjectId, ref: 'Learner', index: true })
+  learnerId?: Types.ObjectId;
+
+  // NEW FIELD (for both learner + instructor)
+  @Prop({ type: Types.ObjectId, ref: 'User', index: true })
+  userId?: Types.ObjectId;
+
 
   @Prop({ enum: WalletTxnType, required: true })
   type!: WalletTxnType;
@@ -60,22 +66,22 @@ export class WalletTransaction {
   idempotencyKey?: string;
 
    // 💳 CARD INFO (SAFE TO STORE)
-   @Prop()
+   @Prop({required: false})
    cardBrand?: string;      // visa, mastercard
  
-   @Prop()
+   @Prop({required: false})
    cardLast4?: string;      // **** 4242
  
-   @Prop()
+   @Prop({required: false})
    cardExpMonth?: number;
  
-   @Prop()
+   @Prop({required: false})
    cardExpYear?: number;
  
-   @Prop()
+   @Prop({required: false})
    stripePaymentIntentId?: string;
  
-   @Prop()
+   @Prop({required: false})
    stripeChargeId?: string;
 }
 
