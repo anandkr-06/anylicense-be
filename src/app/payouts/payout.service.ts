@@ -174,7 +174,11 @@ export class PayoutService {
 // }
 async instructorFastCash(instructorId: string, amount: number) {
 
-  const instructor = await this.userModel.findById(instructorId).lean();
+  if (!amount || amount <= 0) {
+    throw new BadRequestException('Invalid payout amount');
+  }
+
+  const instructor = await this.userModel.findById(instructorId);
 
   if (!instructor) {
     throw new BadRequestException('Instructor not found');
@@ -186,22 +190,10 @@ async instructorFastCash(instructorId: string, amount: number) {
     throw new BadRequestException('Stripe account not connected');
   }
 
- await this.stripeService.getAccountExternals(stripeAccountId);
-
   const account = await this.stripeService.getAccount(stripeAccountId);
-  console.log("payouts_enabled:", account.payouts_enabled);
-console.log("charges_enabled:", account.charges_enabled);
-console.log("transfers:", account.capabilities?.transfers);
-console.log("default_currency:", account.default_currency);
 
+  if (!account.payouts_enabled || account.capabilities?.transfers !== 'active') {
 
-
-
-
-  if (
-    !account.payouts_enabled ||
-    account.capabilities?.transfers !== 'active'
-  ) {
     const onboardingLink =
       await this.stripeService.createAccountOnboardingLink(stripeAccountId);
 
@@ -211,72 +203,82 @@ console.log("default_currency:", account.default_currency);
     };
   }
 
-  const walletBalance = Number((instructor as any).walletBalance ?? 0);
-
-  if (walletBalance <= 0) {
-    throw new BadRequestException('No balance available');
-  }
-
-  if (!amount || amount <= 0) {
-    throw new BadRequestException('Invalid payout amount');
-  }
-
-  if (amount > walletBalance) {
-    throw new BadRequestException('Requested amount exceeds wallet balance');
-  }
-
   const payoutAmount = Math.round(amount * 100);
 
-  // Check Stripe platform balance
- const balance = await this.stripeService.getPlatformBalance();
+  // ✅ Check Stripe platform AUD balance
+  const balance = await this.stripeService.getPlatformBalance();
 
- console.log(JSON.stringify(balance.available, null, 2));
-
-
-const audBalance = balance.available.find(
-  b => b.currency === 'aud'
-);
-
-console.log("Available AUD balance:", audBalance?.amount);
-
-const available = audBalance?.amount || 0;
-
-if (available < payoutAmount) {
-  throw new BadRequestException(
-    'Stripe platform balance insufficient',
-  );
-}
-
-  const transfer = await this.stripeService.createTransfer(
-    stripeAccountId,
-    payoutAmount,
-    instructorId,
+  const audBalance = balance.available.find(
+    (b) => b.currency === 'aud'
   );
 
-  const payout = await this.stripeService.instantPayout(
-    stripeAccountId,
-    payoutAmount,
+  const available = audBalance?.amount || 0;
+
+  if (available < payoutAmount) {
+    throw new BadRequestException('Stripe platform balance insufficient');
+  }
+
+  // ✅ Atomic wallet deduction (prevents double payouts)
+  const updatedInstructor = await this.userModel.findOneAndUpdate(
+    {
+      _id: instructorId,
+      walletBalance: { $gte: amount }
+    },
+    {
+      $inc: { walletBalance: -amount }
+    },
+    { new: true }
   );
 
-  await this.userModel.findByIdAndUpdate(instructorId, {
-    $inc: { walletBalance: -amount },
-  });
+  if (!updatedInstructor) {
+    throw new BadRequestException('Insufficient wallet balance');
+  }
 
-  await this.walletTransactionModel.create({
-    userId: instructorId,
-    role: 'instructor',
-    type: 'DEBIT',
-    amount: amount,
-    balanceAfter: walletBalance - amount,
-    source: 'FAST_CASH',
-  });
+  try {
 
-  return {
-    message: 'Fast cash successful',
-    amount,
-    transferId: transfer.id,
-    payoutId: payout.id,
-  };
+    // ✅ Transfer platform → instructor Stripe
+    const transfer = await this.stripeService.createTransfer(
+      stripeAccountId,
+      payoutAmount,
+      instructorId,
+    );
+
+    // ✅ Instant payout instructor → bank
+    const payout = await this.stripeService.instantPayout(
+      stripeAccountId,
+      payoutAmount,
+    );
+
+    // ✅ Wallet ledger entry
+    await this.walletTransactionModel.create({
+      userId: instructorId,
+      role: 'instructor',
+      type: 'DEBIT',
+      amount: amount,
+      balanceAfter: updatedInstructor.walletBalance,
+      source: 'FAST_CASH',
+    });
+
+    return {
+      message: 'Fast cash successful',
+      amount,
+      transferId: transfer.id,
+      payoutId: payout.id,
+      walletBalance: updatedInstructor.walletBalance
+    };
+
+  } catch (error) {
+
+    // 🔁 Rollback wallet if Stripe fails
+    await this.userModel.findByIdAndUpdate(
+      instructorId,
+      { $inc: { walletBalance: amount } }
+    );
+
+    throw new BadRequestException(
+      'Stripe payout failed: ' + error
+    );
+  }
 }
 
 
