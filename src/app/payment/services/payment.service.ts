@@ -71,33 +71,33 @@ export class StripeService {
       orderType === 'PUBLIC'
         ? await this.orderModel.findById(orderId)
         : await this.privateOrderModel.findById(orderId);
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     if (order.status !== 'PENDING_PAYMENT') {
       throw new BadRequestException(
         `Cannot create payment for order status ${order.status}`,
       );
     }
-  
+
     // 2️⃣ Build metadata (IMPORTANT PART)
     const metadata: StripeIntentMetadata =
-  orderType === 'PUBLIC'
-    ? {
-        purpose: 'ORDER_PAYMENT',
-        orderId: order._id.toString(),
-        learnerId: order.learnerId.toString(),
-        instructorId: order.instructorId.toString(),
-        orderType: 'PUBLIC',
-      }
-    : {
-        purpose: 'ORDER_PAYMENT',
-        orderId: order._id.toString(),
-        orderType: 'PRIVATE',
-      };
-  
+      orderType === 'PUBLIC'
+        ? {
+          purpose: 'ORDER_PAYMENT',
+          orderId: order._id.toString(),
+          learnerId: order.learnerId.toString(),
+          instructorId: order.instructorId.toString(),
+          orderType: 'PUBLIC',
+        }
+        : {
+          purpose: 'ORDER_PAYMENT',
+          orderId: order._id.toString(),
+          orderType: 'PRIVATE',
+        };
+
     // 3️⃣ Create Stripe PaymentIntent
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount: Math.round(order.totalAmount * 100), // cents
@@ -105,9 +105,9 @@ export class StripeService {
       automatic_payment_methods: { enabled: true },
       metadata,
     });
-  
+
     console.log('Stripe metadata:', metadata);
-    
+
     // 4️⃣ Save payment record
     await this.paymentModel.create({
       orderId: order._id,
@@ -117,8 +117,8 @@ export class StripeService {
       status: 'INITIATED',
       purpose: PaymentPurpose.ORDER,
     });
-    
-    
+
+
     // 5️⃣ Return to frontend
     return {
       clientSecret: paymentIntent.client_secret,
@@ -127,7 +127,7 @@ export class StripeService {
       metadata,
     };
   }
-  
+
 
   /* -----------------------------
      CREATE WALLET TOP-UP INTENT
@@ -162,11 +162,11 @@ export class StripeService {
       _id: giftVoucherId,
       status: 'PENDING', // or CREATED or DRAFT
     });
-  
+
     if (!voucher) {
       throw new BadRequestException('Invalid or already paid voucher');
     }
-  
+
     // 🔒 lock voucher
     await this.giftVoucherModel.updateOne(
       { _id: giftVoucherId },
@@ -175,7 +175,7 @@ export class StripeService {
         paymentStartedAt: new Date(),
       },
     );
-  
+
     const intent = await this.stripe.paymentIntents.create({
       amount: Math.round(voucher.amount * 100),
       currency: 'aud',
@@ -185,7 +185,7 @@ export class StripeService {
         giftVoucherId: voucher._id.toString(),
       },
     });
-  
+
 
     // await this.paymentModel.create({
     //   amount: voucher.amount,
@@ -202,92 +202,94 @@ export class StripeService {
       stripePaymentIntentId: intent.id,
       status: 'INITIATED',
     });
-    
-  
+
+
     return {
       clientSecret: intent.client_secret,
     };
   }
-  
+
 
   /* -----------------------------
    WITHDRAW WALLET BALANCE
 -------------------------------- */
 
-// async withdrawFromWallet(userId: string, amount: number) {
+  // async withdrawFromWallet(userId: string, amount: number) {
 
-//   if (amount <= 0) {
-//     throw new BadRequestException('Invalid withdrawal amount');
-//   }
+  //   if (amount <= 0) {
+  //     throw new BadRequestException('Invalid withdrawal amount');
+  //   }
 
-//   const wallet = await this.walletModel.findOne({ userId });
+  //   const wallet = await this.walletModel.findOne({ userId });
 
-//   if (!wallet) {
-//     throw new NotFoundException('Wallet not found');
-//   }
+  //   if (!wallet) {
+  //     throw new NotFoundException('Wallet not found');
+  //   }
 
-//   if (wallet.balance < amount) {
-//     throw new BadRequestException('Insufficient wallet balance');
-//   }
+  //   if (wallet.balance < amount) {
+  //     throw new BadRequestException('Insufficient wallet balance');
+  //   }
 
-//   const user = await this.learnerModel.findById(userId);
+  //   const user = await this.learnerModel.findById(userId);
 
-//   if (!user?.stripeAccountId) {
-//     throw new BadRequestException('Stripe account not connected');
-//   }
+  //   if (!user?.stripeAccountId) {
+  //     throw new BadRequestException('Stripe account not connected');
+  //   }
 
-//   // Transfer money to connected account
-//   const transfer = await this.stripe.transfers.create({
-//     amount: Math.round(amount * 100),
-//     currency: 'AUD',
-//     destination: user.stripeAccountId,
-//     metadata: {
-//       purpose: 'WALLET_WITHDRAWAL',
-//       userId,
-//     },
-//   });
+  //   // Transfer money to connected account
+  //   const transfer = await this.stripe.transfers.create({
+  //     amount: Math.round(amount * 100),
+  //     currency: 'AUD',
+  //     destination: user.stripeAccountId,
+  //     metadata: {
+  //       purpose: 'WALLET_WITHDRAWAL',
+  //       userId,
+  //     },
+  //   });
 
-//   // deduct wallet balance
-//   wallet.balance -= amount;
-//   await wallet.save();
+  //   // deduct wallet balance
+  //   wallet.balance -= amount;
+  //   await wallet.save();
 
-//   return {
-//     message: 'Withdrawal initiated successfully',
-//     amount,
-//     transferId: transfer.id,
-//   };
-// }
-async withdrawFromWallet(learnerId: string, amount: number) {
-  if (amount <= 0) {
-    throw new BadRequestException('Invalid withdrawal amount');
+  //   return {
+  //     message: 'Withdrawal initiated successfully',
+  //     amount,
+  //     transferId: transfer.id,
+  //   };
+  // }
+  async withdrawFromWallet(learnerId: string, amount: number) {
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid withdrawal amount');
+    }
+
+    // get last wallet transaction
+    const lastTxn = await this.walletModel
+      .findOne({ learnerId: new Types.ObjectId(learnerId) })
+      .sort({ createdAt: -1 });
+    console.log("lastTxn", lastTxn)
+    const currentBalance = lastTxn?.balanceAfter || 0;
+
+    if (currentBalance < amount) {
+      throw new BadRequestException('Insufficient wallet balance');
+    }
+
+    const newBalance = currentBalance - amount;
+
+    const withdrawalTxn = await this.walletModel.create({
+      learnerId,
+      userId: learnerId,
+      role: "learner",
+      type: 'DEBIT',
+      amount,
+      balanceAfter: newBalance,
+      source: 'STRIPE_REFUND',
+      referenceEntityId: null,
+      status: 'COMPLETED',
+    });
+
+    return {
+      message: 'Withdrawal successful',
+      transaction: withdrawalTxn,
+    };
   }
-
-  // get last wallet transaction
-  const lastTxn = await this.walletModel
-    .findOne({ learnerId: new Types.ObjectId(learnerId) })
-    .sort({ createdAt: -1 });
-console.log("lastTxn",lastTxn)
-  const currentBalance = lastTxn?.balanceAfter || 0;
-
-  if (currentBalance < amount) {
-    throw new BadRequestException('Insufficient wallet balance');
-  }
-
-  const newBalance = currentBalance - amount;
-
-  const withdrawalTxn = await this.walletModel.create({
-    learnerId,
-    type: 'DEBIT',
-    amount,
-    balanceAfter: newBalance,
-    source: 'STRIPE_REFUND',
-    referenceEntityId: null,
-    status: 'COMPLETED',
-  });
-
-  return {
-    message: 'Withdrawal successful',
-    transaction: withdrawalTxn,
-  };
-}
 }

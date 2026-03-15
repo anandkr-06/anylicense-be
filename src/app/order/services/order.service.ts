@@ -542,6 +542,8 @@ export class OrderService {
 
       await this.walletModel.create({
         learnerId: order.learnerId,
+        userId: order.learnerId,
+        role: "learner",
         type: 'CREDIT',
         amount: refund,
         balanceAfter: learner.walletBalance,
