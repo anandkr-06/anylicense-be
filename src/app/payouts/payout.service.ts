@@ -438,8 +438,8 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
 async getInstructorWalletHistory(
   instructorId: string,
-  page: number = 1,
-  limit: number = 10,
+  page = 1,
+  limit = 10,
   startDate?: string,
   endDate?: string,
 ) {
@@ -451,49 +451,25 @@ async getInstructorWalletHistory(
     role: 'instructor',
   };
 
-  // ✅ Date filter
   if (startDate || endDate) {
     match.createdAt = {};
     if (startDate) match.createdAt.$gte = new Date(startDate);
     if (endDate) match.createdAt.$lte = new Date(endDate);
   }
 
-  const [walletTransactions, totalRecords, totalAmount] = await Promise.all([
+  const transactions = await this.walletTransactionModel
+    .find(match)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 
-    this.walletTransactionModel.find(match)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-
-    this.walletTransactionModel.countDocuments(match),
-
-    this.walletTransactionModel.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          totalCredits: {
-            $sum: {
-              $cond: [{ $eq: ['$type', 'CREDIT'] }, '$amount', 0],
-            },
-          },
-          totalDebits: {
-            $sum: {
-              $cond: [{ $eq: ['$type', 'DEBIT'] }, '$amount', 0],
-            },
-          },
-        },
-      },
-    ]),
-  ]);
+  const totalRecords = await this.walletTransactionModel.countDocuments(match);
 
   return {
     page,
     limit,
     totalRecords,
-    totalCredits: totalAmount[0]?.totalCredits || 0,
-    totalDebits: totalAmount[0]?.totalDebits || 0,
-    walletTransactions,
+    walletTransactions: transactions,
   };
 }
 
