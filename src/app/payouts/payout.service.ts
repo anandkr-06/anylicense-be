@@ -251,7 +251,7 @@ async instructorFastCash(instructorId: string, amount: number) {
 
     // ✅ Wallet ledger entry
     await this.walletTransactionModel.create({
-      userId: instructorId,
+      userId: new Types.ObjectId(instructorId),
       role: 'instructor',
       type: 'DEBIT',
       amount: amount,
@@ -419,7 +419,7 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
   // 3️⃣ Create wallet ledger
   await this.walletTransactionModel.create({
-    userId: txn.instructorId,
+    userId: new Types.ObjectId(txn.instructorId),
     type: 'CREDIT',
     role: 'instructor',
     amount: instructorEarning,
@@ -438,8 +438,8 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
 async getInstructorWalletHistory(
   instructorId: string,
-  page = 1,
-  limit = 10,
+  page: number = 1,
+  limit: number = 10,
   startDate?: string,
   endDate?: string,
 ) {
@@ -451,25 +451,49 @@ async getInstructorWalletHistory(
     role: 'instructor',
   };
 
+  // ✅ Date filter
   if (startDate || endDate) {
     match.createdAt = {};
     if (startDate) match.createdAt.$gte = new Date(startDate);
     if (endDate) match.createdAt.$lte = new Date(endDate);
   }
 
-  const transactions = await this.walletTransactionModel
-    .find(match)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const [walletTransactions, totalRecords, totalAmount] = await Promise.all([
 
-  const totalRecords = await this.walletTransactionModel.countDocuments(match);
+    this.walletTransactionModel.find(match)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+
+    this.walletTransactionModel.countDocuments(match),
+
+    this.walletTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalCredits: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 'CREDIT'] }, '$amount', 0],
+            },
+          },
+          totalDebits: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 'DEBIT'] }, '$amount', 0],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
 
   return {
     page,
     limit,
     totalRecords,
-    walletTransactions: transactions,
+    totalCredits: totalAmount[0]?.totalCredits || 0,
+    totalDebits: totalAmount[0]?.totalDebits || 0,
+    walletTransactions,
   };
 }
 
