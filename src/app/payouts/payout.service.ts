@@ -436,12 +436,65 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
 //Instructor Wallet History API
 
-async getInstructorWallet(instructorId: string) {
+async getInstructorWalletHistory(
+  instructorId: string,
+  page: number = 1,
+  limit: number = 10,
+  startDate?: string,
+  endDate?: string,
+) {
 
-  return this.walletTransactionModel.find({
-    userId: instructorId,
-    role: "instructor"
-  }).sort({ createdAt: -1 });
+  const skip = (page - 1) * limit;
+
+  const match: any = {
+    userId: new Types.ObjectId(instructorId),
+    role: 'instructor',
+  };
+
+  // ✅ Date filter
+  if (startDate || endDate) {
+    match.createdAt = {};
+    if (startDate) match.createdAt.$gte = new Date(startDate);
+    if (endDate) match.createdAt.$lte = new Date(endDate);
+  }
+
+  const [walletTransactions, totalRecords, totalAmount] = await Promise.all([
+
+    this.walletTransactionModel.find(match)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+
+    this.walletTransactionModel.countDocuments(match),
+
+    this.walletTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalCredits: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 'CREDIT'] }, '$amount', 0],
+            },
+          },
+          totalDebits: {
+            $sum: {
+              $cond: [{ $eq: ['$type', 'DEBIT'] }, '$amount', 0],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
+
+  return {
+    page,
+    limit,
+    totalRecords,
+    totalCredits: totalAmount[0]?.totalCredits || 0,
+    totalDebits: totalAmount[0]?.totalDebits || 0,
+    walletTransactions,
+  };
 }
 
 

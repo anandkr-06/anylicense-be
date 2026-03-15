@@ -72,11 +72,20 @@ addWallet(
   @Get('wallet-balance')
   async getPayoutHistory(
     @CurrentUser() currentUser: JwtPayload,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     const instructorId = currentUser.sub;
+    
 
-    return this.payoutService.getInstructorWallet(
-      instructorId
+    return this.payoutService.getInstructorWalletHistory(
+      instructorId,
+      Number(page),
+      Number(limit),
+      startDate,
+      endDate,
     );
   }
 
