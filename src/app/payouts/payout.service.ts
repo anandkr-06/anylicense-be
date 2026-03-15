@@ -186,7 +186,17 @@ async instructorFastCash(instructorId: string, amount: number) {
     throw new BadRequestException('Stripe account not connected');
   }
 
+ await this.stripeService.getAccountExternals(stripeAccountId);
+
   const account = await this.stripeService.getAccount(stripeAccountId);
+  console.log("payouts_enabled:", account.payouts_enabled);
+console.log("charges_enabled:", account.charges_enabled);
+console.log("transfers:", account.capabilities?.transfers);
+console.log("default_currency:", account.default_currency);
+
+
+
+
 
   if (
     !account.payouts_enabled ||
@@ -220,9 +230,14 @@ async instructorFastCash(instructorId: string, amount: number) {
   // Check Stripe platform balance
  const balance = await this.stripeService.getPlatformBalance();
 
+ console.log(JSON.stringify(balance.available, null, 2));
+
+
 const audBalance = balance.available.find(
   b => b.currency === 'aud'
 );
+
+console.log("Available AUD balance:", audBalance?.amount);
 
 const available = audBalance?.amount || 0;
 
