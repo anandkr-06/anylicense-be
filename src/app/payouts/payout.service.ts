@@ -425,7 +425,7 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
 
   // 3️⃣ Create wallet ledger
   await this.walletTransactionModel.create({
-    userId: new Types.ObjectId(txn.instructorId),
+    userId: new Types.ObjectId(instructorData.userId),
     type: 'CREDIT',
     role: 'instructor',
     amount: instructorEarning,
