@@ -218,14 +218,19 @@ async instructorFastCash(instructorId: string, amount: number) {
   const payoutAmount = Math.round(amount * 100);
 
   // Check Stripe platform balance
-  const balance = await this.stripeService.getPlatformBalance();
-  const available = balance.available[0]?.amount || 0;
+ const balance = await this.stripeService.getPlatformBalance();
 
-  if (available < payoutAmount) {
-    throw new BadRequestException(
-      'Stripe platform balance insufficient',
-    );
-  }
+const audBalance = balance.available.find(
+  b => b.currency === 'aud'
+);
+
+const available = audBalance?.amount || 0;
+
+if (available < payoutAmount) {
+  throw new BadRequestException(
+    'Stripe platform balance insufficient',
+  );
+}
 
   const transfer = await this.stripeService.createTransfer(
     stripeAccountId,
