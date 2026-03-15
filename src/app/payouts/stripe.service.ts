@@ -39,6 +39,19 @@ export class StripeService {
     return accountLink;
   }
 
+
+
+
+ async getAccountExternals(accountId: string) {
+    const external = await this.stripe.accounts.listExternalAccounts(
+  accountId,
+  { object: 'bank_account' }
+);
+
+console.log("external.data",external.data);
+    return external.data;
+  }
+
   
   // 4️⃣ Check Stripe balance
   async getBalance(accountId: string) {
