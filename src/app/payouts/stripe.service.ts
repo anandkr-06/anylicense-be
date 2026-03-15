@@ -59,7 +59,7 @@ export class StripeService {
     return this.stripe.transfers.create(
       {
         amount,
-        currency: 'usd',
+        currency: 'aud',
         destination: accountId,
       },
       {
@@ -73,7 +73,7 @@ export class StripeService {
     return this.stripe.payouts.create(
       {
         amount,
-        currency: 'usd',
+        currency: 'aud',
         method: 'instant',
       },
       {
@@ -134,7 +134,7 @@ async createTestCharge() {
 
   const charge = await this.stripe.charges.create({
     amount: 10000, // $100
-    currency: 'usd',
+    currency: 'aud',
     source: 'tok_visa', // Stripe test token
     description: 'Test charge to add funds to platform balance',
   });
@@ -145,7 +145,7 @@ async createTestCharge() {
 async addTestBalance() {
   return this.stripe.topups.create({
     amount: 10000,
-    currency: 'usd',
+    currency: 'aud',
     description: 'Test platform balance topup',
   });
 }
