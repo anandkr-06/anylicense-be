@@ -573,6 +573,130 @@ export class InstructorService {
 //     return result;
 //   }
 
+// async getAvailableSlots(
+//   instructorId: string,
+//   duration: 1 | 2 | 2.5,
+//   timeOfDay?: 'AM' | 'PM',
+// ) {
+
+//   const now = new Date();
+//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+//   const instructor = await this.instructorProfileModel
+//     .findOne({ userId: new Types.ObjectId(instructorId) })
+//     .lean<InstructorProfile & { _id: Types.ObjectId }>();
+
+//   if (!instructor) {
+//     throw new NotFoundException('Instructor not found');
+//   }
+
+//   const durationMinutes = duration * 60;
+//   const result = [];
+
+//   /**
+//    * ✅ Fetch Orders
+//    */
+//   const orders = await this.orderModel
+//     .find({
+//       instructorId: instructor._id,
+//       status: { $in: ['CONFIRMED', 'PAID'] },
+//     })
+//     .select('bookedSlots')
+//     .lean();
+
+//     console.log("ORDERS:", JSON.stringify(orders));
+//   /**
+//    * ✅ Create booked slot map
+//    * date -> slots[]
+//    */
+//   const bookedMap = new Map<string, { start: string; end: string }[]>();
+
+//   for (const order of orders) {
+//     for (const slot of order.bookedSlots || []) {
+
+//       const dateKey = new Date(slot.date).toISOString().slice(0, 10);
+
+//       if (!bookedMap.has(dateKey)) {
+//         bookedMap.set(dateKey, []);
+//       }
+
+//       bookedMap.get(dateKey)!.push({
+//         start: normalizeTime(slot.startTime),
+//         end: normalizeTime(slot.endTime),
+//       });
+
+//     }
+//   }
+
+//   /**
+//    * ✅ Iterate instructor availability
+//    */
+//   for (const week of instructor.availability?.weeks || []) {
+
+//     for (const day of week.days) {
+
+//       const bookedForDay = bookedMap.get(day.date) ?? [];
+
+//       const slotMap = new Map<string, AvailableSlot>();
+
+//       for (const avail of day.slots) {
+
+//         const splitSlots = splitSlotByDuration(
+//           avail.startTime,
+//           avail.endTime,
+//           durationMinutes,
+//         );
+
+//         for (const s of splitSlots) {
+
+//           const sStart = normalizeTime(s.startTime);
+//           const sEnd = normalizeTime(s.endTime);
+
+//           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
+
+//           /**
+//            * ✅ Skip slots within 24 hours
+//            */
+//           if (slotStartDateTime <= next24Hours) continue;
+
+//           /**
+//            * ✅ AM / PM filter
+//            */
+//           if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
+//           if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
+
+//           const key = `${day.date}-${sStart}-${sEnd}`;
+
+//           if (!slotMap.has(key)) {
+
+//             const booking = bookedForDay.find(b =>
+//               isOverlapping(sStart, sEnd, b.start, b.end)
+//             );
+
+//             slotMap.set(key, {
+//               startTime: toAmPm(sStart),
+//               endTime: toAmPm(sEnd),
+//               duration,
+//               isBooked: !!booking,
+//             });
+//           }
+//         }
+//       }
+
+//       const slotsForDay = Array.from(slotMap.values());
+
+//       if (slotsForDay.length) {
+//         result.push({
+//           date: day.date,
+//           slots: slotsForDay,
+//         });
+//       }
+//     }
+//   }
+
+//   return result;
+// }
+
 async getAvailableSlots(
   instructorId: string,
   duration: 1 | 2 | 2.5,
@@ -594,93 +718,48 @@ async getAvailableSlots(
   const result = [];
 
   /**
-   * ✅ Fetch Orders
-   */
-  const orders = await this.orderModel
-    .find({
-      instructorId: instructor._id,
-      status: { $in: ['CONFIRMED', 'PAID'] },
-    })
-    .select('bookedSlots')
-    .lean();
-
-  /**
-   * ✅ Create booked slot map
-   * date -> slots[]
-   */
-  const bookedMap = new Map<string, { start: string; end: string }[]>();
-
-  for (const order of orders) {
-    for (const slot of order.bookedSlots || []) {
-
-      const dateKey = new Date(slot.date).toISOString().slice(0, 10);
-
-      if (!bookedMap.has(dateKey)) {
-        bookedMap.set(dateKey, []);
-      }
-
-      bookedMap.get(dateKey)!.push({
-        start: normalizeTime(slot.startTime),
-        end: normalizeTime(slot.endTime),
-      });
-
-    }
-  }
-
-  /**
    * ✅ Iterate instructor availability
    */
   for (const week of instructor.availability?.weeks || []) {
 
     for (const day of week.days) {
 
-      const bookedForDay = bookedMap.get(day.date) ?? [];
-
       const slotMap = new Map<string, AvailableSlot>();
 
       for (const avail of day.slots) {
 
-        const splitSlots = splitSlotByDuration(
-          avail.startTime,
-          avail.endTime,
-          durationMinutes,
-        );
+  const isBooked = !!avail.bookingId;
 
-        for (const s of splitSlots) {
+  const splitSlots = splitSlotByDuration(
+    avail.startTime,
+    avail.endTime,
+    durationMinutes,
+  );
 
-          const sStart = normalizeTime(s.startTime);
-          const sEnd = normalizeTime(s.endTime);
+  for (const s of splitSlots) {
 
-          const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
+    const sStart = normalizeTime(s.startTime);
+    const sEnd = normalizeTime(s.endTime);
 
-          /**
-           * ✅ Skip slots within 24 hours
-           */
-          if (slotStartDateTime <= next24Hours) continue;
+    const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
 
-          /**
-           * ✅ AM / PM filter
-           */
-          if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
-          if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
+    if (slotStartDateTime <= next24Hours) continue;
 
-          const key = `${day.date}-${sStart}-${sEnd}`;
+    if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
+    if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
 
-          if (!slotMap.has(key)) {
+    const key = `${day.date}-${sStart}-${sEnd}`;
 
-            const booking = bookedForDay.find(b =>
-              isOverlapping(sStart, sEnd, b.start, b.end)
-            );
-
-            slotMap.set(key, {
-              startTime: toAmPm(sStart),
-              endTime: toAmPm(sEnd),
-              duration,
-              isBooked: !!booking,
-            });
-          }
-        }
-      }
+    if (!slotMap.has(key)) {
+      slotMap.set(key, {
+        startTime: toAmPm(sStart),
+        endTime: toAmPm(sEnd),
+        duration,
+        isBooked: isBooked
+      });
+    }
+  }
+}
 
       const slotsForDay = Array.from(slotMap.values());
 
