@@ -293,59 +293,74 @@ export class StripeService {
   //   };
   // }
 
-  async withdrawToCard(learnerId: string, amount: number) {
-    if (amount <= 0) {
-      throw new BadRequestException('Invalid withdrawal amount');
-    }
-  
-    const learnerObjectId = new Types.ObjectId(learnerId);
-  
-    // 1️⃣ Check wallet balance
-    const lastTxn = await this.walletModel
-      .findOne({ learnerId: learnerObjectId })
-      .sort({ createdAt: -1 });
-  
-    const currentBalance = lastTxn?.balanceAfter || 0;
-  
-    if (currentBalance < amount) {
-      throw new BadRequestException('Insufficient wallet balance');
-    }
-  
-    // 2️⃣ Find payment that funded the wallet
-    const payment = await this.paymentModel.findOne({
-      learnerId: learnerObjectId,
-      status: 'SUCCEEDED',
-    }).sort({ createdAt: -1 });
-  
-    if (!payment?.stripePaymentIntentId) {
-      throw new BadRequestException('No refundable payment found');
-    }
-  
-    // 3️⃣ Create Stripe refund
-    const refund = await this.stripe.refunds.create({
-      payment_intent: payment.stripePaymentIntentId,
-      amount: Math.round(amount * 100),
-    });
-  
-    // 4️⃣ Update wallet balance
-    const newBalance = currentBalance - amount;
-  
-    const withdrawalTxn = await this.walletModel.create({
-      learnerId: learnerObjectId,
-      userId: learnerObjectId,
-      role: 'learner',
-      type: 'DEBIT',
-      amount,
-      balanceAfter: newBalance,
-      source: 'STRIPE_REFUND',
-      referenceEntityId: refund.id,
-      status: 'COMPLETED',
-    });
-  
-    return {
-      message: 'Withdrawal refunded to card',
-      refundId: refund.id,
-      balanceAfter: newBalance,
-    };
+  /*
+  stripeAmount:
+  status: 'CONFIRMED',
+  paymentStatus: 'PAID'
+*/
+async withdrawToCard(learnerId: string, amount: number) {
+  if (amount <= 0) {
+    throw new BadRequestException('Invalid withdrawal amount');
   }
+
+  const learnerObjectId = new Types.ObjectId(learnerId);
+
+  // 1️⃣ Check wallet balance
+  const lastTxn = await this.walletModel
+    .findOne({ learnerId: learnerObjectId })
+    .sort({ createdAt: -1 });
+
+  const currentBalance = lastTxn?.balanceAfter || 0;
+
+  if (currentBalance < amount) {
+    throw new BadRequestException('Insufficient wallet balance');
+  }
+
+  // 2️⃣ Find learner order
+  const order = await this.orderModel
+    .findOne({ learnerId: learnerObjectId,  status: 'CONFIRMED',
+      paymentStatus: 'PAID',  stripeAmount: { $gt: 0 } })
+    .sort({ createdAt: -1 });
+
+  if (!order) {
+    throw new BadRequestException('No order found for learner');
+  }
+
+  // 3️⃣ Find payment using orderId
+  const payment = await this.paymentModel.findOne({
+    orderId: order._id,
+    status: 'SUCCESS',
+  });
+
+  if (!payment?.stripePaymentIntentId) {
+    throw new BadRequestException('No refundable payment found');
+  }
+
+  // 4️⃣ Create Stripe refund
+  const refund = await this.stripe.refunds.create({
+    payment_intent: payment.stripePaymentIntentId,
+    amount: Math.round(amount * 100),
+  });
+
+  // 5️⃣ Update wallet balance
+  const newBalance = currentBalance - amount;
+
+  const withdrawalTxn = await this.walletModel.create({
+    learnerId: learnerObjectId,
+    userId: learnerObjectId,
+    role: 'learner',
+    type: 'DEBIT',
+    amount,
+    balanceAfter: newBalance,
+    source: 'STRIPE_REFUND',
+    referenceEntityId: refund.id,
+    status: 'COMPLETED',
+  });
+
+  return {
+    message: 'Withdrawal refunded to card',
+    refundId: refund.id,
+    balanceAfter: newBalance,
+  };
+}
 }
