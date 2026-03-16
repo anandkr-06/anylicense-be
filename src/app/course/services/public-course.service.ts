@@ -51,7 +51,12 @@ export class PublicCourseService {
       maxPrice,
       page = 1,
       limit = 10,
+      location,
+      courseName,
+      state,
     } = query;
+
+
 
     // ✅ BASE FILTER (ONLY VALID COURSES)
     const filter: any = {
@@ -62,6 +67,9 @@ export class PublicCourseService {
 
     // ✅ SIMPLE MATCHES
     if (category) filter.category = category;
+    if (location) filter["location.suburb"] = location;
+    if (courseName) filter.courseName = courseName;
+    if (state) filter["location.state"] = state;
     if (mode) filter.mode = mode;
     if (level) filter.level = level;
     if (language) filter.language = language;
@@ -82,7 +90,7 @@ export class PublicCourseService {
       if (minPrice) filter.price.$gte = Number(minPrice);
       if (maxPrice) filter.price.$lte = Number(maxPrice);
     }
-
+  
     const skip = (Number(page) - 1) * Number(limit);
 
     const [data, total] = await Promise.all([
