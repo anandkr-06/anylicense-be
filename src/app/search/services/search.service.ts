@@ -172,7 +172,7 @@ async getInstructorProfile(instructorId: string) {
             // $elemMatch: { suburb: new RegExp(suburb, 'i') },
             $elemMatch: { postcode: new RegExp(postcode, 'i') },
           },
-         // [`vehicles.${vehicleType}.hasVehicle`]: true,
+          [`vehicles.${vehicleType}.hasVehicle`]: true,
         },
       },
   
@@ -265,6 +265,7 @@ async getInstructorProfile(instructorId: string) {
           profileImage: { $first: '$user.profileImage' },
           rating: { $first: { $ifNull: ['$rating', 0] } },
           noOfLessons: { $first: { $ifNull: ['$totalLessons', 0] } },
+          totalHours: { $first: { $ifNull: ['$totalHours', 0] } },
           vehicleType: { $first: vehicleType },
           model: {
             $first: `$vehicles.${vehicleType}.details.model`,
@@ -318,7 +319,7 @@ async getInstructorProfile(instructorId: string) {
             // $elemMatch: { suburb: new RegExp(suburb, 'i') },
             $elemMatch: { postCode: new RegExp(postcode, 'i') },
           },
-         // [`vehicles.${vehicleType}.hasVehicle`]: true,
+          [`vehicles.${vehicleType}.hasVehicle`]: true,
         },
       },
   
@@ -411,6 +412,7 @@ async getInstructorProfile(instructorId: string) {
           profileImage: { $first: '$user.profileImage' },
           rating: { $first: { $ifNull: ['$rating', 0] } },
           noOfLessons: { $first: { $ifNull: ['$totalLessons', 0] } },
+          totalHours: { $first: { $ifNull: ['$totalHours', 0] } },
           vehicleType: { $first: vehicleType ? 'auto' : 'manual' },
           model: {
             $first: `$vehicles.${vehicleType? 'auto':'manual'}.details.model`,
