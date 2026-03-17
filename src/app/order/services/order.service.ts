@@ -2104,7 +2104,7 @@ export class OrderService {
         const existingEnd = this.toMinutes(existingSlot.endTime);
 
         // ✅ Overlap formula
-        if (reqStart < existingEnd && reqEnd > existingStart) {
+        if (reqStart < existingEnd && reqEnd > existingStart && existingSlot.status !== 'CANCELLED') {
           throw new BadRequestException(
             `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
           );
