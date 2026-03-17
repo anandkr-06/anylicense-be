@@ -316,7 +316,7 @@ async instructorFastCash(instructorId: string, amount: number) {
 
     // ✅ 7️⃣ Ledger entry
     await this.walletTransactionModel.create({
-      userId: instructorId, // keep consistent with your DB (string)
+      userId: new Types.ObjectId(instructorId), // keep consistent with your DB (string)
       role: 'instructor',
       type: 'DEBIT',
       amount: amount,
