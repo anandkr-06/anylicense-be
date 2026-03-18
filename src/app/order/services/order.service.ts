@@ -749,7 +749,7 @@ export class OrderService {
       type: slot.type,
       hours: hours,
       pricePerHour: pricePerHour,
-      grossAmount: hours * order.pricePerHour,
+      grossAmount: grossAmount,
       platformCommission: platformCommission,
       instructorEarning:instructorEarning,
     });
