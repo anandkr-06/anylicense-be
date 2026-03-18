@@ -35,6 +35,10 @@ export class Order {
   pricePerHour!: number;
 
   @Prop({ default: 0 })
+  testPrice!: number;
+  
+
+  @Prop({ default: 0 })
   discount!: number;
 
   @Prop({ default: 0 })
