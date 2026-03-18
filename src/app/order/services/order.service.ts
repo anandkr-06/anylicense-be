@@ -723,6 +723,22 @@ export class OrderService {
     );
   
     // ✅ Create instructor transaction
+
+    let grossAmount = 0;
+
+    if (slot.type === 'LESSON') {
+      grossAmount = hours * order.pricePerHour;
+    }
+    
+    if (slot.type === 'TEST') {
+      // ⚠️ Use testPrice (you must store this in order)
+      grossAmount = order.testPrice;
+    }
+    
+    // ✅ Commission
+    const platformCommission = grossAmount * 0.17;
+    const instructorEarning = grossAmount - platformCommission;
+
     const txn = await this.instructorTransactionModel.create({
       orderId: order._id,
       slotId: slot._id,
@@ -732,9 +748,8 @@ export class OrderService {
       hours: hours,
       pricePerHour: order.pricePerHour,
       grossAmount: hours * order.pricePerHour,
-      platformCommission: order.platformCharge,
-      instructorEarning:
-        (hours * order.pricePerHour) - order.platformCharge,
+      platformCommission: platformCommission,
+      instructorEarning:instructorEarning,
     });
   
     // ✅ CREDIT instructor wallet
@@ -1466,7 +1481,7 @@ export class OrderService {
 
       vehicleType: dto.vehicleType,
       pricePerHour,
-
+      testPrice,
       totalHours,
       usedHours,
       remainingHours,
