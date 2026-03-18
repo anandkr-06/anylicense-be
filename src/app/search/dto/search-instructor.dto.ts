@@ -61,6 +61,9 @@ import { Type } from 'class-transformer';
   export class SearchInstructorDto {
     @IsString()
     postcode!: string;
+
+    @IsString()
+    suburbId!: string;
   
     @IsIn(['auto', 'manual'])
     vehicleType!: 'auto' | 'manual';

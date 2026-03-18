@@ -153,6 +153,7 @@ async getInstructorProfile(instructorId: string) {
   async searchInstructors(query: SearchInstructorDto) {
     const {
       postcode,
+      suburbId,
       vehicleType,
       date,
       timeOfDay, // "AM" | "PM"
@@ -169,8 +170,8 @@ async getInstructorProfile(instructorId: string) {
       {
         $match: {
           serviceAreas: {
-            // $elemMatch: { suburb: new RegExp(suburb, 'i') },
-            $elemMatch: { postcode: new RegExp(postcode, 'i') },
+            $elemMatch: { suburbId: new RegExp(suburbId, 'i') },
+           // $elemMatch: { postcode: new RegExp(postcode, 'i') },
           },
           [`vehicles.${vehicleType}.hasVehicle`]: true,
         },
