@@ -725,14 +725,16 @@ export class OrderService {
     // ✅ Create instructor transaction
 
     let grossAmount = 0;
-
+    let pricePerHour = 0;
     if (slot.type === 'LESSON') {
       grossAmount = hours * order.pricePerHour;
+      pricePerHour = order.pricePerHour;
     }
     
     if (slot.type === 'TEST') {
       // ⚠️ Use testPrice (you must store this in order)
       grossAmount = order.testPrice;
+      pricePerHour = order.testPrice;
     }
     
     // ✅ Commission
@@ -746,7 +748,7 @@ export class OrderService {
       instructorId: order.instructorId,
       type: slot.type,
       hours: hours,
-      pricePerHour: order.pricePerHour,
+      pricePerHour: pricePerHour,
       grossAmount: hours * order.pricePerHour,
       platformCommission: platformCommission,
       instructorEarning:instructorEarning,
