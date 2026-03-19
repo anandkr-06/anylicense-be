@@ -77,10 +77,10 @@ async getInstructorProfile(instructorId: string) {
               
                 make: '$vehicles.auto.details.make',
                 model: '$vehicles.auto.details.model',
-                color: '$vehicles.manual.details.color',
-                year: '$vehicles.manual.details.year',
-                ancapSafetyRating: '$vehicles.manual.details.ancapSafetyRating',
-                hasDualControls: '$vehicles.manual.details.hasDualControls',
+                color: '$vehicles.auto.details.color',
+                year: '$vehicles.auto.details.year',
+                ancapSafetyRating: '$vehicles.auto.details.ancapSafetyRating',
+                hasDualControls: '$vehicles.auto.details.hasDualControls',
               
                 prices: {
                   perHourPrice: '$vehicles.auto.pricePerHour',
