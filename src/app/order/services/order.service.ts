@@ -452,7 +452,8 @@ export class OrderService {
       throw new NotFoundException('Slot not found');
     }
 
-    if (slot.status !== 'BOOKED') {
+    
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
       throw new BadRequestException('Slot not cancellable');
     }
 
