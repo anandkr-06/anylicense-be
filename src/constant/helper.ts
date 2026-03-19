@@ -10,6 +10,19 @@ export type OrderLean = {
     suburb: string;
     state?: string;
   };
+  testLocation?: string;
+  pickupPoint?: {
+    pickupPoint: string;
+    suburb: string;
+    state: string;
+  };
+  type:string;
+
+  dropPoint?: {
+    dropPoint: string;
+    suburb: string;
+    state: string;
+  };
   learnerId?: {
     firstName: string;
     lastName: string;
@@ -23,7 +36,11 @@ type OrderBookedSlot = {
   date: string;
   startTime: string;
   endTime: string;
-  pickupLocation: string
+  pickupLocation: string;
+  pickupPoint:string;
+  dropPoint:string;
+  testLocation:string;
+  type:string;
   status:string
   reschedule:any
 };
