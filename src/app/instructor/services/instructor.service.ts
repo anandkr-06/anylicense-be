@@ -1479,22 +1479,90 @@ private toTimeString(minutes: number): string {
   //   };
   // }
 
+  // async getAvailabilityPaginated(
+  //   userId: string,
+  //   page = 1,
+  //   limit = 1, // 👈 weeks per page
+  //   startDate?: string,
+  //   endDate?: string,
+  // ) {
+  //   const skip = (page - 1) * limit;
+  
+  //   const match: any = {
+  //     userId: new Types.ObjectId(userId),
+  //   };
+  
+  //   const dateFilter: any = {};
+  //   if (startDate) dateFilter.$gte = startDate;
+  //   if (endDate) dateFilter.$lte = endDate;
+  
+  //   const pipeline: any[] = [
+  //     { $match: match },
+  
+  //     {
+  //       $project: {
+  //         weeks: {
+  //           $filter: {
+  //             input: '$availability.weeks',
+  //             as: 'week',
+  //             cond: {
+  //               $and: [
+  //                 startDate
+  //                   ? { $gte: ['$$week.endDate', startDate] }
+  //                   : { $const: true },
+  //                 endDate
+  //                   ? { $lte: ['$$week.startDate', endDate] }
+  //                   : { $const: true },
+  //               ],
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  
+  //     {
+  //       $project: {
+  //         totalWeeks: { $size: '$weeks' },
+  //         weeks: { $slice: ['$weeks', skip, limit] },
+  //       },
+  //     },
+  //   ];
+  
+  //   const result = await this.instructorProfileModel.aggregate(pipeline);
+  
+  //   if (!result.length) {
+  //     throw new NotFoundException('Instructor profile not found');
+  //   }
+  
+  //   const weeks = result[0].weeks ?? [];
+  //   const totalWeeks = result[0].totalWeeks ?? 0;
+  
+  //   return {
+  //     weeks,
+  //     pagination: {
+  //       page,
+  //       limit,
+  //       totalWeeks,
+  //       totalPages: Math.ceil(totalWeeks / limit),
+  //     },
+  //   };
+  // }
+
   async getAvailabilityPaginated(
     userId: string,
     page = 1,
-    limit = 1, // 👈 weeks per page
+    limit = 1, // weeks per page
     startDate?: string,
     endDate?: string,
   ) {
     const skip = (page - 1) * limit;
   
+    /* ✅ Default to today if startDate not provided */
+    const effectiveStartDate = startDate ?? this.getTodayISODate();
+  
     const match: any = {
       userId: new Types.ObjectId(userId),
     };
-  
-    const dateFilter: any = {};
-    if (startDate) dateFilter.$gte = startDate;
-    if (endDate) dateFilter.$lte = endDate;
   
     const pipeline: any[] = [
       { $match: match },
@@ -1507,9 +1575,10 @@ private toTimeString(minutes: number): string {
               as: 'week',
               cond: {
                 $and: [
-                  startDate
-                    ? { $gte: ['$$week.endDate', startDate] }
-                    : { $const: true },
+                  /* ✅ Only current + future weeks */
+                  { $gte: ['$$week.endDate', effectiveStartDate] },
+  
+                  /* Optional endDate filter */
                   endDate
                     ? { $lte: ['$$week.startDate', endDate] }
                     : { $const: true },
