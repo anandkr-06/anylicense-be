@@ -1306,7 +1306,7 @@ export class OrderService {
 
       if (slot.type === 'LESSON') {
         mappedSlot.pickupLocation = {
-          address: slot.pickupAddress,
+          pickupAddress: slot.pickupAddress,
           suburb: slot.suburb,
           state: slot.state,
         };
