@@ -147,18 +147,36 @@ export class StripeWebhookController {
       };
 
       /* -------- WALLET TOP-UP -------- */
-      if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
-        await this.walletService.creditWallet(
-          new Types.ObjectId(metadata.learnerId),
-          intent.amount_received / 100,
-          WalletTxnSource.STRIPE,
-          null,
-          intent.id,
-          cardMeta,
-        );
+      // if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
+      //   await this.walletService.creditWallet(
+      //     new Types.ObjectId(metadata.learnerId),
+      //     intent.amount_received / 100,
+      //     WalletTxnSource.STRIPE,
+      //     null,
+      //     intent.id,
+      //     cardMeta,
+      //   );
 
-        return { received: true };
-      }
+      //   return { received: true };
+      // }
+      /* -------- WALLET TOP-UP -------- */
+if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
+
+  const walletCredit =
+    Number(metadata.originalAmount) ||
+    intent.amount_received / 100;
+
+  await this.walletService.creditWallet(
+    new Types.ObjectId(metadata.learnerId),
+    walletCredit,
+    WalletTxnSource.STRIPE,
+    null,
+    intent.id,
+    cardMeta,
+  );
+
+  return { received: true };
+}
 
       /* -------- ORDER PAYMENT -------- */
       /* -------- ORDER PAYMENT -------- */

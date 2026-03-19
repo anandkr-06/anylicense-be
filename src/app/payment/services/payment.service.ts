@@ -19,13 +19,17 @@ export type StripeIntentMetadata = {
 
   orderId?: string;
 
-  // ✅ ONLY for PUBLIC orders
+  // ONLY for PUBLIC orders
   learnerId?: string;
 
   instructorId?: string;
 
-  // ✅ Used to branch in webhook
+  // Used to branch in webhook
   orderType?: 'PUBLIC' | 'PRIVATE';
+
+  /* ✅ ADD THESE (OPTIONAL → NO BREAKING CHANGE) */
+  originalAmount?: string;
+  platformFee?: string;
 };
 
 
@@ -132,26 +136,61 @@ export class StripeService {
   /* -----------------------------
      CREATE WALLET TOP-UP INTENT
   ------------------------------ */
+  // async createWalletTopupIntent(learnerId: string, amount: number) {
+  //   if (amount <= 0) {
+  //     throw new BadRequestException('Invalid amount');
+  //   }
+
+  //   const metadata: StripeIntentMetadata = {
+  //     purpose: 'WALLET_TOPUP',
+  //     learnerId,
+  //   };
+
+  //   const paymentIntent = await this.stripe.paymentIntents.create({
+  //     amount: Math.round(amount * 100),
+  //     currency: 'AUD',
+  //     automatic_payment_methods: { enabled: true },
+  //     metadata,
+  //   });
+
+  //   return {
+  //     clientSecret: paymentIntent.client_secret,
+  //     amount,
+  //     currency: 'AUD',
+  //     metadata,
+  //   };
+  // }
+
   async createWalletTopupIntent(learnerId: string, amount: number) {
     if (amount <= 0) {
       throw new BadRequestException('Invalid amount');
     }
-
+  
+    /* ✅ Calculate 5% platform fee */
+    const platformFee = Number((amount * 0.05).toFixed(2));
+  
+    /* ✅ Total payable */
+    const totalAmount = amount + platformFee;
+  
     const metadata: StripeIntentMetadata = {
       purpose: 'WALLET_TOPUP',
       learnerId,
+      originalAmount: amount.toString(),
+      platformFee: platformFee.toString(),
     };
-
+  
     const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
+      amount: Math.round(totalAmount * 100), // ✅ charge total
       currency: 'AUD',
       automatic_payment_methods: { enabled: true },
       metadata,
     });
-
+  
     return {
       clientSecret: paymentIntent.client_secret,
-      amount,
+      amount, // original amount (wallet credit)
+      platformFee,
+      totalAmount,
       currency: 'AUD',
       metadata,
     };
