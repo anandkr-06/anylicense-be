@@ -701,6 +701,87 @@ export class InstructorService {
 //   return result;
 // }
 
+// async getAvailableSlots(
+//   instructorId: string,
+//   duration: 1 | 2 | 2.5,
+//   timeOfDay?: 'AM' | 'PM',
+// ) {
+//   const now = new Date();
+//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+//   const instructor = await this.instructorProfileModel
+//     .findOne({ userId: new Types.ObjectId(instructorId) })
+//     .lean<InstructorProfile & { _id: Types.ObjectId }>();
+
+//   if (!instructor) {
+//     throw new NotFoundException('Instructor not found');
+//   }
+
+//   const durationMinutes = duration * 60;
+//   const result = [];
+
+//   for (const week of instructor.availability?.weeks || []) {
+//     for (const day of week.days) {
+  
+//       const slotMap = new Map<string, AvailableSlot>();
+  
+//       for (const slot of day.slots) {
+  
+//         // const isBooked = slot.isBooked;
+//         const isBooked = !!slot.isBooked;
+  
+//         const splitSlots = splitSlotByDuration(
+//           normalizeTime(slot.startTime),
+//           normalizeTime(slot.endTime),
+//           durationMinutes
+//         );
+  
+//         for (const s of splitSlots) {
+  
+//           const sStart = normalizeTime(s.startTime);
+//           const sEnd = normalizeTime(s.endTime);
+  
+//           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
+  
+//           /** ✅ 24 hour rule */
+//           if (slotStartDateTime <= next24Hours) continue;
+  
+//           /** ✅ AM/PM filter (FIXED) */
+//           const hour = slotStartDateTime.getHours();
+  
+//           if (timeOfDay === 'AM' && hour >= 12) continue;
+//           if (timeOfDay === 'PM' && hour < 12) continue;
+  
+//           const key = `${day.date}-${sStart}-${sEnd}`;
+  
+//           if (!slotMap.has(key)) {
+//             slotMap.set(key, {
+//               startTime: toAmPm(sStart),
+//               endTime: toAmPm(sEnd),
+//               duration,
+//               isBooked
+//             });
+//           }
+//         }
+//       }
+  
+//       const slotsForDay = Array.from(slotMap.values())
+//         .sort((a, b) => new Date(`1970-01-01T${normalizeTime(a.startTime)}:00`).getTime()
+//           - new Date(`1970-01-01T${normalizeTime(b.startTime)}:00`).getTime()
+//         );
+  
+//       if (slotsForDay.length) {
+//         result.push({
+//           date: day.date,
+//           slots: slotsForDay
+//         });
+//       }
+//     }
+//   }
+
+//   return result;
+// }
+
 async getAvailableSlots(
   instructorId: string,
   duration: 1 | 2 | 2.5,
@@ -722,54 +803,67 @@ async getAvailableSlots(
 
   for (const week of instructor.availability?.weeks || []) {
     for (const day of week.days) {
-  
-      const slotMap = new Map<string, AvailableSlot>();
-  
-      for (const slot of day.slots) {
-  
-        // const isBooked = slot.isBooked;
-        const isBooked = !!slot.isBooked;
-  
+
+      const slotMap = new Map<string, any>(); // 👈 allow rawStart temporarily
+
+      const allSlots = day.slots;
+
+      const bookedSlots = allSlots
+        .filter(s => s.isBooked)
+        .map(s => ({
+          start: normalizeTime(s.startTime),
+          end: normalizeTime(s.endTime),
+        }));
+
+      for (const slot of allSlots) {
+
         const splitSlots = splitSlotByDuration(
           normalizeTime(slot.startTime),
           normalizeTime(slot.endTime),
           durationMinutes
         );
-  
+
         for (const s of splitSlots) {
-  
+
           const sStart = normalizeTime(s.startTime);
           const sEnd = normalizeTime(s.endTime);
-  
+
           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
-  
-          /** ✅ 24 hour rule */
+
+          /** ✅ 24-hour rule */
           if (slotStartDateTime <= next24Hours) continue;
-  
-          /** ✅ AM/PM filter (FIXED) */
-          const hour = slotStartDateTime.getHours();
-  
-          if (timeOfDay === 'AM' && hour >= 12) continue;
-          if (timeOfDay === 'PM' && hour < 12) continue;
-  
+
+          /** ✅ AM/PM filter */
+          if (timeOfDay) {
+            const hour = slotStartDateTime.getHours();
+            if (timeOfDay === 'AM' && hour >= 12) continue;
+            if (timeOfDay === 'PM' && hour < 12) continue;
+          }
+
+          /** ✅ booking override */
+          const isBooked = bookedSlots.some(b =>
+            isOverlapping(sStart, sEnd, b.start, b.end)
+          );
+
           const key = `${day.date}-${sStart}-${sEnd}`;
-  
+
           if (!slotMap.has(key)) {
             slotMap.set(key, {
               startTime: toAmPm(sStart),
               endTime: toAmPm(sEnd),
+              rawStart: sStart, // ✅ FIX
               duration,
               isBooked
             });
           }
         }
       }
-  
+
+      /** ✅ SORT using rawStart (NO split, NO TS error) */
       const slotsForDay = Array.from(slotMap.values())
-        .sort((a, b) => new Date(`1970-01-01T${normalizeTime(a.startTime)}:00`).getTime()
-          - new Date(`1970-01-01T${normalizeTime(b.startTime)}:00`).getTime()
-        );
-  
+        .sort((a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart))
+        .map(({ rawStart, ...rest }) => rest); // remove rawStart
+
       if (slotsForDay.length) {
         result.push({
           date: day.date,
@@ -782,6 +876,22 @@ async getAvailableSlots(
   return result;
 }
 
+private toMinutes(time: string): number {
+  const [h=0, m=0] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+private toTimeString(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0');
+
+  const m = (minutes % 60)
+    .toString()
+    .padStart(2, '0');
+
+  return `${h}:${m}`;
+}
   private isOverlapping(
     startA: string,
     endA: string,
