@@ -764,6 +764,170 @@ export class OrderService {
     };
   }
 
+  // async respondSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   action: 'ACCEPTED' | 'REJECTED',
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const instructorData = await this.instructorProfileModel.findOne(
+  //     { userId: new Types.ObjectId(userId) }
+  //   );
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot || !slot.reschedule) {
+  //     throw new NotFoundException('No reschedule request found');
+  //   }
+
+  //   const isLearner = order.learnerId.toString() === userId;
+  //   const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
+
+  //   if (!isLearner && !isInstructor) {
+  //     throw new ForbiddenException('Unauthorized');
+  //   }
+
+  //   if (
+  //     (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
+  //     (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
+  //   ) {
+  //     this.logger.warn(`${JSON.stringify(slot.reschedule)} Learner to check: ${JSON.stringify(isLearner)}`)
+  //     throw new ForbiddenException('Requester cannot respond');
+  //   }
+
+  //   slot.reschedule.status = action;
+  //   slot.reschedule.respondedAt = new Date();
+
+  //   if (action === 'ACCEPTED') {
+  //     slot.date = slot.reschedule.proposedSlot.date;
+  //     slot.startTime = slot.reschedule.proposedSlot.startTime;
+  //     slot.endTime = slot.reschedule.proposedSlot.endTime;
+  //     slot.status = 'RESCHEDULED';
+  //   }
+
+  //   if (action === 'REJECTED') {
+  //     slot.status = 'BOOKED';
+  //     slot.reschedule.status = 'REJECTED';
+  //     slot.reschedule.respondedAt = new Date();
+  //   }
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+  //   slot.reschedule = undefined;
+
+  //   await order.save();
+
+  //   return {
+  //     success: true,
+  //     message: `Slot reschedule ${action.toLowerCase()}`,
+  //   };
+  // }
+
+  // async respondSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   action: 'ACCEPTED' | 'REJECTED',
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+  
+  //   const instructorData = await this.instructorProfileModel.findOne({
+  //     userId: new Types.ObjectId(userId),
+  //   });
+  
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot || !slot.reschedule) {
+  //     throw new NotFoundException('No reschedule request found');
+  //   }
+  
+  //   const isLearner = order.learnerId.toString() === userId;
+  
+  //   const isInstructor =
+  //     instructorData &&
+  //     order.instructorId.toString() === instructorData._id.toString();
+  
+  //   if (!isLearner && !isInstructor) {
+  //     throw new ForbiddenException('Unauthorized');
+  //   }
+  
+  //   if (
+  //     (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
+  //     (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
+  //   ) {
+  //     throw new ForbiddenException('Requester cannot respond');
+  //   }
+  
+  //   /* ✅ HANDLE ACCEPT */
+  //   if (action === 'ACCEPTED') {
+  //     const oldSlot = {
+  //       date: slot.date,
+  //       startTime: slot.startTime,
+  //       endTime: slot.endTime,
+  //     };
+  
+  //     const newSlot = slot.reschedule.proposedSlot;
+  
+  //     const instructorProfile = await this.instructorProfileModel.findOne({
+  //       userId: order.instructorId,
+  //     });
+  
+  //     if (!instructorProfile) {
+  //       throw new NotFoundException('Instructor profile not found');
+  //     }
+  
+  //     /* 1️⃣ REMOVE OLD SLOT BOOKING */
+  //     this.removeBookingByRange(instructorProfile, oldSlot);
+  
+  //     /* 2️⃣ UPDATE ORDER SLOT */
+  //     slot.date = newSlot.date;
+  //     slot.startTime = newSlot.startTime;
+  //     slot.endTime = newSlot.endTime;
+  //     slot.status = 'RESCHEDULED';
+  
+  //     /* 3️⃣ ATTACH NEW SLOT BOOKING */
+  //     this.attachBookingByRange(
+  //       instructorProfile,
+  //       {
+  //         date: newSlot.date,
+  //         startTime: newSlot.startTime,
+  //         endTime: newSlot.endTime,
+  //         type: slot.type, // ✅ FIX HERE
+  //       },
+  //       order._id,
+  //     );
+  
+  //     await instructorProfile.save();
+  //   }
+  
+  //   /* ❌ HANDLE REJECT */
+  //   if (action === 'REJECTED') {
+  //     slot.status = 'BOOKED';
+  //   }
+  
+  //   /* COMMON UPDATES */
+  //   slot.reschedule.status = action;
+  //   slot.reschedule.respondedAt = new Date();
+  
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+  
+  //   slot.reschedule = undefined;
+  
+  //   await order.save();
+  
+  //   return {
+  //     success: true,
+  //     message: `Slot reschedule ${action.toLowerCase()}`,
+  //   };
+  // }
+
   async respondSlotReschedule(
     orderId: string,
     slotId: string,
@@ -772,59 +936,128 @@ export class OrderService {
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-
-    const instructorData = await this.instructorProfileModel.findOne(
-      { userId: new Types.ObjectId(userId) }
-    );
-    if (!order) throw new NotFoundException('Order not found');
-
+  
+    const instructorData = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+  
     const slot = order.bookedSlots.id(slotId);
     if (!slot || !slot.reschedule) {
       throw new NotFoundException('No reschedule request found');
     }
-
+  
     const isLearner = order.learnerId.toString() === userId;
-    const isInstructor = order.instructorId.toString() === instructorData?.id.toString();
-
+  
+    const isInstructor =
+      instructorData &&
+      order.instructorId.toString() === instructorData._id.toString();
+  
     if (!isLearner && !isInstructor) {
       throw new ForbiddenException('Unauthorized');
     }
-
+  
     if (
       (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
       (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
     ) {
-      this.logger.warn(`${JSON.stringify(slot.reschedule)} Learner to check: ${JSON.stringify(isLearner)}`)
       throw new ForbiddenException('Requester cannot respond');
     }
-
-    slot.reschedule.status = action;
-    slot.reschedule.respondedAt = new Date();
-
+  
+    /* ✅ HANDLE ACCEPT */
     if (action === 'ACCEPTED') {
-      slot.date = slot.reschedule.proposedSlot.date;
-      slot.startTime = slot.reschedule.proposedSlot.startTime;
-      slot.endTime = slot.reschedule.proposedSlot.endTime;
+      const oldSlot = {
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        type: slot.type, // ✅ FIX
+      };
+  
+      const newSlot = slot.reschedule.proposedSlot;
+  
+      const instructorProfile = await this.instructorProfileModel.findById(
+        order.instructorId, // ✅ FIX
+      );
+  
+      if (!instructorProfile) {
+        throw new NotFoundException('Instructor profile not found');
+      }
+  
+      /* 🚨 Validate conflict */
+      await this.validateSlotConflict(order.instructorId, {
+        date: newSlot.date,
+        startTime: newSlot.startTime,
+        endTime: newSlot.endTime,
+        type: slot.type,
+      });
+  
+      /* 1️⃣ REMOVE OLD SLOT */
+      this.removeBookingByRange(instructorProfile, oldSlot);
+  
+      /* 2️⃣ UPDATE ORDER SLOT */
+      slot.date = newSlot.date;
+      slot.startTime = newSlot.startTime;
+      slot.endTime = newSlot.endTime;
       slot.status = 'RESCHEDULED';
+  
+      /* 3️⃣ ATTACH NEW SLOT */
+      this.attachBookingByRange(
+        instructorProfile,
+        {
+          date: newSlot.date,
+          startTime: newSlot.startTime,
+          endTime: newSlot.endTime,
+          type: slot.type,
+        },
+        order._id,
+      );
+  
+      await instructorProfile.save();
     }
-
+  
+    /* ❌ HANDLE REJECT */
     if (action === 'REJECTED') {
       slot.status = 'BOOKED';
-      slot.reschedule.status = 'REJECTED';
-      slot.reschedule.respondedAt = new Date();
     }
+  
+    /* COMMON */
+    slot.reschedule.status = action;
+    slot.reschedule.respondedAt = new Date();
+  
     slot.notification = {
       learner: true,
       instructor: true,
     };
+  
     slot.reschedule = undefined;
-
+  
     await order.save();
-
+  
     return {
       success: true,
       message: `Slot reschedule ${action.toLowerCase()}`,
     };
+  }
+  
+
+  private removeBookingByRange(
+    instructor: any,
+    slot: { date: string; startTime: string; endTime: string }
+  ) {
+    for (const week of instructor.availability || []) {
+      for (const day of week.days || []) {
+        if (day.date !== slot.date) continue;
+  
+        for (const s of day.slots || []) {
+          if (
+            s.startTime === slot.startTime &&
+            s.endTime === slot.endTime
+          ) {
+            s.isBooked = false;
+            s.orderId = null;
+          }
+        }
+      }
+    }
   }
 
 
