@@ -1037,28 +1037,28 @@ export class OrderService {
       message: `Slot reschedule ${action.toLowerCase()}`,
     };
   }
-  
 
-  private removeBookingByRange(
-    instructor: any,
-    slot: { date: string; startTime: string; endTime: string }
-  ) {
-    for (const week of instructor.availability || []) {
-      for (const day of week.days || []) {
-        if (day.date !== slot.date) continue;
-  
-        for (const s of day.slots || []) {
-          if (
-            s.startTime === slot.startTime &&
-            s.endTime === slot.endTime
-          ) {
-            s.isBooked = false;
-            s.orderId = null;
-          }
+
+private removeBookingByRange(
+  instructor: any,
+  slot: { date: string; startTime: string; endTime: string; type?: string },
+) {
+  for (const week of instructor.availability?.weeks || []) {
+    for (const day of week.days || []) {
+      if (day.date !== slot.date) continue;
+
+      for (const s of day.slots || []) {
+        if (
+          s.startTime === slot.startTime &&
+          s.endTime === slot.endTime
+        ) {
+          s.isBooked = false;
+          s.orderId = null;
         }
       }
     }
   }
+}
 
 
 
