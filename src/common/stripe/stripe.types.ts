@@ -10,6 +10,10 @@ export type StripeIntentMetadata = {
   orderType?: 'PUBLIC' | 'PRIVATE';
   
   giftVoucherId?: string;
+  
+  originalAmount?: string;
+  platformFee?: string;
+  
 };
 
   
