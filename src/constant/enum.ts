@@ -4,7 +4,7 @@ export enum FeedbackOwnerType {
 }
 
 export enum FeedbackType {
-    COMMENTS = 'COMMENTS',
+  SUPPORT = 'SUPPORT',
     SUGGESTIONS = 'SUGGESTIONS',
     QUESTIONS = 'QUESTIONS',
   }
