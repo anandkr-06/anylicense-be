@@ -804,22 +804,25 @@ async getAvailableSlots(
   for (const week of instructor.availability?.weeks || []) {
     for (const day of week.days) {
 
-      const slotMap = new Map<string, any>(); // 👈 allow rawStart temporarily
+      const slotMap = new Map<string, any>();
 
-      const allSlots = day.slots;
+      /** ✅ ONLY FREE SLOTS */
+      const freeSlots = day.slots.filter(s => !s.isBooked);
 
-      const bookedSlots = allSlots
+      /** ✅ BOOKED SLOTS FOR BLOCKING */
+      const bookedSlots = day.slots
         .filter(s => s.isBooked)
         .map(s => ({
           start: normalizeTime(s.startTime),
           end: normalizeTime(s.endTime),
         }));
 
-      for (const slot of allSlots) {
+      /** ✅ GENERATE FROM FREE ONLY */
+      for (const free of freeSlots) {
 
         const splitSlots = splitSlotByDuration(
-          normalizeTime(slot.startTime),
-          normalizeTime(slot.endTime),
+          normalizeTime(free.startTime),
+          normalizeTime(free.endTime),
           durationMinutes
         );
 
@@ -840,10 +843,13 @@ async getAvailableSlots(
             if (timeOfDay === 'PM' && hour < 12) continue;
           }
 
-          /** ✅ booking override */
-          const isBooked = bookedSlots.some(b =>
+          /** ✅ BLOCK overlapping booked slots */
+          const isOverlappingBooked = bookedSlots.some(b =>
             isOverlapping(sStart, sEnd, b.start, b.end)
           );
+
+          /** ❌ skip invalid slots */
+          if (isOverlappingBooked) continue;
 
           const key = `${day.date}-${sStart}-${sEnd}`;
 
@@ -851,18 +857,18 @@ async getAvailableSlots(
             slotMap.set(key, {
               startTime: toAmPm(sStart),
               endTime: toAmPm(sEnd),
-              rawStart: sStart, // ✅ FIX
+              rawStart: sStart,
               duration,
-              isBooked
+              isBooked: false // ✅ only available slots returned
             });
           }
         }
       }
 
-      /** ✅ SORT using rawStart (NO split, NO TS error) */
+      /** ✅ SORT */
       const slotsForDay = Array.from(slotMap.values())
         .sort((a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart))
-        .map(({ rawStart, ...rest }) => rest); // remove rawStart
+        .map(({ rawStart, ...rest }) => rest);
 
       if (slotsForDay.length) {
         result.push({
