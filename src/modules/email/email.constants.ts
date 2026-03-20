@@ -9,7 +9,7 @@ export const MAILER_TEMPLATES = {
      PASSWORD_RESET: 'auth/password-reset-email',
      ACCOUNT_VERIFICATION: 'auth/account-verification-email',
      NEWSLETTER: 'marketing/newsletter-email', 
-     RESCHEDULE: 'order-action/reschedule-action',  
+     RESCHEDULE: 'order-actions/reschedule-action',  
   };
   
   
