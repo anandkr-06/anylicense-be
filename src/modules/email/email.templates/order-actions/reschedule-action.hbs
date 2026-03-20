@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Slot Reschedule Update</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f4f4f4; font-family: Arial, Helvetica, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f4">
+    <tr>
+      <td align="center" style="padding:20px 0;">
+
+        <!-- Main Container -->
+        <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
+              <img style="width:140px; height:auto"
+                src="https://static.anylicence.com/media/statics/logo.png"
+                alt="Any Licence" />
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
+
+              <p style="margin:0 0 15px;">
+                <strong>Hi {{receiverName}},</strong>
+              </p>
+
+              <!-- Dynamic message -->
+              <p style="margin:0 0 15px;">
+                {{mainMessage}}
+              </p>
+
+              <!-- Slot Details -->
+              <p style="margin:0 0 10px;">
+                <strong>Previous Slot:</strong><br/>
+                {{oldDate}} | {{oldStartTime}} - {{oldEndTime}}
+              </p>
+
+              <p style="margin:0 0 20px;">
+                <strong>Updated Slot:</strong><br/>
+                {{newDate}} | {{newStartTime}} - {{newEndTime}}
+              </p>
+
+              <!-- Optional Details -->
+              {{#if vehicleType}}
+              <p style="margin:0 0 10px;">
+                <strong>Vehicle:</strong> {{vehicleType}}
+              </p>
+              {{/if}}
+
+              {{#if pickupAddress}}
+              <p style="margin:0 0 20px;">
+                <strong>Pickup:</strong> {{pickupAddress}}, {{suburb}}, {{state}}
+              </p>
+              {{/if}}
+
+              <!-- Action CTA -->
+              <p style="margin:0 0 20px;">
+                {{ctaMessage}}
+                <a href="https://dev.anylicence.com"
+                  style="color:#ff9800; text-decoration:none;">
+                  Go to Dashboard
+                </a>
+              </p>
+
+              <p style="margin:0 0 15px;">
+                If you have any questions, contact us at
+                <a href="mailto:support@anylicence.com"
+                  style="color:#ff9800; text-decoration:none;">
+                  support@anylicence.com
+                </a>.
+              </p>
+
+              <p style="margin:0;">
+                <strong>Sincerely,</strong><br />
+                Team AnyLicence<br />
+                <a href="https://dev.anylicence.com"
+                  style="color:#ff9800; text-decoration:none;">
+                  www.anylicence.com
+                </a>
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#ffb300; height:5px;"></td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

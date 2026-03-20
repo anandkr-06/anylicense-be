@@ -281,6 +281,125 @@ Gift Voucher module mailer templates to be added here
         );
     }
   }
+
+
+  /**
+   * Slot Actions
+   */
   
+  //Reschedule
+  async sendRescheduleNotification(payload: {
+    receiverEmail: string;
+    receiverName: string;
+    receiverPhone?: string;
+  
+    role: 'LEARNER' | 'INSTRUCTOR';
+    action: 'AUTO_APPROVED' | 'REQUESTED' | 'ACCEPTED' | 'REJECTED';
+    requestedBy?: 'LEARNER' | 'INSTRUCTOR';
+  
+    oldSlot: {
+      date: string;
+      startTime: string;
+      endTime: string;
+    };
+  
+    newSlot: {
+      date: string;
+      startTime: string;
+      endTime: string;
+    };
+  
+    vehicleType?: string;
+    pickupAddress?: string;
+  }) {
+    let mainMessage = '';
+    let ctaMessage = '';
+  
+    /* ===============================
+       🎯 MESSAGE BUILDER
+    =============================== */
+  
+    const isLearner = payload.role === 'LEARNER';
+  
+    switch (payload.action) {
+      case 'AUTO_APPROVED':
+        mainMessage = isLearner
+          ? 'Your lesson has been successfully rescheduled.'
+          : 'The learner has rescheduled the lesson. Please check updated schedule.';
+        ctaMessage = 'View updated booking:';
+        break;
+  
+      case 'REQUESTED':
+        if (payload.requestedBy === 'INSTRUCTOR') {
+          mainMessage = isLearner
+            ? 'Your instructor has requested to reschedule your lesson.'
+            : 'Your reschedule request has been sent to the learner.';
+        } else {
+          mainMessage = isLearner
+            ? 'Your reschedule request has been sent.'
+            : 'The learner has requested to reschedule the lesson.';
+        }
+        ctaMessage = isLearner
+          ? 'Please review and respond:'
+          : 'Waiting for response:';
+        break;
+  
+      case 'ACCEPTED':
+        mainMessage =
+          'The reschedule request has been accepted. Your lesson is now updated.';
+        ctaMessage = 'View updated booking:';
+        break;
+  
+      case 'REJECTED':
+        mainMessage = isLearner
+          ? 'The reschedule request has been rejected. Your original slot remains unchanged.'
+          : 'The learner has rejected your reschedule request.';
+        ctaMessage = 'View booking details:';
+        break;
+    }
+  
+    /* ===============================
+       📧 EMAIL
+    =============================== */
+  
+    await this.mailerService.sendMail({
+      to: payload.receiverEmail,
+      subject: 'Slot Reschedule Update',
+      template: MAILER_TEMPLATES.RESCHEDULE, // ✅ add this constant
+      context: {
+        receiverName: payload.receiverName,
+  
+        mainMessage,
+        ctaMessage,
+  
+        oldDate: payload.oldSlot.date,
+        oldStartTime: payload.oldSlot.startTime,
+        oldEndTime: payload.oldSlot.endTime,
+  
+        newDate: payload.newSlot.date,
+        newStartTime: payload.newSlot.startTime,
+        newEndTime: payload.newSlot.endTime,
+  
+        vehicleType: payload.vehicleType,
+        pickupAddress: payload.pickupAddress,
+  
+        support_email: process.env['SUPPORT_EMAIL'],
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+  
+    /* ===============================
+       📱 SMS (optional)
+    =============================== */
+  
+    if (payload.receiverPhone) {
+      const smsText = `${mainMessage}
+  New Slot: ${payload.newSlot.date} ${payload.newSlot.startTime}-${payload.newSlot.endTime}`;
+  
+      this.smsService
+        .send(payload.receiverPhone, smsText)
+        .catch(err => console.error('Reschedule SMS failed', err));
+    }
+  }
     
 }

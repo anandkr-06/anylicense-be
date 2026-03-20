@@ -29,6 +29,7 @@ import { WalletTransaction, WalletTransactionSchema } from '@common/db/schemas/w
 import { PayoutService } from '@app/payouts/payout.service';
 import { StripeService } from '@app/payouts/stripe.service';
 import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
+import { NotificationModule } from 'modules/notifications/notification.module';
 
 
 @Module({
@@ -62,6 +63,7 @@ import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
     InstructorModule,
     LeanerModule,
     WalletModule, // ✅ ADD THIS
+    NotificationModule,
 
   ],
   controllers: [OrdersController, PrivateLearnersController],

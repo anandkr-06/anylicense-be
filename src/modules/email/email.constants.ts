@@ -8,7 +8,8 @@ export const MAILER_TEMPLATES = {
      COURSE_COMPLETION: 'course/course-completion-email',
      PASSWORD_RESET: 'auth/password-reset-email',
      ACCOUNT_VERIFICATION: 'auth/account-verification-email',
-     NEWSLETTER: 'marketing/newsletter-email',  
+     NEWSLETTER: 'marketing/newsletter-email', 
+     RESCHEDULE: 'order-action/reschedule-action',  
   };
   
   
