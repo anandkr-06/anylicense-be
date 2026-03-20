@@ -7,6 +7,7 @@ export enum FeedbackType {
   SUPPORT = 'SUPPORT',
     SUGGESTIONS = 'SUGGESTIONS',
     QUESTIONS = 'QUESTIONS',
+    NOSHOW = 'NOSHOW',
   }
   
   export enum courseCategory {
