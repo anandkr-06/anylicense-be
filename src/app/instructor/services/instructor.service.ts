@@ -68,6 +68,172 @@ export class InstructorService {
   ) { }
 
 
+  // async getBookedSlotsOnly(
+  //   instructorId: string,
+  //   fromDate?: string,
+  //   duration?: 1 | 2 | 2.5,
+  // ) {
+  //   try {
+  //     if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
+  //       throw new BadRequestException('fromDate must be YYYY-MM-DD');
+  //     }
+
+  //     const startDate = fromDate ?? this.getTodayISODate();
+
+  //     const endDate = new Date(`${startDate}T00:00:00`);
+  //     endDate.setDate(endDate.getDate() + 6);
+  //     const endDateISO = endDate.toISOString().split('T')[0];
+  //     if (!endDateISO) {
+  //       throw new BadRequestException("Missing end date!");
+  //     }
+  //     // 1️⃣ Instructor
+  //     const instructor = await this.instructorProfileModel
+  //       .findOne({ userId: new Types.ObjectId(instructorId) })
+  //       .lean();
+
+  //     if (!instructor) {
+  //       throw new NotFoundException('Instructor not found');
+  //     }
+
+  //     const hasDuration = typeof duration === 'number';
+  //     const durationMinutes = hasDuration ? duration * 60 : null;
+
+  //     // 2️⃣ Orders
+  //     const orders = await this.orderModel
+  //       .find({
+  //         instructorId: instructor._id,
+  //         // status: { $in: ['CONFIRMED', 'PAID'] },
+  //       })
+  //       .select('_id bookedSlots status learnerId vehicleType')
+  //       .populate({
+  //         path: 'learnerId',
+  //         select: 'firstName lastName mobileNumber profileImage',
+  //       })
+  //       .lean<OrderLean[]>();
+  //       // this.logger.info(`Getting order details: ${JSON.stringify(orders)}`)
+
+  //     // 3️⃣ Booked map
+  //     const bookedMap = new Map<string, any[]>();
+
+  //     for (const order of orders) {
+        
+  //       for (const slot of order.bookedSlots || []) {
+  //         this.logger.info("Info:="+JSON.stringify(slot.status));
+  //         if (!slot.date || !slot.startTime || !slot.endTime) continue;
+          
+  //         const slotDate = normalizeDate(slot.date);
+
+  //        // if (slotDate < startDate || slotDate > endDateISO) continue;
+
+  //        if (!bookedMap.has(slotDate)) {
+  //         bookedMap.set(slotDate, []);
+  //       }
+        
+  //       bookedMap.get(slotDate)!.push({
+  //         start: slot.startTime,
+  //         end: slot.endTime,
+  //         bookedSlotId: slot._id.toString(), // ✅ correct
+  //         reschedule:slot.reschedule,
+  //         status: slot.status,
+  //         pickupLocation: slot.pickupLocation,
+  //         pickupPoint:slot.pickupPoint ||  null,
+  //         dropPoint: slot.dropPoint || null,
+  //         type: slot.type  || null,
+  //         testLocation:slot.testLocation  || null,
+  //         orderId: order._id.toString(),
+  //         bookingStatus: order.status,
+  //         vehicleType: order.vehicleType,
+  //         learner: order.learnerId
+  //           ? {
+  //               firstName: order.learnerId.firstName,
+  //               lastName: order.learnerId.lastName,
+  //               profileImage: order.learnerId.profileImage,
+  //               mobileNumber: order.learnerId.mobileNumber,
+  //             }
+  //           : null,
+  //       });
+        
+  //       }
+  //     }
+
+
+
+
+  //     // 4️⃣ Availability matching
+  //     const result: any[] = [];
+
+  //     for (const week of instructor.availability?.weeks || []) {
+  //       for (const day of week.days) {
+  //         if (day.date < startDate || day.date > endDateISO) continue;
+
+  //         const bookedForDay = bookedMap.get(day.date) || [];
+  //         if (!bookedForDay.length) continue;
+
+  //         const slotsForDay: any[] = [];
+
+  //         for (const avail of day.slots) {
+  //           const splitSlots = hasDuration
+  //             ? splitSlotByDuration(
+  //               avail.startTime,
+  //               avail.endTime,
+  //               durationMinutes!,
+  //             )
+  //             : [{ startTime: avail.startTime, endTime: avail.endTime }];
+
+  //           for (const s of splitSlots) {
+  //             const sStart = normalizeTime(s.startTime);
+  //             const sEnd = normalizeTime(s.endTime);
+
+  //             const booking = bookedForDay.find(b =>
+  //               isOverlapping(
+  //                 sStart,
+  //                 sEnd,
+  //                 normalizeTime(b.start),
+  //                 normalizeTime(b.end),
+  //               ),
+  //             );
+
+  //             if (!booking) continue;
+
+  //             slotsForDay.push({
+  //               startTime: toAmPm(sStart),
+  //               endTime: toAmPm(sEnd),
+  //               duration: duration ?? calculateDuration(sStart,sEnd).hours,
+  //               isBooked: true,
+  //               orderId: booking.orderId,
+  //               bookingStatus: booking.bookingStatus,
+  //               learner: booking.learner,
+  //               vehicleType: booking.vehicleType,
+  //               pickupLocation: booking.pickupLocation,
+  //               pickupPoint:booking.pickupPoint,
+  //               dropPoint: booking.dropPoint,
+  //               type: booking.type,
+  //               testLocation:booking.testLocation,
+  //               bookedSlotId: booking.bookedSlotId,
+  //               status: booking.status,
+  //               instructorId:instructorId,
+  //               reschedule:booking.reschedule
+
+  //             });
+  //           }
+
+  //         }
+
+  //         if (slotsForDay.length) {
+  //           result.push({
+  //             date: day.date,
+  //             slots: slotsForDay,
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     return result;
+  //   } catch (error) {
+  //     this.logger.error({ error }, 'getBookedSlotsOnly failed');
+  //     throw error;
+  //   }
+  // }
   async getBookedSlotsOnly(
     instructorId: string,
     fromDate?: string,
@@ -77,32 +243,33 @@ export class InstructorService {
       if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
         throw new BadRequestException('fromDate must be YYYY-MM-DD');
       }
-
+  
       const startDate = fromDate ?? this.getTodayISODate();
-
+  
       const endDate = new Date(`${startDate}T00:00:00`);
       endDate.setDate(endDate.getDate() + 6);
       const endDateISO = endDate.toISOString().split('T')[0];
+  
       if (!endDateISO) {
-        throw new BadRequestException("Missing end date!");
+        throw new BadRequestException('Missing end date!');
       }
-      // 1️⃣ Instructor
+  
+      /* 1️⃣ Instructor */
       const instructor = await this.instructorProfileModel
         .findOne({ userId: new Types.ObjectId(instructorId) })
         .lean();
-
+  
       if (!instructor) {
         throw new NotFoundException('Instructor not found');
       }
-
+  
       const hasDuration = typeof duration === 'number';
       const durationMinutes = hasDuration ? duration * 60 : null;
-
-      // 2️⃣ Orders
+  
+      /* 2️⃣ Orders */
       const orders = await this.orderModel
         .find({
           instructorId: instructor._id,
-          // status: { $in: ['CONFIRMED', 'PAID'] },
         })
         .select('_id bookedSlots status learnerId vehicleType')
         .populate({
@@ -110,80 +277,80 @@ export class InstructorService {
           select: 'firstName lastName mobileNumber profileImage',
         })
         .lean<OrderLean[]>();
-        // this.logger.info(`Getting order details: ${JSON.stringify(orders)}`)
-
-      // 3️⃣ Booked map
+  
+      /* 3️⃣ Booked map */
       const bookedMap = new Map<string, any[]>();
-
+  
       for (const order of orders) {
-        
         for (const slot of order.bookedSlots || []) {
-          this.logger.info("Info:="+JSON.stringify(slot.status));
-          if (!slot.date || !slot.startTime || !slot.endTime) continue;
-          
+          /* ❌ Skip invalid or cancelled slots */
+          if (
+            !slot.date ||
+            !slot.startTime ||
+            !slot.endTime ||
+            slot.status === 'CANCELLED'
+          ) {
+            continue;
+          }
+  
           const slotDate = normalizeDate(slot.date);
-
-         // if (slotDate < startDate || slotDate > endDateISO) continue;
-
-         if (!bookedMap.has(slotDate)) {
-          bookedMap.set(slotDate, []);
-        }
-        
-        bookedMap.get(slotDate)!.push({
-          start: slot.startTime,
-          end: slot.endTime,
-          bookedSlotId: slot._id.toString(), // ✅ correct
-          reschedule:slot.reschedule,
-          status: slot.status,
-          pickupLocation: slot.pickupLocation,
-          pickupPoint:slot.pickupPoint ||  null,
-          dropPoint: slot.dropPoint || null,
-          type: slot.type  || null,
-          testLocation:slot.testLocation  || null,
-          orderId: order._id.toString(),
-          bookingStatus: order.status,
-          vehicleType: order.vehicleType,
-          learner: order.learnerId
-            ? {
-                firstName: order.learnerId.firstName,
-                lastName: order.learnerId.lastName,
-                profileImage: order.learnerId.profileImage,
-                mobileNumber: order.learnerId.mobileNumber,
-              }
-            : null,
-        });
-        
+  
+          if (!bookedMap.has(slotDate)) {
+            bookedMap.set(slotDate, []);
+          }
+  
+          bookedMap.get(slotDate)!.push({
+            start: slot.startTime,
+            end: slot.endTime,
+            bookedSlotId: slot._id.toString(),
+            reschedule: slot.reschedule,
+            status: slot.status,
+            pickupLocation: slot.pickupLocation,
+            pickupPoint: slot.pickupPoint || null,
+            dropPoint: slot.dropPoint || null,
+            type: slot.type || null,
+            testLocation: slot.testLocation || null,
+            orderId: order._id.toString(),
+            bookingStatus: order.status,
+            vehicleType: order.vehicleType,
+            learner: order.learnerId
+              ? {
+                  firstName: order.learnerId.firstName,
+                  lastName: order.learnerId.lastName,
+                  profileImage: order.learnerId.profileImage,
+                  mobileNumber: order.learnerId.mobileNumber,
+                }
+              : null,
+          });
         }
       }
-
-
-
-
-      // 4️⃣ Availability matching
+  
+      /* 4️⃣ Availability matching */
       const result: any[] = [];
-
+  
       for (const week of instructor.availability?.weeks || []) {
         for (const day of week.days) {
           if (day.date < startDate || day.date > endDateISO) continue;
-
+  
           const bookedForDay = bookedMap.get(day.date) || [];
           if (!bookedForDay.length) continue;
-
+  
           const slotsForDay: any[] = [];
-
+          const seenSlots = new Set<string>(); // ✅ prevent duplicates
+  
           for (const avail of day.slots) {
             const splitSlots = hasDuration
               ? splitSlotByDuration(
-                avail.startTime,
-                avail.endTime,
-                durationMinutes!,
-              )
+                  avail.startTime,
+                  avail.endTime,
+                  durationMinutes!,
+                )
               : [{ startTime: avail.startTime, endTime: avail.endTime }];
-
+  
             for (const s of splitSlots) {
               const sStart = normalizeTime(s.startTime);
               const sEnd = normalizeTime(s.endTime);
-
+  
               const booking = bookedForDay.find(b =>
                 isOverlapping(
                   sStart,
@@ -192,33 +359,36 @@ export class InstructorService {
                   normalizeTime(b.end),
                 ),
               );
-
+  
               if (!booking) continue;
-
+  
+              /* ✅ Prevent duplicates */
+              const uniqueKey = `${booking.bookedSlotId}_${sStart}_${sEnd}`;
+              if (seenSlots.has(uniqueKey)) continue;
+              seenSlots.add(uniqueKey);
+  
               slotsForDay.push({
                 startTime: toAmPm(sStart),
                 endTime: toAmPm(sEnd),
-                duration: duration ?? calculateDuration(sStart,sEnd).hours,
+                duration: duration ?? calculateDuration(sStart, sEnd).hours,
                 isBooked: true,
                 orderId: booking.orderId,
                 bookingStatus: booking.bookingStatus,
                 learner: booking.learner,
                 vehicleType: booking.vehicleType,
                 pickupLocation: booking.pickupLocation,
-                pickupPoint:booking.pickupPoint,
+                pickupPoint: booking.pickupPoint,
                 dropPoint: booking.dropPoint,
                 type: booking.type,
-                testLocation:booking.testLocation,
+                testLocation: booking.testLocation,
                 bookedSlotId: booking.bookedSlotId,
                 status: booking.status,
-                instructorId:instructorId,
-                reschedule:booking.reschedule
-
+                instructorId: instructorId,
+                reschedule: booking.reschedule,
               });
             }
-
           }
-
+  
           if (slotsForDay.length) {
             result.push({
               date: day.date,
@@ -227,7 +397,7 @@ export class InstructorService {
           }
         }
       }
-
+  
       return result;
     } catch (error) {
       this.logger.error({ error }, 'getBookedSlotsOnly failed');
