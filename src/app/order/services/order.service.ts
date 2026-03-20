@@ -572,8 +572,13 @@ export class OrderService {
     const slot = order.bookedSlots.id(slotId);
     if (!slot) throw new NotFoundException('Slot not found');
 
-    if (slot.status !== 'BOOKED')
-      throw new BadRequestException('Invalid slot state');
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+      throw new BadRequestException(
+        `Slot cannot be completed from ${slot.status}`,
+      );
+    }
+    // if (slot.status !== 'BOOKED')
+    //   throw new BadRequestException('Invalid slot state');
 
     slot.status = 'NOSHOW';
     slot.notification = {
