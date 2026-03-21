@@ -166,8 +166,8 @@ export class StripeService {
       throw new BadRequestException('Invalid amount');
     }
   
-    /* ✅ Calculate 5% platform fee */
-    const platformFee = Number((amount * 0.05).toFixed(2));
+    /* ✅ Calculate 2% platform fee */
+    const platformFee = Number((amount * 0.02).toFixed(2));
   
     /* ✅ Total payable */
     const totalAmount = amount + platformFee;
