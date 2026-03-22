@@ -1788,6 +1788,56 @@ private toTimeString(minutes: number): string {
   }
   
   
+  async getAvailabilityByWeekId(
+    userId: string,
+    weekId: string,
+  ) {
+    const match: any = {
+      userId: new Types.ObjectId(userId),
+    };
+  
+    const pipeline: any[] = [
+      { $match: match },
+  
+      {
+        $project: {
+          weeks: {
+            $filter: {
+              input: '$availability.weeks',
+              as: 'week',
+              cond: {
+                $eq: ['$$week.weekId', weekId], // ✅ string comparison
+              },
+            },
+          },
+        },
+      },
+  
+      {
+        $project: {
+          weeks: 1,
+          totalWeeks: { $size: '$weeks' },
+        },
+      },
+    ];
+  
+    const result = await this.instructorProfileModel.aggregate(pipeline);
+  
+    if (!result.length) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    const weeks = result[0].weeks ?? [];
+  
+    if (!weeks.length) {
+      throw new NotFoundException('Week not found');
+    }
+  
+    return {
+      weeks,
+    };
+  }
+
   
 
   async updateServiceAreas(

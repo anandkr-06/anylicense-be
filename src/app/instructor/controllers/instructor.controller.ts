@@ -32,6 +32,8 @@ import {
   WeekAvailabilityResponseDto,
 } from '../dto/availability-response.dto';
 import { UpdateTestLocationsDto } from '../dto/update-testlocations.dto';
+import { Types } from 'mongoose';
+import { isValidWeekId } from '@constant/slots';
 
 @Controller('instructor')
 @UseGuards(JwtAuthGuard)
@@ -166,6 +168,27 @@ getAvailability(
     Number(limit),
     startDate,
     endDate,
+  );
+}
+
+
+@Get('availability/:weekId')
+getAvailabilityWeek(
+  @Req() @CurrentUser() currentUser: JwtPayload,
+  @Param('weekId') weekId: string,
+) {
+  if (!weekId) {
+    throw new BadRequestException('weekId is required');
+  }
+
+  if (!isValidWeekId(weekId)) {
+    throw new BadRequestException(
+      'Invalid weekId. Must be Monday to Sunday format (YYYY-MM-DD_YYYY-MM-DD)',
+    );
+  }
+  return this.instructorService.getAvailabilityByWeekId(
+    currentUser.sub,
+    weekId,
   );
 }
 
