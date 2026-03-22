@@ -497,3 +497,30 @@ export interface AvailableSlot {
   duration: number;
   isBooked: boolean;
 }
+
+export function isValidWeekId(weekId: string): boolean {
+  const regex = /^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$/;
+
+  if (!regex.test(weekId)) return false;
+
+  const parts = weekId.split('_');
+
+  if (parts.length !== 2) return false;
+
+  const [startStr, endStr] = parts;
+
+  if (!startStr || !endStr) return false;
+
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+
+  const isMonday = start.getDay() === 1;
+  const isSunday = end.getDay() === 0;
+
+  const diffDays =
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+
+  return isMonday && isSunday && diffDays === 6;
+}
