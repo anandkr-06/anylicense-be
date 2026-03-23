@@ -1934,7 +1934,7 @@ private removeBookingByRange(
     const learner = await this.learnerModel.findById(learnerObjectId);
     if (!learner) throw new NotFoundException('Learner not found');
   
-    /* 5️⃣ Validate slot conflict (DB-level safety) */
+    /* 5️⃣ Validate slot conflict */
     for (const slot of slots) {
       await this.validateSlotConflict(instructor._id, slot);
     }
@@ -1967,7 +1967,10 @@ private removeBookingByRange(
       return base;
     });
   
-    /* 7️⃣ Pricing */
+    /* =====================================================
+       7️⃣ PRICING
+    ===================================================== */
+  
     const lessonPurchaseAmount = lessonHours * pricePerHour;
   
     let discountPercent = 0;
@@ -1984,38 +1987,53 @@ private removeBookingByRange(
   
     const bookingHours = lessonSlotHours + testSlotHours;
   
-    let platformCharge = 0;
-    if (lessonHours > 0) platformCharge += lessonHours * 2;
-    if (bookingHours > 0 && learner.walletBalance < bookingAmount) {
-      platformCharge += bookingHours * 2;
+    /* =====================================================
+       8️⃣ PLATFORM CHARGE (🔥 FIXED SPLIT)
+    ===================================================== */
+  
+    let platformChargeForLesson = 0;
+    let platformChargeForBooking = 0;
+  
+    if (lessonHours > 0) {
+      platformChargeForLesson = lessonHours * 2;
     }
   
-    const totalAmount = purchaseAmount + bookingAmount + platformCharge;
+    if (bookingHours > 0) {
+      platformChargeForBooking = bookingHours * 2;
+    }
+  
+    const platformCharge =
+      platformChargeForLesson + platformChargeForBooking;
+  
+    const totalAmount =
+      purchaseAmount + bookingAmount + platformCharge;
   
     /* =====================================================
-       8️⃣ PAYMENT SPLIT (🔥 FIXED LOGIC)
+       9️⃣ PAYMENT SPLIT (🔥 CORRECT)
     ===================================================== */
   
     // 👉 Wallet ONLY used for booking
     const bookingPayment = this.paymentService.calculatePayment(
       0,
-      bookingAmount + platformCharge,
+      bookingAmount + platformChargeForBooking,
       learner.walletBalance,
     );
   
     const walletUsed = bookingPayment.walletUsed;
     const stripeForBooking = bookingPayment.stripeAmount;
   
-    // 👉 Lesson purchase always goes to Stripe
-    const stripeForPurchase = purchaseAmount;
+    // 👉 Stripe handles lesson + its platform fee
+    const stripeForPurchase =
+      purchaseAmount + platformChargeForLesson;
   
     const stripeAmount = stripeForBooking + stripeForPurchase;
+  
     const payableAmount = totalAmount - walletUsed;
   
     const isFullyPaidByWallet = stripeAmount === 0;
   
     /* =====================================================
-       9️⃣ Order Type Name (Clean)
+       🔟 ORDER TYPE
     ===================================================== */
   
     const parts: string[] = [];
@@ -2027,7 +2045,10 @@ private removeBookingByRange(
     const orderTypeFullName =
       parts.length > 0 ? parts.join(' + ') : 'General Order';
   
-    /* 🔟 Create order */
+    /* =====================================================
+       1️⃣1️⃣ CREATE ORDER
+    ===================================================== */
+  
     const order = await this.orderModel.create({
       learnerId: learnerObjectId,
       instructorId: instructor._id,
@@ -2061,8 +2082,9 @@ private removeBookingByRange(
     });
   
     /* =====================================================
-       1️⃣1️⃣ Attach slots ONLY if fully paid
+       1️⃣2️⃣ ATTACH SLOTS (only if fully paid)
     ===================================================== */
+  
     if (isFullyPaidByWallet && slots.length > 0) {
       const instructorDoc = await this.instructorProfileModel.findById(
         instructor._id,
@@ -2072,21 +2094,26 @@ private removeBookingByRange(
         throw new NotFoundException('Instructor not found');
       }
   
-      // 🔥 Re-check before attach (race condition safety)
+      // 🔥 Re-check (race condition)
       for (const slot of slots) {
         await this.validateSlotConflict(instructor._id, slot);
       }
   
       for (const slot of slots) {
-        this.attachBookingByRange(instructorDoc, slot, order._id);
+        this.attachBookingByRange(
+          instructorDoc,
+          slot,
+          order._id,
+        );
       }
   
       await instructorDoc.save();
     }
   
     /* =====================================================
-       1️⃣2️⃣ Wallet deduction (🔥 FIXED)
+       1️⃣3️⃣ WALLET DEBIT (🔥 FIXED)
     ===================================================== */
+  
     if (walletUsed > 0) {
       await this.walletService.debitWallet(
         learnerObjectId,
