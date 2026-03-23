@@ -2755,41 +2755,37 @@ private removeBookingByRange(
   private async validateSlotConflict(
     instructorId: Types.ObjectId,
     slot: NormalizedSlot,
-    currentOrderId?: Types.ObjectId, // ✅ NEW (important)
   ): Promise<void> {
   
-    const existingOrders = await this.orderModel.find({
-      instructorId,
-      paymentStatus: 'PAID',
-      status: 'CONFIRMED',
-      'bookedSlots.date': slot.date,
-      ...(currentOrderId && { _id: { $ne: currentOrderId } }), // ✅ skip same order
-    });
+    const instructor = await this.instructorProfileModel.findById(instructorId);
   
-    const reqStart = this.toMinutes(slot.startTime);
-    const reqEnd = this.toMinutes(slot.endTime);
+    if (!instructor) {
+      throw new NotFoundException('Instructor not found');
+    }
   
-    for (const order of existingOrders) {
+    const day = instructor.availability.weeks
+      .flatMap(w => w.days)
+      .find(d => d.date === slot.date);
   
-      for (const existingSlot of order.bookedSlots) {
+    if (!day) {
+      throw new BadRequestException(`No availability on ${slot.date}`);
+    }
   
-        if (existingSlot.date !== slot.date) continue;
+    const match = day.slots.find(s =>
+      s.startTime === slot.startTime &&
+      s.endTime === slot.endTime
+    );
   
-        // ✅ skip cancelled slot
-        if (existingSlot.status === 'CANCELLED') continue;
+    if (!match) {
+      throw new BadRequestException(
+        `Invalid slot ${slot.startTime}-${slot.endTime}. Not in availability`
+      );
+    }
   
-        const existingStart = this.toMinutes(existingSlot.startTime);
-        const existingEnd = this.toMinutes(existingSlot.endTime);
-  
-        // ✅ STRICT overlap (lesson + test both)
-        const isOverlap = reqStart < existingEnd && reqEnd > existingStart;
-  
-        if (isOverlap) {
-          throw new BadRequestException(
-            `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
-          );
-        }
-      }
+    if (match.isBooked) {
+      throw new BadRequestException(
+        `Slot ${slot.startTime}-${slot.endTime} already booked`
+      );
     }
   }
 
