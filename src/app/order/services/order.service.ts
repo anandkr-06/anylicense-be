@@ -2779,7 +2779,6 @@ private removeBookingByRange(
   
     let matchedSlot: any = null;
   
-    // ✅ 1. Check inside instructor availability
     for (const week of instructor.availability?.weeks || []) {
       for (const day of week.days) {
         if (day.date !== slot.date) continue;
@@ -2802,36 +2801,10 @@ private removeBookingByRange(
       );
     }
   
-    // ✅ 2. Check if already booked
     if (matchedSlot.isBooked) {
       throw new BadRequestException(
         `Slot ${slot.startTime}-${slot.endTime} already booked`,
       );
-    }
-  
-    // ✅ 3. STRICT overlap check with confirmed orders
-    const existingOrders = await this.orderModel.find({
-      instructorId,
-      paymentStatus: 'PAID',
-      status: 'CONFIRMED',
-      'bookedSlots.date': slot.date,
-    });
-  
-    for (const order of existingOrders) {
-      for (const existingSlot of order.bookedSlots) {
-  
-        if (existingSlot.date !== slot.date) continue;
-        if (existingSlot.status === 'CANCELLED') continue;
-  
-        const existingStart = toMinutes(existingSlot.startTime);
-        const existingEnd = toMinutes(existingSlot.endTime);
-  
-        if (reqStart < existingEnd && reqEnd > existingStart) {
-          throw new BadRequestException(
-            `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
-          );
-        }
-      }
     }
   }
 
