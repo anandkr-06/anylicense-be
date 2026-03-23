@@ -1932,46 +1932,39 @@ private removeBookingByRange(
   
     /* 4️⃣ Validate learner */
     const learner = await this.learnerModel.findById(learnerObjectId);
-    if (!learner) {
-      throw new NotFoundException('Learner not found');
-    }
+    if (!learner) throw new NotFoundException('Learner not found');
   
-    /* 5️⃣ INITIAL SLOT VALIDATION */
-    if (slots.length > 0) {
-      for (const slot of slots) {
-        await this.validateSlotConflict(instructor._id, slot);
-      }
+    /* 5️⃣ Validate slot conflict (DB-level safety) */
+    for (const slot of slots) {
+      await this.validateSlotConflict(instructor._id, slot);
     }
   
     /* 6️⃣ Map slots */
     const mappedSlots = slots.map((slot) => {
-      const mappedSlot: any = {
+      const base: any = {
         date: slot.date,
         startTime: slot.startTime,
         endTime: slot.endTime,
         type: slot.type,
         status: 'BOOKED',
-        notification: {
-          learner: false,
-          instructor: false,
-        },
+        notification: { learner: false, instructor: false },
       };
   
       if (slot.type === 'TEST') {
-        mappedSlot.testLocation = slot.testLocation;
-        mappedSlot.pickupPoint = slot.pickupPoint;
-        mappedSlot.dropPoint = slot.dropPoint;
+        base.testLocation = slot.testLocation;
+        base.pickupPoint = slot.pickupPoint;
+        base.dropPoint = slot.dropPoint;
       }
   
       if (slot.type === 'LESSON') {
-        mappedSlot.pickupLocation = {
+        base.pickupLocation = {
           pickupAddress: slot.pickupAddress,
           suburb: slot.suburb,
           state: slot.state,
         };
       }
   
-      return mappedSlot;
+      return base;
     });
   
     /* 7️⃣ Pricing */
@@ -1982,10 +1975,11 @@ private removeBookingByRange(
     else if (lessonHours >= 10) discountPercent = 10;
   
     const discount = (lessonPurchaseAmount * discountPercent) / 100;
-    const discountedLessonAmount = lessonPurchaseAmount - discount;
+    const purchaseAmount = lessonPurchaseAmount - discount;
   
     const lessonSlotAmount = lessonSlotHours * pricePerHour;
     const testBookingAmount = testSlots.length * testPrice;
+  
     const bookingAmount = lessonSlotAmount + testBookingAmount;
   
     const bookingHours = lessonSlotHours + testSlotHours;
@@ -1996,52 +1990,44 @@ private removeBookingByRange(
       platformCharge += bookingHours * 2;
     }
   
-    const purchaseAmount = discountedLessonAmount;
-    const subtotal = purchaseAmount + bookingAmount;
-    const totalAmount = subtotal + platformCharge;
+    const totalAmount = purchaseAmount + bookingAmount + platformCharge;
   
-    /* 8️⃣ Wallet + Stripe split */
-    const payment = this.paymentService.calculatePayment(
-      purchaseAmount,
+    /* =====================================================
+       8️⃣ PAYMENT SPLIT (🔥 FIXED LOGIC)
+    ===================================================== */
+  
+    // 👉 Wallet ONLY used for booking
+    const bookingPayment = this.paymentService.calculatePayment(
+      0,
       bookingAmount + platformCharge,
       learner.walletBalance,
     );
   
-    const walletUsed = payment.walletUsed;
-    const stripeAmount = payment.stripeAmount;
+    const walletUsed = bookingPayment.walletUsed;
+    const stripeForBooking = bookingPayment.stripeAmount;
   
+    // 👉 Lesson purchase always goes to Stripe
+    const stripeForPurchase = purchaseAmount;
+  
+    const stripeAmount = stripeForBooking + stripeForPurchase;
     const payableAmount = totalAmount - walletUsed;
   
-    const bookingMode = slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
-    const totalHours = lessonHours;
-    const remainingHours =
-      lessonHours > 0 ? lessonHours - lessonSlotHours : 0;
-  
     const isFullyPaidByWallet = stripeAmount === 0;
-    let orderTypeFullName = '';
-
+  
+    /* =====================================================
+       9️⃣ Order Type Name (Clean)
+    ===================================================== */
+  
     const parts: string[] = [];
-    
-    if (lessonHours > 0) {
-      parts.push(`${lessonHours} Lesson Pack`);
-    }
-    
-    if (lessonSlotHours > 0) {
-      parts.push('Book Lessons');
-    }
-    
-    if (testSlots.length > 0) {
-      parts.push('Book Test Package');
-    }
-    
-    if (parts.length === 0) {
-      orderTypeFullName = 'General Order';
-    } else {
-      orderTypeFullName = parts.join(' + ');
-    }
-    
-    
-    /* 9️⃣ Create order */
+  
+    if (lessonHours > 0) parts.push(`${lessonHours} Lesson Pack`);
+    if (lessonSlotHours > 0) parts.push('Book Lessons');
+    if (testSlots.length > 0) parts.push('Book Test Package');
+  
+    const orderTypeFullName =
+      parts.length > 0 ? parts.join(' + ') : 'General Order';
+  
+    /* 🔟 Create order */
     const order = await this.orderModel.create({
       learnerId: learnerObjectId,
       instructorId: instructor._id,
@@ -2050,9 +2036,10 @@ private removeBookingByRange(
       pricePerHour,
       testPrice,
   
-      totalHours,
+      totalHours: lessonHours,
       usedHours,
-      remainingHours,
+      remainingHours:
+        lessonHours > 0 ? lessonHours - lessonSlotHours : 0,
   
       purchaseAmount,
       bookingAmount,
@@ -2064,17 +2051,19 @@ private removeBookingByRange(
       stripeAmount,
       payableAmount,
   
-      bookingMode,
+      bookingMode: slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS',
       bookedSlots: mappedSlots,
   
       paymentStatus: isFullyPaidByWallet ? 'PAID' : 'PENDING',
       status: isFullyPaidByWallet ? 'CONFIRMED' : 'PENDING_PAYMENT',
+  
       orderTypeFullName,
     });
   
-    /* 🔟 Attach slots ONLY if fully paid */
+    /* =====================================================
+       1️⃣1️⃣ Attach slots ONLY if fully paid
+    ===================================================== */
     if (isFullyPaidByWallet && slots.length > 0) {
-  
       const instructorDoc = await this.instructorProfileModel.findById(
         instructor._id,
       );
@@ -2083,25 +2072,22 @@ private removeBookingByRange(
         throw new NotFoundException('Instructor not found');
       }
   
-      /** 🔥 RE-VALIDATE (race condition fix) */
+      // 🔥 Re-check before attach (race condition safety)
       for (const slot of slots) {
         await this.validateSlotConflict(instructor._id, slot);
       }
   
-      /** ✅ Attach slots */
       for (const slot of slots) {
-        this.attachBookingByRange(
-          instructorDoc,
-          slot,
-          order._id,
-        );
+        this.attachBookingByRange(instructorDoc, slot, order._id);
       }
   
       await instructorDoc.save();
     }
   
-    /* 1️⃣1️⃣ Debit wallet ONLY if fully paid */
-    if (isFullyPaidByWallet && walletUsed > 0) {
+    /* =====================================================
+       1️⃣2️⃣ Wallet deduction (🔥 FIXED)
+    ===================================================== */
+    if (walletUsed > 0) {
       await this.walletService.debitWallet(
         learnerObjectId,
         walletUsed,
