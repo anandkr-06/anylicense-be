@@ -2763,29 +2763,75 @@ private removeBookingByRange(
       throw new NotFoundException('Instructor not found');
     }
   
-    const day = instructor.availability.weeks
-      .flatMap(w => w.days)
-      .find(d => d.date === slot.date);
+    const toMinutes = (time: string): number => {
+      const t =
+        time.toUpperCase().includes('AM') ||
+        time.toUpperCase().includes('PM')
+          ? amPmTo24(time)
+          : time;
   
-    if (!day) {
-      throw new BadRequestException(`No availability on ${slot.date}`);
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+  
+    const reqStart = toMinutes(slot.startTime);
+    const reqEnd = toMinutes(slot.endTime);
+  
+    let matchedSlot: any = null;
+  
+    // ✅ 1. Check inside instructor availability
+    for (const week of instructor.availability?.weeks || []) {
+      for (const day of week.days) {
+        if (day.date !== slot.date) continue;
+  
+        for (const s of day.slots) {
+          const dbStart = toMinutes(s.startTime);
+          const dbEnd = toMinutes(s.endTime);
+  
+          if (reqStart >= dbStart && reqEnd <= dbEnd) {
+            matchedSlot = s;
+            break;
+          }
+        }
+      }
     }
   
-    const match = day.slots.find(s =>
-      s.startTime === slot.startTime &&
-      s.endTime === slot.endTime
-    );
-  
-    if (!match) {
+    if (!matchedSlot) {
       throw new BadRequestException(
-        `Invalid slot ${slot.startTime}-${slot.endTime}. Not in availability`
+        `Slot ${slot.startTime}-${slot.endTime} is outside availability`,
       );
     }
   
-    if (match.isBooked) {
+    // ✅ 2. Check if already booked
+    if (matchedSlot.isBooked) {
       throw new BadRequestException(
-        `Slot ${slot.startTime}-${slot.endTime} already booked`
+        `Slot ${slot.startTime}-${slot.endTime} already booked`,
       );
+    }
+  
+    // ✅ 3. STRICT overlap check with confirmed orders
+    const existingOrders = await this.orderModel.find({
+      instructorId,
+      paymentStatus: 'PAID',
+      status: 'CONFIRMED',
+      'bookedSlots.date': slot.date,
+    });
+  
+    for (const order of existingOrders) {
+      for (const existingSlot of order.bookedSlots) {
+  
+        if (existingSlot.date !== slot.date) continue;
+        if (existingSlot.status === 'CANCELLED') continue;
+  
+        const existingStart = toMinutes(existingSlot.startTime);
+        const existingEnd = toMinutes(existingSlot.endTime);
+  
+        if (reqStart < existingEnd && reqEnd > existingStart) {
+          throw new BadRequestException(
+            `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
+          );
+        }
+      }
     }
   }
 
