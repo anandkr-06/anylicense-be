@@ -2718,32 +2718,69 @@ private removeBookingByRange(
   }
 
 
+  // private async validateSlotConflict(
+  //   instructorId: Types.ObjectId,
+  //   slot: NormalizedSlot,
+  // ): Promise<void> {
+
+  //   const existingOrders = await this.orderModel.find({
+  //     instructorId,
+  //     paymentStatus: 'PAID',
+  //     status: 'CONFIRMED',
+  //     'bookedSlots.date': slot.date,
+  //   });
+
+  //   const reqStart = this.toMinutes(slot.startTime);
+  //   const reqEnd = this.toMinutes(slot.endTime);
+
+  //   for (const order of existingOrders) {
+
+  //     for (const existingSlot of order.bookedSlots) {
+
+  //       if (existingSlot.date !== slot.date) continue;
+
+  //       const existingStart = this.toMinutes(existingSlot.startTime);
+  //       const existingEnd = this.toMinutes(existingSlot.endTime);
+
+  //       // ✅ Overlap formula
+  //       if (reqStart < existingEnd && reqEnd > existingStart && existingSlot.status !== 'CANCELLED') {
+  //         throw new BadRequestException(
+  //           `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
+
   private async validateSlotConflict(
     instructorId: Types.ObjectId,
     slot: NormalizedSlot,
   ): Promise<void> {
-
+  
     const existingOrders = await this.orderModel.find({
       instructorId,
       paymentStatus: 'PAID',
       status: 'CONFIRMED',
       'bookedSlots.date': slot.date,
     });
-
+  
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-
+  
     for (const order of existingOrders) {
-
+  
       for (const existingSlot of order.bookedSlots) {
-
+  
         if (existingSlot.date !== slot.date) continue;
-
+  
+        // ✅ skip cancelled slots
+        if (existingSlot.status === 'CANCELLED') continue;
+  
         const existingStart = this.toMinutes(existingSlot.startTime);
         const existingEnd = this.toMinutes(existingSlot.endTime);
-
-        // ✅ Overlap formula
-        if (reqStart < existingEnd && reqEnd > existingStart && existingSlot.status !== 'CANCELLED') {
+  
+        // ✅ overlap check (LESSON + TEST both covered)
+        if (reqStart < existingEnd && reqEnd > existingStart) {
           throw new BadRequestException(
             `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
           );
