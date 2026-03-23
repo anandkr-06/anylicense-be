@@ -57,7 +57,7 @@ export class WalletTransaction {
   @Prop({ type: Types.ObjectId })
   referenceEntityId?: Types.ObjectId;
 
-  @Prop()
+  @Prop({ required: false,default:'' })
   description?: string;
 
   @Prop({ enum: WalletTxnStatus, default: WalletTxnStatus.COMPLETED })

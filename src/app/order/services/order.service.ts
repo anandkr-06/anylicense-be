@@ -1688,57 +1688,262 @@ private removeBookingByRange(
 
   // =========================================
 
+  // async createOrder(learnerId: string, dto: CreateOrderDto) {
+  //   const learnerObjectId = new Types.ObjectId(learnerId);
+
+  //   /* 1️⃣ Instructor pricing */
+  //   const { instructor, pricePerHour, testPrice } =
+  //     await this.instructorService.getVehiclePricing(
+  //       dto.instructorId,
+  //       dto.vehicleType,
+  //     );
+
+  //   /* 2️⃣ Normalize slots */
+  //   const slots = this.slotService.normalizeSlots(dto.slots ?? []);
+
+  //   const lessonSlots = slots.filter(s => s.type === 'LESSON');
+  //   const testSlots = slots.filter(s => s.type === 'TEST');
+
+  //   const lessonHours = dto.lessonHours ?? 0;
+
+  //   /* 3️⃣ Slot duration */
+  //   const lessonSlotHours = lessonSlots.reduce(
+  //     (sum, slot) =>
+  //       sum + this.slotService.getDuration(slot.startTime, slot.endTime),
+  //     0,
+  //   );
+
+  //   const testSlotHours = testSlots.length * 2.5;
+  //   const usedHours = lessonSlotHours + testSlotHours;
+
+  //   /* 4️⃣ Validate learner */
+  //   const learner = await this.learnerModel.findById(learnerObjectId);
+
+  //   if (!learner) {
+  //     throw new NotFoundException('Learner not found');
+  //   }
+
+  //   /* 5️⃣ VALIDATE SLOT CONFLICT */
+  //   if (slots.length > 0) {
+  //     const instructorDoc = await this.instructorProfileModel.findById(
+  //       instructor._id,
+  //     );
+
+  //     if (!instructorDoc) {
+  //       throw new NotFoundException('Instructor not found');
+  //     }
+
+  //     for (const slot of slots) {
+  //       await this.validateSlotConflict(instructor._id, slot);
+  //     }
+  //   }
+
+  //   /* ✅ NEW: MAP SLOTS (FIX FOR LESSON PICKUP) */
+  //   const mappedSlots = slots.map((slot) => {
+  //     const mappedSlot: any = {
+  //       date: slot.date,
+  //       startTime: slot.startTime,
+  //       endTime: slot.endTime,
+  //       type: slot.type,
+  //       status: 'BOOKED',
+  //       notification: {
+  //         learner: false,
+  //         instructor: false,
+  //       },
+  //     };
+
+  //     if (slot.type === 'TEST') {
+  //       mappedSlot.testLocation = slot.testLocation;
+  //       mappedSlot.pickupPoint = slot.pickupPoint;
+  //       mappedSlot.dropPoint = slot.dropPoint;
+  //     }
+
+  //     if (slot.type === 'LESSON') {
+  //       mappedSlot.pickupLocation = {
+  //         pickupAddress: slot.pickupAddress,
+  //         suburb: slot.suburb,
+  //         state: slot.state,
+  //       };
+  //     }
+
+  //     return mappedSlot;
+  //   });
+
+  //   /* 6️⃣ Lesson purchase */
+  //   const lessonPurchaseAmount = lessonHours * pricePerHour;
+
+  //   let discountPercent = 0;
+
+  //   if (lessonHours >= 5 && lessonHours < 10) {
+  //     discountPercent = 5;
+  //   } else if (lessonHours >= 10) {
+  //     discountPercent = 10;
+  //   }
+
+  //   const discount = (lessonPurchaseAmount * discountPercent) / 100;
+
+  //   const discountedLessonAmount = lessonPurchaseAmount - discount;
+
+  //   /* 7️⃣ Booking cost */
+  //   const lessonSlotAmount = lessonSlotHours * pricePerHour;
+  //   const testBookingAmount = testSlots.length * testPrice;
+
+  //   const bookingAmount = lessonSlotAmount + testBookingAmount;
+
+  //   /* 8️⃣ Platform charge */
+  //   const bookingHours = lessonSlotHours + testSlotHours;
+
+  //   let platformCharge = 0;
+
+  //   if (lessonHours > 0) {
+  //     platformCharge += lessonHours * 2;
+  //   }
+
+  //   if (bookingHours > 0 && learner.walletBalance < bookingAmount) {
+  //     platformCharge += bookingHours * 2;
+  //   }
+
+  //   const purchaseAmount = discountedLessonAmount;
+  //   const subtotal = purchaseAmount + bookingAmount;
+  //   const totalAmount = subtotal + platformCharge;
+
+  //   /* 9️⃣ Wallet + Stripe split */
+  //   let walletUsed = 0;
+  //   let stripeAmount = totalAmount;
+
+  //   if (lessonHours === 0) {
+  //     const payment = this.paymentService.calculatePayment(
+  //       purchaseAmount,
+  //       bookingAmount + platformCharge,
+  //       learner.walletBalance,
+  //     );
+
+  //     walletUsed = payment.walletUsed;
+  //     stripeAmount = payment.stripeAmount;
+  //   }
+
+  //   const payableAmount = totalAmount - walletUsed;
+
+  //   const bookingMode = slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
+  //   const totalHours = lessonHours;
+
+  //   const remainingHours =
+  //     lessonHours > 0 ? lessonHours - lessonSlotHours : 0;
+
+  //   /* 🔟 Create order */
+  //   const order = await this.orderModel.create({
+  //     learnerId: learnerObjectId,
+  //     instructorId: instructor._id,
+
+  //     vehicleType: dto.vehicleType,
+  //     pricePerHour,
+  //     testPrice,
+  //     totalHours,
+  //     usedHours,
+  //     remainingHours,
+
+  //     purchaseAmount,
+  //     bookingAmount,
+
+  //     discount,
+  //     platformCharge,
+
+  //     totalAmount,
+
+  //     walletUsed,
+  //     stripeAmount,
+  //     payableAmount,
+
+  //     bookingMode,
+
+  //     /* ✅ FIX APPLIED HERE */
+  //     bookedSlots: mappedSlots,
+
+  //     paymentStatus: stripeAmount > 0 ? 'PENDING' : 'PAID',
+  //     status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
+  //   });
+
+  //   /* 1️⃣1️⃣ Attach slots */
+  //   if (
+  //     stripeAmount === 0 &&
+  //     slots.length > 0 &&
+  //     order.status === 'CONFIRMED'
+  //   ) {
+  //     const instructorDoc = await this.instructorProfileModel.findById(
+  //       instructor._id,
+  //     );
+
+  //     if (!instructorDoc) {
+  //       throw new NotFoundException('Instructor not found');
+  //     }
+
+  //     for (const slot of slots) {
+  //       this.attachBookingByRange(
+  //         instructorDoc,
+  //         slot,
+  //         order._id,
+  //       );
+  //     }
+
+  //     await instructorDoc.save();
+  //   }
+
+  //   /* 1️⃣2️⃣ Debit wallet */
+  //   if (walletUsed > 0) {
+  //     await this.walletService.debitWallet(
+  //       learnerObjectId,
+  //       walletUsed,
+  //       WalletTxnSource.ORDER,
+  //       order._id,
+  //       `wallet-${order._id}`,
+  //     );
+  //   }
+
+  //   return order;
+  // }
+
   async createOrder(learnerId: string, dto: CreateOrderDto) {
     const learnerObjectId = new Types.ObjectId(learnerId);
-
+  
     /* 1️⃣ Instructor pricing */
     const { instructor, pricePerHour, testPrice } =
       await this.instructorService.getVehiclePricing(
         dto.instructorId,
         dto.vehicleType,
       );
-
+  
     /* 2️⃣ Normalize slots */
     const slots = this.slotService.normalizeSlots(dto.slots ?? []);
-
+  
     const lessonSlots = slots.filter(s => s.type === 'LESSON');
     const testSlots = slots.filter(s => s.type === 'TEST');
-
+  
     const lessonHours = dto.lessonHours ?? 0;
-
+  
     /* 3️⃣ Slot duration */
     const lessonSlotHours = lessonSlots.reduce(
       (sum, slot) =>
         sum + this.slotService.getDuration(slot.startTime, slot.endTime),
       0,
     );
-
+  
     const testSlotHours = testSlots.length * 2.5;
     const usedHours = lessonSlotHours + testSlotHours;
-
+  
     /* 4️⃣ Validate learner */
     const learner = await this.learnerModel.findById(learnerObjectId);
-
     if (!learner) {
       throw new NotFoundException('Learner not found');
     }
-
-    /* 5️⃣ VALIDATE SLOT CONFLICT */
+  
+    /* 5️⃣ INITIAL SLOT VALIDATION */
     if (slots.length > 0) {
-      const instructorDoc = await this.instructorProfileModel.findById(
-        instructor._id,
-      );
-
-      if (!instructorDoc) {
-        throw new NotFoundException('Instructor not found');
-      }
-
       for (const slot of slots) {
         await this.validateSlotConflict(instructor._id, slot);
       }
     }
-
-    /* ✅ NEW: MAP SLOTS (FIX FOR LESSON PICKUP) */
+  
+    /* 6️⃣ Map slots */
     const mappedSlots = slots.map((slot) => {
       const mappedSlot: any = {
         date: slot.date,
@@ -1751,13 +1956,13 @@ private removeBookingByRange(
           instructor: false,
         },
       };
-
+  
       if (slot.type === 'TEST') {
         mappedSlot.testLocation = slot.testLocation;
         mappedSlot.pickupPoint = slot.pickupPoint;
         mappedSlot.dropPoint = slot.dropPoint;
       }
-
+  
       if (slot.type === 'LESSON') {
         mappedSlot.pickupLocation = {
           pickupAddress: slot.pickupAddress,
@@ -1765,118 +1970,125 @@ private removeBookingByRange(
           state: slot.state,
         };
       }
-
+  
       return mappedSlot;
     });
-
-    /* 6️⃣ Lesson purchase */
+  
+    /* 7️⃣ Pricing */
     const lessonPurchaseAmount = lessonHours * pricePerHour;
-
+  
     let discountPercent = 0;
-
-    if (lessonHours >= 5 && lessonHours < 10) {
-      discountPercent = 5;
-    } else if (lessonHours >= 10) {
-      discountPercent = 10;
-    }
-
+    if (lessonHours >= 5 && lessonHours < 10) discountPercent = 5;
+    else if (lessonHours >= 10) discountPercent = 10;
+  
     const discount = (lessonPurchaseAmount * discountPercent) / 100;
-
     const discountedLessonAmount = lessonPurchaseAmount - discount;
-
-    /* 7️⃣ Booking cost */
+  
     const lessonSlotAmount = lessonSlotHours * pricePerHour;
     const testBookingAmount = testSlots.length * testPrice;
-
     const bookingAmount = lessonSlotAmount + testBookingAmount;
-
-    /* 8️⃣ Platform charge */
+  
     const bookingHours = lessonSlotHours + testSlotHours;
-
+  
     let platformCharge = 0;
-
-    if (lessonHours > 0) {
-      platformCharge += lessonHours * 2;
-    }
-
+    if (lessonHours > 0) platformCharge += lessonHours * 2;
     if (bookingHours > 0 && learner.walletBalance < bookingAmount) {
       platformCharge += bookingHours * 2;
     }
-
+  
     const purchaseAmount = discountedLessonAmount;
     const subtotal = purchaseAmount + bookingAmount;
     const totalAmount = subtotal + platformCharge;
-
-    /* 9️⃣ Wallet + Stripe split */
-    let walletUsed = 0;
-    let stripeAmount = totalAmount;
-
-    if (lessonHours === 0) {
-      const payment = this.paymentService.calculatePayment(
-        purchaseAmount,
-        bookingAmount + platformCharge,
-        learner.walletBalance,
-      );
-
-      walletUsed = payment.walletUsed;
-      stripeAmount = payment.stripeAmount;
-    }
-
+  
+    /* 8️⃣ Wallet + Stripe split */
+    const payment = this.paymentService.calculatePayment(
+      purchaseAmount,
+      bookingAmount + platformCharge,
+      learner.walletBalance,
+    );
+  
+    const walletUsed = payment.walletUsed;
+    const stripeAmount = payment.stripeAmount;
+  
     const payableAmount = totalAmount - walletUsed;
-
+  
     const bookingMode = slots.length ? 'WITH_SLOTS' : 'WITHOUT_SLOTS';
     const totalHours = lessonHours;
-
     const remainingHours =
       lessonHours > 0 ? lessonHours - lessonSlotHours : 0;
+  
+    const isFullyPaidByWallet = stripeAmount === 0;
+    let orderTypeFullName = '';
 
-    /* 🔟 Create order */
+    const parts: string[] = [];
+    
+    if (lessonHours > 0) {
+      parts.push(`${lessonHours} Lesson Pack`);
+    }
+    
+    if (lessonSlotHours > 0) {
+      parts.push('Book Lessons');
+    }
+    
+    if (testSlots.length > 0) {
+      parts.push('Book Test Package');
+    }
+    
+    if (parts.length === 0) {
+      orderTypeFullName = 'General Order';
+    } else {
+      orderTypeFullName = parts.join(' + ');
+    }
+    
+    
+    /* 9️⃣ Create order */
     const order = await this.orderModel.create({
       learnerId: learnerObjectId,
       instructorId: instructor._id,
-
+  
       vehicleType: dto.vehicleType,
       pricePerHour,
       testPrice,
+  
       totalHours,
       usedHours,
       remainingHours,
-
+  
       purchaseAmount,
       bookingAmount,
-
       discount,
       platformCharge,
-
       totalAmount,
-
+  
       walletUsed,
       stripeAmount,
       payableAmount,
-
+  
       bookingMode,
-
-      /* ✅ FIX APPLIED HERE */
       bookedSlots: mappedSlots,
-
-      paymentStatus: stripeAmount > 0 ? 'PENDING' : 'PAID',
-      status: stripeAmount === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT',
+  
+      paymentStatus: isFullyPaidByWallet ? 'PAID' : 'PENDING',
+      status: isFullyPaidByWallet ? 'CONFIRMED' : 'PENDING_PAYMENT',
+      orderTypeFullName,
     });
-
-    /* 1️⃣1️⃣ Attach slots */
-    if (
-      stripeAmount === 0 &&
-      slots.length > 0 &&
-      order.status === 'CONFIRMED'
-    ) {
+  
+    /* 🔟 Attach slots ONLY if fully paid */
+    if (isFullyPaidByWallet && slots.length > 0) {
+  
       const instructorDoc = await this.instructorProfileModel.findById(
         instructor._id,
       );
-
+  
       if (!instructorDoc) {
         throw new NotFoundException('Instructor not found');
       }
-
+  
+      /** 🔥 RE-VALIDATE (race condition fix) */
+      for (const slot of slots) {
+        await this.validateSlotConflict(instructor._id, slot);
+      }
+  
+      /** ✅ Attach slots */
       for (const slot of slots) {
         this.attachBookingByRange(
           instructorDoc,
@@ -1884,23 +2096,86 @@ private removeBookingByRange(
           order._id,
         );
       }
-
+  
       await instructorDoc.save();
     }
-
-    /* 1️⃣2️⃣ Debit wallet */
-    if (walletUsed > 0) {
+  
+    /* 1️⃣1️⃣ Debit wallet ONLY if fully paid */
+    if (isFullyPaidByWallet && walletUsed > 0) {
       await this.walletService.debitWallet(
         learnerObjectId,
         walletUsed,
         WalletTxnSource.ORDER,
         order._id,
         `wallet-${order._id}`,
+        orderTypeFullName,
       );
     }
-
+  
     return order;
   }
+
+  // async confirmOrderPayment(orderId: string, learnerId: string) {
+
+  //   const order = await this.orderModel.findById(orderId);
+  
+  //   if (!order) throw new NotFoundException('Order not found');
+  
+  //   /** ✅ Ownership check */
+  //   if (String(order.learnerId) !== String(learnerId)) {
+  //     throw new ForbiddenException('Unauthorized access to this order');
+  //   }
+  
+  //   /** ✅ Prevent invalid confirmations */
+  //   if (order.status === 'CONFIRMED') return order;
+  
+  //   if (order.paymentStatus !== 'PENDING') {
+  //     throw new BadRequestException('Order is not eligible for confirmation');
+  //   }
+  
+  //   const instructorDoc = await this.instructorProfileModel.findById(order.instructorId);
+  
+  //   if (!instructorDoc) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+  
+  //   /** ✅ Re-check slot conflict */
+  //   for (const slot of order.bookedSlots) {
+  //     await this.validateSlotConflict(order.instructorId, slot);
+  //   }
+  
+  //   try {
+  //     /** ✅ Attach slots */
+  //     for (const slot of order.bookedSlots) {
+  //       this.attachBookingByRange(instructorDoc, slot, order._id);
+  //     }
+  
+  //     await instructorDoc.save();
+  
+  //     /** ✅ Deduct wallet (SAFE) */
+  //     if (order.walletUsed > 0 && order.paymentStatus !== 'PAID') {
+  //       await this.walletService.debitWallet(
+  //         order.learnerId,
+  //         order.walletUsed,
+  //         WalletTxnSource.ORDER,
+  //         order._id,
+  //         `wallet-${order._id}`,
+  //       );
+  //     }
+  
+  //     /** ✅ Update order */
+  //     order.status = 'CONFIRMED';
+  //     order.paymentStatus = 'PAID';
+  
+  //     await order.save();
+  
+  //   } catch (err) {
+  //     throw new BadRequestException('Failed to confirm order, try again');
+  //   }
+  
+  //   return order;
+  // }
+  
   private amPmTo24(time: string): string {
     const clean = time.trim();
     const match = clean.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);

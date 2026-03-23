@@ -173,6 +173,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
     null,
     intent.id,
     cardMeta,
+    "WALLET_TOPUP"
   );
 
   return { received: true };
@@ -382,88 +383,82 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
     metadata: StripeIntentMetadata,
     cardMeta: StripeCardMeta,
   ) {
-  
     const orderId = new Types.ObjectId(metadata.orderId);
   
-    const order = await this.orderModel.findById(orderId);
+    /** ✅ ATOMIC LOCK */
+    const order = await this.orderModel.findOneAndUpdate(
+      {
+        _id: orderId,
+        paymentStatus: { $ne: 'PAID' },
+        status: { $ne: 'CONFIRMING' },
+      },
+      {
+        $set: { status: 'CONFIRMING' },
+      },
+      { new: true }
+    );
   
     if (!order) return;
   
-    // ✅ Prevent duplicate webhook execution
-    if (order.paymentStatus === 'PAID') {
-      return;
-    }
+    try {
+      /* -----------------------------
+         SLOT ATTACH FIRST (SAFE)
+      ----------------------------- */
+      if (order.bookedSlots?.length) {
+        const instructor = await this.instructorProfileModel.findById(
+          order.instructorId,
+        );
   
-    /* -----------------------------
-       WALLET CREDIT
-    ----------------------------- */
+        if (instructor) {
+          for (const slot of order.bookedSlots) {
+            await this.validateSlotConflict(order, slot);
+            this.attachBookingByRange(instructor, slot, order._id);
+          }
   
-    const lessonWalletAmount =
-      (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
-    if (
-      order.totalHours > 0 &&
-      lessonWalletAmount > 0 &&
-      order.walletCredited === 0
-    ) {
-  
-      console.log("CREDITING WALLET", lessonWalletAmount);
-  
-      await this.walletService.creditWallet(
-        new Types.ObjectId(order.learnerId),
-        lessonWalletAmount,
-        WalletTxnSource.ORDER,
-        order._id,
-        intent.id,
-        cardMeta,
-      );
-  
-      order.walletCredited = lessonWalletAmount;
-    }
-  
-    /* -----------------------------
-       ORDER STATUS
-    ----------------------------- */
-  
-    order.status = 'CONFIRMED';
-    order.paymentStatus = 'PAID';
-  
-    console.log("WALLET CREDIT TRIGGERED", {
-      lessonWalletAmount,
-      learnerId: order.learnerId
-    });
-  
-    /* -----------------------------
-       ATTACH SLOTS
-    ----------------------------- */
-  
-    if (order.bookedSlots?.length) {
-  
-      const instructor = await this.instructorProfileModel.findById(
-        order.instructorId,
-      );
-  
-      if (instructor) {
-  
-        for (const slot of order.bookedSlots) {
-  
-          // ✅ DB conflict protection
-          await this.validateSlotConflict(order, slot);
-  
-          // ✅ Availability split booking
-          this.attachBookingByRange(
-            instructor,
-            slot,
-            order._id,
-          );
+          await instructor.save();
         }
-  
-        await instructor.save();
       }
-    }
   
-    // ✅ Save order LAST
-    await order.save();
+      /* -----------------------------
+         WALLET CREDIT
+      ----------------------------- */
+      const lessonWalletAmount =
+        (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
+  
+      if (
+        order.totalHours > 0 &&
+        lessonWalletAmount > 0 &&
+        order.walletCredited === 0
+      ) {
+        await this.walletService.creditWallet(
+          new Types.ObjectId(order.learnerId),
+          lessonWalletAmount,
+          WalletTxnSource.ORDER,
+          order._id,
+          intent.id,
+          cardMeta,
+          order.orderTypeFullName
+        );
+  
+        order.walletCredited = lessonWalletAmount;
+      }
+  
+      /* -----------------------------
+         FINAL STATUS
+      ----------------------------- */
+      order.status = 'CONFIRMED';
+      order.paymentStatus = 'PAID';
+  
+      await order.save();
+  
+    } catch (err) {
+      /** ❗ rollback */
+      await this.orderModel.findByIdAndUpdate(orderId, {
+        status: 'PENDING_PAYMENT',
+      });
+  
+      throw err;
+    }
   }
 
 

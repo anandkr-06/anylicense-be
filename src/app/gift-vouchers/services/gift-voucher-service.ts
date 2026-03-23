@@ -184,7 +184,7 @@ export class GiftVoucherService {
     if (!updatedVoucher) return;
 
     this.logger.info(`Voucher ${updatedVoucher.code} redeemed by learner ${learner._id}`);
-
+    const description: string = "Gift Voucher";
     // 💰 Credit wallet (FIXED)
     await this.walletService.creditWallet(
       learner._id,
