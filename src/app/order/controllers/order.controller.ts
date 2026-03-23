@@ -60,6 +60,26 @@ export class OrdersController {
     return this.ordersService.requestSlotReschedule(orderId, slotId, user.sub, dto);
   }
 
+  /**
+   * ✅ Confirm payment after Stripe success
+   * POST /orders/:orderId/confirm-payment
+   */
+  // @Post(':orderId/confirm-payment')
+  // @UseGuards(JwtAuthGuard)
+  // async confirmOrderPayment(
+  //   @Param('orderId') orderId: string,
+  //   @CurrentUser() user: JwtPayload,
+  // ) {
+  //   const userId = user.sub;
+  //   const order = await this.ordersService.confirmOrderPayment(orderId,userId);
+
+  //   return {
+  //     success: true,
+  //     message: 'Payment confirmed and slots booked successfully',
+  //     data: order,
+  //   };
+  // }
+
   @Patch(':orderId/slots/:slotId/reschedule/respond')
   @UseGuards(JwtAuthGuard)
   respondReschedule(

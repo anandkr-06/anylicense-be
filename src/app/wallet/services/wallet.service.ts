@@ -73,6 +73,7 @@ export class WalletService {
     orderId: Types.ObjectId | null, // ✅ allow null
     idempotencyKey: string,
     cardMeta?: StripeCardMeta,
+    description?:string,
   )
    {
     if (amount <= 0) return;
@@ -95,7 +96,7 @@ export class WalletService {
       referenceEntityId: orderId,
       idempotencyKey,
       status: WalletTxnStatus.COMPLETED,
-  
+      description:description?description:'',
       // 💳 Card info (optional)
       cardBrand: cardMeta?.brand,
       cardLast4: cardMeta?.last4,
@@ -119,6 +120,7 @@ export class WalletService {
     source: WalletTxnSource,
     orderId: Types.ObjectId | null,
     idempotencyKey: string,
+    description:string,
   ) {
     if (amount <= 0) return;
 
@@ -130,7 +132,7 @@ export class WalletService {
     }
 
     const newBalance = learner.walletBalance - amount;
-
+    
     await this.walletTxnModel.create({
       learnerId: learner._id,
       type: WalletTxnType.DEBIT,
@@ -140,6 +142,7 @@ export class WalletService {
       referenceEntityId: orderId,
       idempotencyKey,
       status: WalletTxnStatus.COMPLETED, // 🔥 REQUIRED
+      description:description?description:''
     });
 
     await this.learnerModel.updateOne(

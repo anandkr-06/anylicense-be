@@ -84,6 +84,9 @@ export class Order {
   @Prop({ default: 0 })
   usedHours!: number;
 
+  @Prop({ required: true})
+  orderTypeFullName!: string;
+
   @Prop({ default: 0 })
   remainingHours!: number;
 
@@ -97,7 +100,7 @@ export class Order {
   scheduleStatus!: string;
 
   @Prop({
-    enum: ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED'],
+    enum: ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED','CONFIRMING'],
     default: 'PENDING_PAYMENT',
   })
   status!: string;
