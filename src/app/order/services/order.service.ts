@@ -2767,10 +2767,10 @@ private removeBookingByRange(
       const t =
         time.toUpperCase().includes('AM') ||
         time.toUpperCase().includes('PM')
-          ? amPmTo24(time)
+          ? this.amPmTo24(time)
           : time;
   
-      const [h, m] = t.split(':').map(Number);
+      const [h=0, m=0] = t.split(':').map(Number);
       return h * 60 + m;
     };
   
