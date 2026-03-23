@@ -2755,6 +2755,7 @@ private removeBookingByRange(
   private async validateSlotConflict(
     instructorId: Types.ObjectId,
     slot: NormalizedSlot,
+    currentOrderId?: Types.ObjectId, // ✅ NEW (important)
   ): Promise<void> {
   
     const existingOrders = await this.orderModel.find({
@@ -2762,6 +2763,7 @@ private removeBookingByRange(
       paymentStatus: 'PAID',
       status: 'CONFIRMED',
       'bookedSlots.date': slot.date,
+      ...(currentOrderId && { _id: { $ne: currentOrderId } }), // ✅ skip same order
     });
   
     const reqStart = this.toMinutes(slot.startTime);
@@ -2773,14 +2775,16 @@ private removeBookingByRange(
   
         if (existingSlot.date !== slot.date) continue;
   
-        // ✅ skip cancelled slots
+        // ✅ skip cancelled slot
         if (existingSlot.status === 'CANCELLED') continue;
   
         const existingStart = this.toMinutes(existingSlot.startTime);
         const existingEnd = this.toMinutes(existingSlot.endTime);
   
-        // ✅ overlap check (LESSON + TEST both covered)
-        if (reqStart < existingEnd && reqEnd > existingStart) {
+        // ✅ STRICT overlap (lesson + test both)
+        const isOverlap = reqStart < existingEnd && reqEnd > existingStart;
+  
+        if (isOverlap) {
           throw new BadRequestException(
             `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
           );
