@@ -384,9 +384,11 @@ export class StripeWebhookController {
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-
-    /** ✅ ATOMIC LOCK */
-    const order = await this.orderModel.findOneAndUpdate(
+  
+    /** -----------------------------------------
+     * ✅ STEP 1: ATOMIC LOCK (prevents race)
+     ------------------------------------------ */
+    const lockedOrder = await this.orderModel.findOneAndUpdate(
       {
         _id: orderId,
         paymentStatus: { $ne: 'PAID' },
@@ -395,69 +397,64 @@ export class StripeWebhookController {
       {
         $set: { status: 'CONFIRMING' },
       },
-      { new: true }
+      { new: true },
     );
-
-    if (!order) return;
-
+  
+    /** -----------------------------------------
+     * ✅ STEP 2: FALLBACK (important for retries)
+     ------------------------------------------ */
+    let order = lockedOrder;
+  
+    if (!order) {
+      order = await this.orderModel.findById(orderId);
+      if (!order) return;
+  
+      // 🔒 Already processed → skip safely
+      if (order.paymentStatus === 'PAID') {
+        console.log('⚠️ Order already processed');
+        return;
+      }
+  
+      // Optional: lock again if needed
+      order.status = 'CONFIRMING';
+      await order.save();
+    }
+  
     try {
-      /* -----------------------------
-         SLOT ATTACH FIRST (SAFE)
-      ----------------------------- */
+      /** -----------------------------------------
+       * ✅ STEP 3: ATTACH SLOTS (FIRST)
+       ------------------------------------------ */
       if (order.bookedSlots?.length) {
         const instructor = await this.instructorProfileModel.findById(
           order.instructorId,
         );
-
+  
         if (instructor) {
           for (const slot of order.bookedSlots) {
             await this.validateSlotConflict(order, slot);
             this.attachBookingByRange(instructor, slot, order._id);
           }
-
+  
           await instructor.save();
         }
       }
-
-      /* -----------------------------
-         WALLET CREDIT
-      ----------------------------- */
-      // const lessonWalletAmount =
-      //   (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-
-      // if (
-      //   order.totalHours > 0 &&
-      //   lessonWalletAmount > 0 &&
-      //   !order.walletCredited
-      // ) {
-      //   await this.walletService.creditWallet(
-      //     new Types.ObjectId(order.learnerId),
-      //     lessonWalletAmount,
-      //     WalletTxnSource.ORDER,
-      //     order._id,
-      //     intent.id,
-      //     cardMeta,
-      //     order.orderTypeFullName
-      //   );
-
-      //   order.walletCredited = lessonWalletAmount;
-      // }
-
+  
+      /** -----------------------------------------
+       * ✅ STEP 4: WALLET CREDIT (LESSON ONLY)
+       ------------------------------------------ */
       const lessonWalletAmount =
         (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-
+  
       if (
         order.totalHours > 0 &&
         lessonWalletAmount > 0 &&
-        !order.walletCredited   // ✅ FIXED
+        !order.walletCredited
       ) {
-
-        console.log("WALLET CREDIT CHECK", {
-          totalHours: order.totalHours,
-          pricePerHour: order.pricePerHour,
-          walletCredited: order.walletCredited,
-          lessonWalletAmount
+        console.log('✅ WALLET CREDIT EXECUTING', {
+          lessonWalletAmount,
+          learnerId: order.learnerId,
         });
+  
         await this.walletService.creditWallet(
           new Types.ObjectId(order.learnerId),
           lessonWalletAmount,
@@ -465,26 +462,30 @@ export class StripeWebhookController {
           order._id,
           intent.id,
           cardMeta,
-          order.orderTypeFullName
+          order.orderTypeFullName,
         );
-
+  
         order.walletCredited = lessonWalletAmount;
       }
-
-      /* -----------------------------
-         FINAL STATUS
-      ----------------------------- */
+  
+      /** -----------------------------------------
+       * ✅ STEP 5: FINAL STATUS UPDATE
+       ------------------------------------------ */
       order.status = 'CONFIRMED';
       order.paymentStatus = 'PAID';
-
+  
       await order.save();
-
+  
     } catch (err) {
-      /** ❗ rollback */
+      /** -----------------------------------------
+       * ❌ ROLLBACK SAFETY
+       ------------------------------------------ */
+      console.error('❌ Webhook failed, rolling back', err);
+  
       await this.orderModel.findByIdAndUpdate(orderId, {
         status: 'PENDING_PAYMENT',
       });
-
+  
       throw err;
     }
   }
