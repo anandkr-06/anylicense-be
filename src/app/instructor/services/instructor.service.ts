@@ -1787,8 +1787,6 @@ private toTimeString(minutes: number): string {
     };
   }
   
-
-  
   async getAvailabilities(
     userId: string,
     page = 1,
@@ -1806,13 +1804,11 @@ private toTimeString(minutes: number): string {
   
     let filterCondition: any;
   
-    // ✅ Case 1: weekId provided → override all filters
     if (weekId) {
       filterCondition = {
         $eq: ['$$week.weekId', weekId],
       };
     } else {
-      // ✅ Case 2: normal pagination flow
       filterCondition = {
         $and: [
           { $gte: ['$$week.endDate', effectiveStartDate] },
@@ -1838,7 +1834,6 @@ private toTimeString(minutes: number): string {
         },
       },
   
-      // ✅ If weekId → skip slicing
       ...(weekId
         ? []
         : [
@@ -1860,13 +1855,10 @@ private toTimeString(minutes: number): string {
     const weeks = result[0].weeks ?? [];
     const totalWeeks = result[0].totalWeeks ?? weeks.length;
   
-    if (weekId && !weeks.length) {
-      throw new NotFoundException('Week not found');
-    }
-  
+    // ✅ No exception here anymore
     return weekId
       ? {
-          weeks, // single week
+          weeks: weeks, // [] if not found
         }
       : {
           weeks,
@@ -1878,7 +1870,6 @@ private toTimeString(minutes: number): string {
           },
         };
   }
-
   
 
   async updateServiceAreas(
