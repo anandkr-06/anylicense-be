@@ -61,9 +61,61 @@ export class LearnerService {
   //     .lean();
   // }
 
+  // async getOrdersForLearner(learnerId: string) {
+  //   const orders = await this.orderModel
+  //     .find({ learnerId: new Types.ObjectId(learnerId) })
+  //     .populate({
+  //       path: 'instructorId',
+  //       select: 'rating vehicles reschedule userId',
+  //       populate: {
+  //         path: 'userId',
+  //         model: 'User',
+  //         select: 'firstName lastName profileImage mobileNumber',
+  //       },
+  //     })
+  //     .sort({ createdAt: -1 })
+  //     .lean<any[]>();
+  
+  //   // ✅ STEP 1: Check if ANY booked slot exists
+  //   // const hasBookedSlot = orders.some(order =>
+  //   //   ['CONFIRMED', 'PAID'].includes(order.status),
+  //   // );
+
+  //   const hasBookedSlot = orders.some(
+  //     order => order.status === 'CONFIRMED' || order.paymentStatus === 'PAID',
+  //   );
+  
+  //   // ✅ STEP 2: If NO booked slot → return empty list
+  //   if (!hasBookedSlot) {
+  //     return [];
+  //   }
+  
+  //   // ✅ STEP 3: Process & return ALL orders
+  //   return orders.map(order => {
+  //     const instructor = order.instructorId;
+  
+  //     const vehicleType = order.vehicleType;
+  
+  //     if (instructor?.vehicles) {
+  //       order.instructorId = {
+  //         ...instructor,
+  //         vehicle: instructor.vehicles[vehicleType] ?? null,
+  //       };
+  
+  //       delete (order.instructorId as any).vehicles;
+  //     }
+  
+  //     return order;
+  //   });
+  // }
+
   async getOrdersForLearner(learnerId: string) {
     const orders = await this.orderModel
-      .find({ learnerId: new Types.ObjectId(learnerId) })
+      .find({
+        learnerId: new Types.ObjectId(learnerId),
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+      })
       .populate({
         path: 'instructorId',
         select: 'rating vehicles reschedule userId',
@@ -76,24 +128,9 @@ export class LearnerService {
       .sort({ createdAt: -1 })
       .lean<any[]>();
   
-    // ✅ STEP 1: Check if ANY booked slot exists
-    // const hasBookedSlot = orders.some(order =>
-    //   ['CONFIRMED', 'PAID'].includes(order.status),
-    // );
-
-    const hasBookedSlot = orders.some(
-      order => order.status === 'CONFIRMED' || order.paymentStatus === 'PAID',
-    );
-  
-    // ✅ STEP 2: If NO booked slot → return empty list
-    if (!hasBookedSlot) {
-      return [];
-    }
-  
-    // ✅ STEP 3: Process & return ALL orders
+    // ✅ Process instructor vehicle mapping
     return orders.map(order => {
       const instructor = order.instructorId;
-  
       const vehicleType = order.vehicleType;
   
       if (instructor?.vehicles) {
