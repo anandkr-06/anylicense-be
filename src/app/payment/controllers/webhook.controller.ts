@@ -160,24 +160,24 @@ export class StripeWebhookController {
       //   return { received: true };
       // }
       /* -------- WALLET TOP-UP -------- */
-if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
+      if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
 
-  const walletCredit =
-    Number(metadata.originalAmount) ||
-    intent.amount_received / 100;
+        const walletCredit =
+          Number(metadata.originalAmount) ||
+          intent.amount_received / 100;
 
-  await this.walletService.creditWallet(
-    new Types.ObjectId(metadata.learnerId),
-    walletCredit,
-    WalletTxnSource.STRIPE,
-    null,
-    intent.id,
-    cardMeta,
-    "WALLET_TOPUP"
-  );
+        await this.walletService.creditWallet(
+          new Types.ObjectId(metadata.learnerId),
+          walletCredit,
+          WalletTxnSource.STRIPE,
+          null,
+          intent.id,
+          cardMeta,
+          "WALLET_TOPUP"
+        );
 
-  return { received: true };
-}
+        return { received: true };
+      }
 
       /* -------- ORDER PAYMENT -------- */
       /* -------- ORDER PAYMENT -------- */
@@ -308,24 +308,24 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //   metadata: StripeIntentMetadata,
   //   cardMeta: StripeCardMeta,
   // ) {
-  
+
   //   const orderId = new Types.ObjectId(metadata.orderId);
-  
+
   //   const order = await this.orderModel.findById(orderId);
-  
+
   //   if (!order) return;
-  
+
   //   /* -----------------------------
   //      WALLET CREDIT
   //   ----------------------------- */
-  
+
   //   const lessonWalletAmount =
   //     (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
+
   //   if (order.totalHours > 0 && lessonWalletAmount > 0 && !order.walletCredited) {
-  
+
   //     console.log("CREDITING WALLET", lessonWalletAmount);
-  
+
   //     await this.walletService.creditWallet(
   //       order.learnerId,
   //       lessonWalletAmount,
@@ -334,17 +334,17 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //       intent.id,
   //       cardMeta,
   //     );
-  
+
   //     order.walletCredited = lessonWalletAmount;
   //   }
-  
+
   //   /* -----------------------------
   //      ORDER STATUS
   //   ----------------------------- */
-  
+
   //   order.status = 'CONFIRMED';
   //   order.paymentStatus = 'PAID';
-  
+
 
   //   console.log("WALLET CREDIT TRIGGERED", {
   //     lessonWalletAmount,
@@ -352,19 +352,19 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //   });
 
   //   await order.save();
-  
+
   //   /* -----------------------------
   //      ATTACH SLOTS
   //   ----------------------------- */
-  
+
   //   if (order.bookedSlots?.length) {
-  
+
   //     const instructor = await this.instructorProfileModel.findById(
   //       order.instructorId,
   //     );
-  
+
   //     if (instructor) {
-  
+
   //       for (const slot of order.bookedSlots) {
   //         this.attachBookingByRange(
   //           instructor,
@@ -372,7 +372,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //           order._id,
   //         );
   //       }
-  
+
   //       await instructor.save();
   //     }
   //   }
@@ -384,7 +384,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-  
+
     /** ✅ ATOMIC LOCK */
     const order = await this.orderModel.findOneAndUpdate(
       {
@@ -397,9 +397,9 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
       },
       { new: true }
     );
-  
+
     if (!order) return;
-  
+
     try {
       /* -----------------------------
          SLOT ATTACH FIRST (SAFE)
@@ -408,28 +408,56 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
         const instructor = await this.instructorProfileModel.findById(
           order.instructorId,
         );
-  
+
         if (instructor) {
           for (const slot of order.bookedSlots) {
             await this.validateSlotConflict(order, slot);
             this.attachBookingByRange(instructor, slot, order._id);
           }
-  
+
           await instructor.save();
         }
       }
-  
+
       /* -----------------------------
          WALLET CREDIT
       ----------------------------- */
+      // const lessonWalletAmount =
+      //   (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
+
+      // if (
+      //   order.totalHours > 0 &&
+      //   lessonWalletAmount > 0 &&
+      //   !order.walletCredited
+      // ) {
+      //   await this.walletService.creditWallet(
+      //     new Types.ObjectId(order.learnerId),
+      //     lessonWalletAmount,
+      //     WalletTxnSource.ORDER,
+      //     order._id,
+      //     intent.id,
+      //     cardMeta,
+      //     order.orderTypeFullName
+      //   );
+
+      //   order.walletCredited = lessonWalletAmount;
+      // }
+
       const lessonWalletAmount =
         (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
+
       if (
         order.totalHours > 0 &&
         lessonWalletAmount > 0 &&
-        order.walletCredited === 0
+        !order.walletCredited   // ✅ FIXED
       ) {
+
+        console.log("WALLET CREDIT CHECK", {
+          totalHours: order.totalHours,
+          pricePerHour: order.pricePerHour,
+          walletCredited: order.walletCredited,
+          lessonWalletAmount
+        });
         await this.walletService.creditWallet(
           new Types.ObjectId(order.learnerId),
           lessonWalletAmount,
@@ -439,24 +467,24 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
           cardMeta,
           order.orderTypeFullName
         );
-  
+
         order.walletCredited = lessonWalletAmount;
       }
-  
+
       /* -----------------------------
          FINAL STATUS
       ----------------------------- */
       order.status = 'CONFIRMED';
       order.paymentStatus = 'PAID';
-  
+
       await order.save();
-  
+
     } catch (err) {
       /** ❗ rollback */
       await this.orderModel.findByIdAndUpdate(orderId, {
         status: 'PENDING_PAYMENT',
       });
-  
+
       throw err;
     }
   }
@@ -494,7 +522,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   private toMinutes(time: string): number {
 
     const [hours = '0', minutes = '0'] = time.split(':');
-  
+
     return Number(hours) * 60 + Number(minutes);
   }
 
@@ -503,27 +531,27 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
     slot: NormalizedSlot,
     orderId: Types.ObjectId,
   ): void {
-  
+
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     for (const week of instructor.availability.weeks) {
-  
+
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       for (let i = 0; i < day.slots.length; i++) {
 
         const s = day.slots[i];
         if (!s) continue;
-      
+
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-      
+
         if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
-      
+
           const newSlots = [];
-      
+
           if (reqStart > sStart) {
             newSlots.push({
               startTime: s.startTime,
@@ -531,14 +559,14 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
               isBooked: false,
             });
           }
-      
+
           newSlots.push({
             startTime: slot.startTime,
             endTime: slot.endTime,
             isBooked: true,
             bookingId: orderId,
           });
-      
+
           if (reqEnd < sEnd) {
             newSlots.push({
               startTime: slot.endTime,
@@ -546,13 +574,13 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
               isBooked: false,
             });
           }
-      
+
           day.slots.splice(i, 1, ...newSlots);
           return;
         }
       }
     }
-  
+
     throw new BadRequestException(
       `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
     );
@@ -563,7 +591,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //   order: OrderDocument,
   //   slot: NormalizedSlot,
   // ){
-  
+
   //   const conflict = await this.orderModel.findOne({
   //     instructorId: order.instructorId,
   //     _id: { $ne: order._id },
@@ -577,7 +605,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
   //       },
   //     },
   //   });
-  
+
   //   if (conflict) {
   //     throw new BadRequestException(
   //       `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
@@ -589,7 +617,7 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
     order: OrderDocument,
     slot: NormalizedSlot,
   ) {
-  
+
     const existingOrders = await this.orderModel.find({
       instructorId: order.instructorId,
       _id: { $ne: order._id },
@@ -597,25 +625,25 @@ if (metadata.purpose === 'WALLET_TOPUP' && metadata.learnerId) {
       status: 'CONFIRMED',
       'bookedSlots.date': slot.date,
     });
-  
+
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     console.log("CHECKING SLOT", {
       date: slot.date,
       start: slot.startTime,
       end: slot.endTime
     });
-    
+
     for (const existingOrder of existingOrders) {
-  
+
       for (const s of existingOrder.bookedSlots) {
-  
+
         if (s.date !== slot.date) continue;
-  
+
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-  
+
         // ✅ TRUE overlap detection
         if (reqStart < sEnd && reqEnd > sStart) {
           throw new BadRequestException(
