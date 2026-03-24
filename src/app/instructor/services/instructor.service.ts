@@ -435,34 +435,71 @@ export class InstructorService {
     return bookedSlots;
   }
 
+  // async getOrdersForInstructor(userId: string) {
+  //   const instructor = await this.instructorProfileModel.findOne({
+  //     userId: new Types.ObjectId(userId),
+  //   });
+
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+
+  //   const orders = await this.orderModel
+  //     .find({ instructorId: instructor._id }, { bookedSlots: 1,reschedule:1 })
+  //     .populate({
+  //       path: 'learnerId',
+  //       select: 'firstName lastName email profileImage mobileNumber',
+  //     })
+  //     .sort({ createdAt: -1 })
+  //     .lean();
+
+  //   // flatten learner info
+  //   return orders.map(order => {
+  //     const { learnerId, ...rest } = order;
+  //     return {
+  //       ...rest,
+  //       learner: learnerId || null, // only keep 'learner'
+  //       instructorId: userId
+  //     };
+  //   });
+
+  // }
+
   async getOrdersForInstructor(userId: string) {
     const instructor = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(userId),
     });
-
+  
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
-
+  
     const orders = await this.orderModel
-      .find({ instructorId: instructor._id }, { bookedSlots: 1,reschedule:1 })
+      .find(
+        {
+          instructorId: instructor._id,
+          status: 'CONFIRMED',
+          paymentStatus: 'PAID',
+        },
+        { bookedSlots: 1, reschedule: 1 }
+      )
       .populate({
         path: 'learnerId',
         select: 'firstName lastName email profileImage mobileNumber',
       })
       .sort({ createdAt: -1 })
       .lean();
-
-    // flatten learner info
+  
+    // ✅ flatten learner info
     return orders.map(order => {
       const { learnerId, ...rest } = order;
+  
       return {
         ...rest,
-        learner: learnerId || null, // only keep 'learner'
-        instructorId: userId
+        learner: learnerId || null,
+        instructorId: userId,
       };
     });
-
   }
 
 
