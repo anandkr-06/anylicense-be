@@ -1787,14 +1787,41 @@ private toTimeString(minutes: number): string {
     };
   }
   
+
   
-  async getAvailabilityByWeekId(
+  async getAvailabilities(
     userId: string,
-    weekId: string,
+    page = 1,
+    limit = 1,
+    startDate?: string,
+    endDate?: string,
+    weekId?: string,
   ) {
     const match: any = {
       userId: new Types.ObjectId(userId),
     };
+  
+    const skip = (page - 1) * limit;
+    const effectiveStartDate = startDate ?? this.getTodayISODate();
+  
+    let filterCondition: any;
+  
+    // ✅ Case 1: weekId provided → override all filters
+    if (weekId) {
+      filterCondition = {
+        $eq: ['$$week.weekId', weekId],
+      };
+    } else {
+      // ✅ Case 2: normal pagination flow
+      filterCondition = {
+        $and: [
+          { $gte: ['$$week.endDate', effectiveStartDate] },
+          endDate
+            ? { $lte: ['$$week.startDate', endDate] }
+            : { $const: true },
+        ],
+      };
+    }
   
     const pipeline: any[] = [
       { $match: match },
@@ -1805,20 +1832,23 @@ private toTimeString(minutes: number): string {
             $filter: {
               input: '$availability.weeks',
               as: 'week',
-              cond: {
-                $eq: ['$$week.weekId', weekId], // ✅ string comparison
-              },
+              cond: filterCondition,
             },
           },
         },
       },
   
-      {
-        $project: {
-          weeks: 1,
-          totalWeeks: { $size: '$weeks' },
-        },
-      },
+      // ✅ If weekId → skip slicing
+      ...(weekId
+        ? []
+        : [
+            {
+              $project: {
+                totalWeeks: { $size: '$weeks' },
+                weeks: { $slice: ['$weeks', skip, limit] },
+              },
+            },
+          ]),
     ];
   
     const result = await this.instructorProfileModel.aggregate(pipeline);
@@ -1828,14 +1858,25 @@ private toTimeString(minutes: number): string {
     }
   
     const weeks = result[0].weeks ?? [];
+    const totalWeeks = result[0].totalWeeks ?? weeks.length;
   
-    if (!weeks.length) {
+    if (weekId && !weeks.length) {
       throw new NotFoundException('Week not found');
     }
   
-    return {
-      weeks,
-    };
+    return weekId
+      ? {
+          weeks, // single week
+        }
+      : {
+          weeks,
+          pagination: {
+            page,
+            limit,
+            totalWeeks,
+            totalPages: Math.ceil(totalWeeks / limit),
+          },
+        };
   }
 
   

@@ -172,22 +172,28 @@ getAvailability(
 }
 
 
-@Get('availability/:weekId')
-getAvailabilityWeek(
+@Get('availabilities')
+getAvailabilities(
   @Req() @CurrentUser() currentUser: JwtPayload,
-  @Param('weekId') weekId: string,
+  @Query('page') page = 1,
+  @Query('limit') limit = 1,
+  @Query('startDate') startDate?: string,
+  @Query('endDate') endDate?: string,
+  @Query('weekId') weekId?: string,
 ) {
-  if (!weekId) {
-    throw new BadRequestException('weekId is required');
-  }
-
-  if (!isValidWeekId(weekId)) {
+  // ✅ Validate weekId if present
+  if (weekId && !isValidWeekId(weekId)) {
     throw new BadRequestException(
-      'Invalid weekId. Must be Monday to Sunday format (YYYY-MM-DD_YYYY-MM-DD)',
+      'Invalid weekId. Must be Monday–Sunday format',
     );
   }
-  return this.instructorService.getAvailabilityByWeekId(
+
+  return this.instructorService.getAvailabilities(
     currentUser.sub,
+    Number(page),
+    Number(limit),
+    startDate,
+    endDate,
     weekId,
   );
 }
