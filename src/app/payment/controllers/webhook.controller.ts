@@ -424,17 +424,27 @@ export class StripeWebhookController {
       /** -----------------------------------------
        * ✅ STEP 3: ATTACH SLOTS (FIRST)
        ------------------------------------------ */
-      if (order.bookedSlots?.length) {
+       if (order.bookedSlots?.length) {
         const instructor = await this.instructorProfileModel.findById(
           order.instructorId,
         );
-  
+      
         if (instructor) {
           for (const slot of order.bookedSlots) {
-            await this.validateSlotConflict(order, slot);
-            this.attachBookingByRange(instructor, slot, order._id);
+            try {
+              await this.validateSlotConflict(order, slot);
+      
+              this.attachBookingByRange(
+                instructor,
+                slot,
+                order._id,
+              );
+      
+            } catch (err) {
+              console.warn("⚠️ SLOT SKIPPED:", slot);
+            }
           }
-  
+      
           await instructor.save();
         }
       }
