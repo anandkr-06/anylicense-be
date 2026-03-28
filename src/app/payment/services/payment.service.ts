@@ -326,4 +326,63 @@ export class StripeService {
       balanceAfter: newBalance,
     };
   }
+
+
+  
+  async creditedAccounts(learnerId: string) {
+    if (!learnerId) {
+      throw new BadRequestException('Invalid learnerId !');
+    }
+  
+    const learnerObjectId = new Types.ObjectId(learnerId);
+  
+    const transactions = await this.walletModel.aggregate([
+      {
+        $match: {
+          learnerId: learnerObjectId,
+          type: 'CREDIT',
+          status: 'COMPLETED',
+          $or: [
+            { source: { $in: ['GIFT_VOUCHER', 'ORDER'] } },
+            {
+              source: 'STRIPE',
+              stripePaymentIntentId: { $exists: true, $nin: [null, ''] },
+            },
+          ],
+        }
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $group: {
+          _id: '$source',
+          lastTransaction: { $first: '$$ROOT' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          source: '$_id',
+          data: {
+            learnerId: '$lastTransaction.learnerId',
+            type: '$lastTransaction.type',
+            amount: '$lastTransaction.amount',
+            balanceAfter: '$lastTransaction.balanceAfter',
+            source: '$lastTransaction.source',
+            referenceEntityId: '$lastTransaction.referenceEntityId',
+            status: '$lastTransaction.status',
+            stripePaymentIntentId: '$lastTransaction.stripePaymentIntentId', // include if needed
+            createdAt: '$lastTransaction.createdAt',
+            updatedAt: '$lastTransaction.updatedAt',
+          },
+        },
+      },
+    ]);
+  
+    return {
+      count: transactions.length,
+      data: transactions,
+    };
+  }
 }
