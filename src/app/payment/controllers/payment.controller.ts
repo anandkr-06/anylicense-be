@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Param, BadRequestException, Query } from '@nestjs/common';
+import { Body, Controller, Post, Param, BadRequestException, Query, Get } from '@nestjs/common';
 import { StripeService } from '../services/payment.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
@@ -73,6 +73,18 @@ export class PaymentController {
     return this.stripeService.withdrawToCard(
       learnerId,
       withdrawDto.amount,
+    );
+  }
+
+  @Get('accounts')
+  async sourceAccounts(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() withdrawDto: WithdrawDto,
+  ) {
+    const learnerId = currentUser.sub; // from JWT
+
+    return this.stripeService.creditedAccounts(
+      learnerId
     );
   }
 }
