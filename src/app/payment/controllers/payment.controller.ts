@@ -73,6 +73,8 @@ export class PaymentController {
     return this.stripeService.withdrawToCard(
       learnerId,
       withdrawDto.amount,
+      withdrawDto.stripePaymentIntentId,
+      withdrawDto.source
     );
   }
 
