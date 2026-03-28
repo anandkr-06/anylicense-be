@@ -450,20 +450,12 @@ export class StripeService {
       },
     ]);
   
-    // Ensure all 3 sources are always returned
-    const sources = ['GIFT_VOUCHER', 'ORDER', 'STRIPE'];
-  
-    const formatted = sources.map((src) => {
-      const found = transactions.find((t) => t.source === src);
-      return {
-        source: src,
-        data: found ? found.data : null,
-      };
-    });
+    // ❌ Remove null data (safety, though aggregation already avoids it)
+    const filtered = transactions.filter((item) => item.data !== null);
   
     return {
-      count: formatted.length,
-      data: formatted,
+      count: filtered.length,
+      data: filtered,
     };
   }
 }
