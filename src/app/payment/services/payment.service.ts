@@ -420,7 +420,7 @@ export class StripeService {
               stripePaymentIntentId: { $exists: true, $nin: [null, ''] },
             },
           ],
-        }
+        },
       },
       {
         $sort: { createdAt: -1 },
@@ -440,10 +440,9 @@ export class StripeService {
             type: '$lastTransaction.type',
             amount: '$lastTransaction.amount',
             balanceAfter: '$lastTransaction.balanceAfter',
-            source: '$lastTransaction.source',
             referenceEntityId: '$lastTransaction.referenceEntityId',
             status: '$lastTransaction.status',
-            stripePaymentIntentId: '$lastTransaction.stripePaymentIntentId', // include if needed
+            stripePaymentIntentId: '$lastTransaction.stripePaymentIntentId',
             createdAt: '$lastTransaction.createdAt',
             updatedAt: '$lastTransaction.updatedAt',
           },
@@ -451,9 +450,20 @@ export class StripeService {
       },
     ]);
   
+    // Ensure all 3 sources are always returned
+    const sources = ['GIFT_VOUCHER', 'ORDER', 'STRIPE'];
+  
+    const formatted = sources.map((src) => {
+      const found = transactions.find((t) => t.source === src);
+      return {
+        source: src,
+        data: found ? found.data : null,
+      };
+    });
+  
     return {
-      count: transactions.length,
-      data: transactions,
+      count: formatted.length,
+      data: formatted,
     };
   }
 }
