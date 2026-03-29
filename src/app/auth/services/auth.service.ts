@@ -48,84 +48,84 @@ export class AuthService {
   //   });
   // }
 
-  // async login(identifier: string, password: string) {
-  //     const instructor = await this.userModel.findOne({
-  //       $or: [
-  //         { email: identifier },
-  //         { mobileNumber: identifier },
-  //       ],
-  //       isActive: true,
-  //     });
-  
-  //     if (!instructor) {
-  //       throw new UnauthorizedException('Invalid credentials');
-  //     }
-
-  //     const isPasswordValid = await bcrypt.compare(
-  //       password,
-  //       instructor.password,
-  //     );
-  
-  //     if (!isPasswordValid) {
-  //       throw new UnauthorizedException('Invalid credentials');
-  //     }
-  
-  //     const payload = {
-  //       sub: instructor._id,
-  //       email: instructor.email,
-  //     };
-  
-  //     return {
-  //       accessToken: this.jwtService.sign(payload),
-  //       instructor: {
-  //         id: instructor._id,
-  //         firstName: instructor.firstName,
-  //         email: instructor.email,
-  //         mobileNumber: instructor.mobileNumber,
-  //       },
-  //     };
-  //   } 
   async login(identifier: string, password: string) {
-    const isEmail = identifier.includes('@');
+      const instructor = await this.userModel.findOne({
+        $or: [
+          { email: identifier },
+          { mobileNumber: identifier },
+        ],
+        isActive: true,
+      });
   
-    const instructor = await this.userModel.findOne({
-      $or: [
-        ...(isEmail
-          ? [{ email: { $regex: `^${identifier}$`, $options: 'i' } }]
-          : []),
-        { mobileNumber: identifier },
-      ],
-      isActive: true,
-    });
+      if (!instructor) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        instructor.password,
+      );
   
-    if (!instructor) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
   
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      instructor.password,
-    );
-  
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-  
-    const payload = {
-      sub: instructor._id,
-      email: instructor.email,
-    };
-  
-    return {
-      accessToken: this.jwtService.sign(payload),
-      instructor: {
-        id: instructor._id,
-        firstName: instructor.firstName,
+      const payload = {
+        sub: instructor._id,
         email: instructor.email,
-        mobileNumber: instructor.mobileNumber,
-      },
-    };
-  } 
+      };
+  
+      return {
+        accessToken: this.jwtService.sign(payload),
+        instructor: {
+          id: instructor._id,
+          firstName: instructor.firstName,
+          email: instructor.email,
+          mobileNumber: instructor.mobileNumber,
+        },
+      };
+    } 
+  // async login(identifier: string, password: string) {
+  //   const isEmail = identifier.includes('@');
+  
+  //   const instructor = await this.userModel.findOne({
+  //     $or: [
+  //       ...(isEmail
+  //         ? [{ email: { $regex: `^${identifier}$`, $options: 'i' } }]
+  //         : []),
+  //       { mobileNumber: identifier },
+  //     ],
+  //     isActive: true,
+  //   });
+  
+  //   if (!instructor) {
+  //     throw new UnauthorizedException('Invalid credentials');
+  //   }
+  
+  //   const isPasswordValid = await bcrypt.compare(
+  //     password,
+  //     instructor.password,
+  //   );
+  
+  //   if (!isPasswordValid) {
+  //     throw new UnauthorizedException('Invalid credentials');
+  //   }
+  
+  //   const payload = {
+  //     sub: instructor._id,
+  //     email: instructor.email,
+  //   };
+  
+  //   return {
+  //     accessToken: this.jwtService.sign(payload),
+  //     instructor: {
+  //       id: instructor._id,
+  //       firstName: instructor.firstName,
+  //       email: instructor.email,
+  //       mobileNumber: instructor.mobileNumber,
+  //     },
+  //   };
+  // } 
 
   public async forgetpassword(email: string) {
     const user = await this.userService.getUserByEmail(email);

@@ -92,55 +92,12 @@ export class CourseService {
   
   
 
-  // async login(dto: CourseLoginDto) {
-  //   const { identifier, password } = dto;
-  
-  //   const provider = await this.courseProviderModel.findOne({
-  //     $or: [
-  //       { email: identifier },
-  //       { mobile: identifier },
-  //     ],
-  //   });
-  
-  //   if (!provider) {
-  //     throw new UnauthorizedException('Invalid credentials');
-  //   }
-  
-  //   const isMatch = await bcrypt.compare(password, provider.password);
-  //   if (!isMatch) {
-  //     throw new UnauthorizedException('Invalid credentials');
-  //   }
-  
-  //   const token = this.jwtService.sign({
-  //     sub: provider._id,
-  //     role: 'COURSE_PROVIDER',
-  //   });
-  
-  //   return {
-  //     success: true,
-  //     accessToken: token,
-  //     provider: {
-  //       id: provider._id,
-  //       email: provider.email,
-  //       phone: provider.phone,
-  //       instituteName: provider.instituteName,
-  //     },
-  //   };
-  // }
-  
-  // 🔹 GET PROFILE
-  
   async login(dto: CourseLoginDto) {
     const { identifier, password } = dto;
   
-    const isEmail = identifier.includes('@');
-    const identifierNormalized = isEmail
-      ? identifier.toLowerCase()
-      : identifier;
-  
     const provider = await this.courseProviderModel.findOne({
       $or: [
-        ...(isEmail ? [{ email: identifierNormalized }] : []),
+        { email: identifier },
         { mobile: identifier },
       ],
     });
@@ -170,6 +127,8 @@ export class CourseService {
       },
     };
   }
+  
+  // 🔹 GET PROFILE
   async getProfile(providerId: string) {
     if (!Types.ObjectId.isValid(providerId)) {
       throw new BadRequestException('Invalid provider id'+ providerId);
