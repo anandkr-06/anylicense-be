@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booking Confirmation</title>
+</head>
+
+<body style="margin:0; padding:0; background:#f4f4f4; font-family:Arial">
+
+<table width="100%" bgcolor="#f4f4f4">
+<tr>
+<td align="center" style="padding:20px">
+
+<table width="600" bgcolor="#ffffff" style="border-collapse:collapse">
+
+<!-- HEADER -->
+<tr>
+<td style="background:#3a3a3a; padding:15px">
+  <img src="https://static.anylicence.com/media/statics/logo.png" width="140"/>
+</td>
+</tr>
+
+<!-- BODY -->
+<tr>
+<td style="padding:25px; font-size:14px; color:#333">
+
+<p><strong>Hi {{name}},</strong></p>
+
+<p>
+  🎉 Your booking has been successfully created.
+</p>
+
+<p><strong>Order Details:</strong></p>
+
+<ul>
+  <li><b>Order Type:</b> {{orderType}}</li>
+  <li><b>Vehicle:</b> {{vehicleType}}</li>
+  <li><b>Total Amount:</b> ${{totalAmount}}</li>
+  <li><b>Payment Status:</b> {{paymentStatus}}</li>
+</ul>
+
+{{#if slots.length}}
+<p><strong>Booked Slots:</strong></p>
+
+<table width="100%" border="1" cellspacing="0" cellpadding="8">
+<tr>
+  <th>Date</th>
+  <th>Time</th>
+  <th>Type</th>
+</tr>
+
+{{#each slots}}
+<tr>
+  <td>{{this.date}}</td>
+  <td>{{this.startTime}} - {{this.endTime}}</td>
+  <td>{{this.type}}</td>
+</tr>
+{{/each}}
+
+</table>
+{{/if}}
+
+<p style="margin-top:20px">
+  You can manage your bookings from dashboard.
+</p>
+
+<p>
+  <a href="{{dashboard_url}}" style="color:#ff9800">
+    Go to Dashboard
+  </a>
+</p>
+
+<p>
+  <strong>Team AnyLicence</strong><br/>
+  <a href="{{website_url}}">{{website_name}}</a>
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td style="background:#ffb300; height:5px"></td>
+</tr>
+
+</table>
+</td>
+</tr>
+</table>
+
+</body>
+</html>

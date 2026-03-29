@@ -10,6 +10,9 @@ export const MAILER_TEMPLATES = {
      ACCOUNT_VERIFICATION: 'auth/account-verification-email',
      NEWSLETTER: 'marketing/newsletter-email', 
      RESCHEDULE: 'order-actions/reschedule-action',  
+     NO_SHOW: 'order-actions/no-show',
+     SLOT_COMPLETED: 'order-actions/slot-completed',
+     ORDER_CREATED: 'order-created',
   };
   
   

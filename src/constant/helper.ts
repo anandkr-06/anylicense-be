@@ -55,3 +55,19 @@ export class RescheduleOrderDto {
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
   endTime!: string; // HH:mm
 }
+
+export type PopulatedOrder = {
+  learnerId: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    
+  };
+  instructorId: {
+    userId: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
+} & any;
