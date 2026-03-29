@@ -254,75 +254,33 @@ export class LearnerService {
   }
 
 
-  // async login(identifier: string, password: string) {
-  //   const learner = await this.learnerModel.findOne({
-  //     $or: [
-  //       { email: identifier },
-  //       { mobileNumber: identifier },
-  //     ],
-  //     //isActive: true,
-  //   });
-
-  //   if (!learner) {
-  //     throw new UnauthorizedException('Invalid credentials');
-  //   }
-
-  //   const isPasswordValid = await bcrypt.compare(
-  //     password,
-  //     learner.password,
-  //   );
-
-  //   if (!isPasswordValid) {
-  //     throw new UnauthorizedException('Invalid credentials');
-  //   }
-
-  //   const payload = {
-  //     sub: learner._id,
-  //     email: learner.email,
-  //   };
-
-  //   return {
-  //     accessToken: this.jwtService.sign(payload),
-  //     learner: {
-  //       id: learner._id,
-  //       firstName: learner.firstName,
-  //       email: learner.email,
-  //       mobileNumber: learner.mobileNumber,
-  //     },
-  //   };
-  // }
-
   async login(identifier: string, password: string) {
-    const isEmail = identifier.includes('@');
-  
     const learner = await this.learnerModel.findOne({
       $or: [
-        ...(isEmail
-          ? [{ email: { $regex: `^${identifier}$`, $options: 'i' } }]
-          : []),
+        { email: identifier },
         { mobileNumber: identifier },
       ],
-      // isActive: true,
+      //isActive: true,
     });
-  
+
     if (!learner) {
       throw new UnauthorizedException('Invalid credentials');
     }
-  
+
     const isPasswordValid = await bcrypt.compare(
       password,
       learner.password,
     );
-  
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-  
+
     const payload = {
       sub: learner._id,
       email: learner.email,
     };
-  
+
     return {
       accessToken: this.jwtService.sign(payload),
       learner: {
@@ -333,6 +291,8 @@ export class LearnerService {
       },
     };
   }
+
+ 
   async changePassword(
     learnerId: string,
     payload: ChangePasswordDto,
