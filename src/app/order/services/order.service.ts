@@ -735,6 +735,7 @@ export class OrderService {
 
     // 👉 Learner
     if (learner?.email) {
+      try {
       await this.notificationService.sendNoShowNotification({
         receiverEmail: learner.email,
         receiverName: learner.firstName,
@@ -746,6 +747,9 @@ export class OrderService {
         reasonType: body.reasonType,
         comment: body.comment,
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
     }
 
     // 👉 Instructor
@@ -897,6 +901,7 @@ export class OrderService {
 
     // 👉 Instructor
     if (instructorUser?.email) {
+      try{
       await this.notificationService.sendSlotCompletedNotification({
         receiverEmail: instructorUser.email,
         receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
@@ -908,6 +913,9 @@ export class OrderService {
         hours,
         instructorEarning, // 💰 only for instructor
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
     }
 
     return {
@@ -1508,6 +1516,7 @@ export class OrderService {
       =============================== */
 
       // 👉 Learner
+      try{
       await this.notificationService.sendRescheduleNotification({
         receiverEmail: learner.email,
         receiverName: learner.firstName,
@@ -1518,8 +1527,12 @@ export class OrderService {
         oldSlot,
         newSlot,
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
 
       // 👉 Instructor
+      try{
       await this.notificationService.sendRescheduleNotification({
         receiverEmail: instructorUser?.email,
         receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
@@ -1529,6 +1542,9 @@ export class OrderService {
         oldSlot,
         newSlot,
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
 
       return {
         success: true,
@@ -1560,6 +1576,7 @@ export class OrderService {
 
     if (isInstructor) {
       // Instructor → notify learner
+      try{
       await this.notificationService.sendRescheduleNotification({
         receiverEmail: learner.email,
         receiverName: learner.firstName,
@@ -1570,10 +1587,14 @@ export class OrderService {
         oldSlot,
         newSlot,
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
     }
 
     if (isLearner) {
       // Learner → notify instructor
+      try{
       await this.notificationService.sendRescheduleNotification({
         receiverEmail: instructorUser?.email,
         receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
@@ -1583,6 +1604,9 @@ export class OrderService {
         oldSlot,
         newSlot,
       });
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
     }
 
     return {
