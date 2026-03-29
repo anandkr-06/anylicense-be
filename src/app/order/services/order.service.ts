@@ -750,17 +750,21 @@ export class OrderService {
 
     // 👉 Instructor
     if (instructorUser?.email) {
-      await this.notificationService.sendNoShowNotification({
-        receiverEmail: instructorUser.email,
-        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-        receiverPhone: instructorUser.mobileNumber,
-        actedBy: role,
-        slotDate: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        reasonType: body.reasonType,
-        comment: body.comment,
-      });
+      try {
+        await this.notificationService.sendNoShowNotification({
+          receiverEmail: instructorUser.email,
+          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+          receiverPhone: instructorUser.mobileNumber,
+          actedBy: role,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          reasonType: body.reasonType,
+          comment: body.comment,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
     }
 
     return {
@@ -875,16 +879,20 @@ export class OrderService {
 
     // 👉 Learner
     if (learner?.email) {
-      await this.notificationService.sendSlotCompletedNotification({
-        receiverEmail: learner.email,
-        receiverName: learner.firstName,
-        receiverPhone: learner.mobileNumber,
-        slotDate: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        type: slot.type,
-        hours,
-      });
+      try {
+        await this.notificationService.sendSlotCompletedNotification({
+          receiverEmail: learner.email,
+          receiverName: learner.firstName,
+          receiverPhone: learner.mobileNumber,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          type: slot.type,
+          hours,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
     }
 
     // 👉 Instructor
@@ -2694,57 +2702,57 @@ export class OrderService {
     }
 
     //return order;
- /* =====================================================
-   1️⃣5️⃣ SEND EMAIL NOTIFICATIONS
-===================================================== */
+    /* =====================================================
+      1️⃣5️⃣ SEND EMAIL NOTIFICATIONS
+   ===================================================== */
 
-if (order.status === 'CONFIRMED') {
-  const populatedOrder = (await this.orderModel
-    .findById(order._id)
-    .populate('learnerId', 'firstName lastName email mobileNumber')
-    .populate({
-      path: 'instructorId',
-      populate: {
-        path: 'userId',
-        select: 'firstName lastName email mobileNumber',
-      },
-    })
-    .lean()) as PopulatedOrder | null; // ✅ IMPORTANT (fixes TS + ObjectId issues)
+    if (order.status === 'CONFIRMED') {
+      const populatedOrder = (await this.orderModel
+        .findById(order._id)
+        .populate('learnerId', 'firstName lastName email mobileNumber')
+        .populate({
+          path: 'instructorId',
+          populate: {
+            path: 'userId',
+            select: 'firstName lastName email mobileNumber',
+          },
+        })
+        .lean()) as PopulatedOrder | null; // ✅ IMPORTANT (fixes TS + ObjectId issues)
 
-  if (!populatedOrder) {
-    this.logger.warn('Order not found after creation (email skipped)');
-    return order;
-  }
+      if (!populatedOrder) {
+        this.logger.warn('Order not found after creation (email skipped)');
+        return order;
+      }
 
-  const learnerUser = populatedOrder.learnerId as any;
-  const instructorUser = populatedOrder.instructorId?.userId as any;
+      const learnerUser = populatedOrder.learnerId as any;
+      const instructorUser = populatedOrder.instructorId?.userId as any;
 
-  if (!learnerUser?.email) {
-    this.logger.warn('Missing learner email');
-    return order;
-  }
+      if (!learnerUser?.email) {
+        this.logger.warn('Missing learner email');
+        return order;
+      }
 
-  try {
-    await this.notificationService.sendOrderCreatedEmail({
-      learnerEmail: learnerUser.email,
-      learnerName: learnerUser.firstName,
+      try {
+        await this.notificationService.sendOrderCreatedEmail({
+          learnerEmail: learnerUser.email,
+          learnerName: learnerUser.firstName,
 
-      instructorEmail: instructorUser?.email,
-      instructorName: instructorUser
-        ? `${instructorUser.firstName} ${instructorUser.lastName}`
-        : undefined,
+          instructorEmail: instructorUser?.email,
+          instructorName: instructorUser
+            ? `${instructorUser.firstName} ${instructorUser.lastName}`
+            : undefined,
 
-      // learnerPhone: learnerUser?.mobileNumber,
-      // instructorPhone: instructorUser?.mobileNumber,
+          // learnerPhone: learnerUser?.mobileNumber,
+          // instructorPhone: instructorUser?.mobileNumber,
 
-      order: populatedOrder,
-    });
-  } catch (err) {
-    this.logger.error('Order email failed', err);
-  }
-}
+          order: populatedOrder,
+        });
+      } catch (err) {
+        this.logger.error('Order email failed', err);
+      }
+    }
 
-/* ===================================================== */
+    /* ===================================================== */
 
     return order;
   }
