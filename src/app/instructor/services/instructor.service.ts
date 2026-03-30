@@ -996,6 +996,106 @@ export class InstructorService {
 //   return result;
 // }
 
+// async getAvailableSlots(
+//   instructorId: string,
+//   duration: 1 | 2 | 2.5,
+//   timeOfDay?: 'AM' | 'PM',
+// ) {
+//   const now = new Date();
+//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+//   const instructor = await this.instructorProfileModel
+//     .findOne({ userId: new Types.ObjectId(instructorId) })
+//     .lean<InstructorProfile & { _id: Types.ObjectId }>();
+
+//   if (!instructor) {
+//     throw new NotFoundException('Instructor not found');
+//   }
+
+//   const durationMinutes = duration * 60;
+//   const result = [];
+
+//   for (const week of instructor.availability?.weeks || []) {
+//     for (const day of week.days) {
+
+//       const slotMap = new Map<string, any>();
+
+//       /** ✅ ONLY FREE SLOTS */
+//       const freeSlots = day.slots.filter(s => !s.isBooked);
+
+//       /** ✅ BOOKED SLOTS FOR BLOCKING */
+//       const bookedSlots = day.slots
+//         .filter(s => s.isBooked)
+//         .map(s => ({
+//           start: normalizeTime(s.startTime),
+//           end: normalizeTime(s.endTime),
+//         }));
+
+//       /** ✅ GENERATE FROM FREE ONLY */
+//       for (const free of freeSlots) {
+
+//         const splitSlots = splitSlotByDuration(
+//           normalizeTime(free.startTime),
+//           normalizeTime(free.endTime),
+//           durationMinutes
+//         );
+
+//         for (const s of splitSlots) {
+
+//           const sStart = normalizeTime(s.startTime);
+//           const sEnd = normalizeTime(s.endTime);
+
+//           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
+
+//           /** ✅ 24-hour rule */
+//           if (slotStartDateTime <= next24Hours) continue;
+
+//           /** ✅ AM/PM filter */
+//           if (timeOfDay) {
+//             const hour = slotStartDateTime.getHours();
+//             if (timeOfDay === 'AM' && hour >= 12) continue;
+//             if (timeOfDay === 'PM' && hour < 12) continue;
+//           }
+
+//           /** ✅ BLOCK overlapping booked slots */
+//           const isOverlappingBooked = bookedSlots.some(b =>
+//             isOverlapping(sStart, sEnd, b.start, b.end)
+//           );
+
+//           /** ❌ skip invalid slots */
+//           if (isOverlappingBooked) continue;
+
+//           const key = `${day.date}-${sStart}-${sEnd}`;
+
+//           if (!slotMap.has(key)) {
+//             slotMap.set(key, {
+//               startTime: toAmPm(sStart),
+//               endTime: toAmPm(sEnd),
+//               rawStart: sStart,
+//               duration,
+//               isBooked: false // ✅ only available slots returned
+//             });
+//           }
+//         }
+//       }
+
+//       /** ✅ SORT */
+//       const slotsForDay = Array.from(slotMap.values())
+//         .sort((a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart))
+//         .map(({ rawStart, ...rest }) => rest);
+
+//       if (slotsForDay.length) {
+//         result.push({
+//           date: day.date,
+//           slots: slotsForDay
+//         });
+//       }
+//     }
+//   }
+
+//   return result;
+// }
+
 async getAvailableSlots(
   instructorId: string,
   duration: 1 | 2 | 2.5,
@@ -1020,12 +1120,14 @@ async getAvailableSlots(
 
       const slotMap = new Map<string, any>();
 
-      /** ✅ ONLY FREE SLOTS */
-      const freeSlots = day.slots.filter(s => !s.isBooked);
+      /** ✅ ONLY FREE SLOTS (FIXED) */
+      const freeSlots = day.slots.filter(
+        s => !s.isBooked && !s.isTempBlocked
+      );
 
-      /** ✅ BOOKED SLOTS FOR BLOCKING */
-      const bookedSlots = day.slots
-        .filter(s => s.isBooked)
+      /** ✅ BLOCKED SLOTS (BOOKED + TEMP) */
+      const blockedSlots = day.slots
+        .filter(s => s.isBooked || s.isTempBlocked)
         .map(s => ({
           start: normalizeTime(s.startTime),
           end: normalizeTime(s.endTime),
@@ -1057,13 +1159,13 @@ async getAvailableSlots(
             if (timeOfDay === 'PM' && hour < 12) continue;
           }
 
-          /** ✅ BLOCK overlapping booked slots */
-          const isOverlappingBooked = bookedSlots.some(b =>
+          /** ✅ BLOCK overlapping BOOKED + TEMP slots (FIXED) */
+          const isOverlappingBlocked = blockedSlots.some(b =>
             isOverlapping(sStart, sEnd, b.start, b.end)
           );
 
           /** ❌ skip invalid slots */
-          if (isOverlappingBooked) continue;
+          if (isOverlappingBlocked) continue;
 
           const key = `${day.date}-${sStart}-${sEnd}`;
 
@@ -1073,7 +1175,7 @@ async getAvailableSlots(
               endTime: toAmPm(sEnd),
               rawStart: sStart,
               duration,
-              isBooked: false // ✅ only available slots returned
+              isBooked: false
             });
           }
         }
@@ -1153,6 +1255,143 @@ private toTimeString(minutes: number): string {
 
 
 
+  // async checkAvailability(
+  //   instructorId: string,
+  //   dto: CheckAvailabilityDto,
+  // ) {
+  //   const instructor = await this.instructorProfileModel.findOne({
+  //     userId: new Types.ObjectId(instructorId),
+  //   });
+
+  //   if (!instructor) {
+  //     throw new NotFoundException('Instructor not found');
+  //   }
+
+  //   // 🔥 helper → AM/PM or 24h → minutes
+  //   const toMinutes = (time: string): number => {
+  //     const t = time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')
+  //       ? amPmTo24(time)   // 👈 convert only if needed
+  //       : time;
+
+  //     const [h, m] = t.split(':').map(Number);
+
+  //     if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+  //       throw new BadRequestException(`Invalid time format: ${time}`);
+  //     }
+
+  //     return h * 60 + m;
+  //   };
+
+
+  //   // ---------------------------------------------------
+  //   // 1️⃣ Group requested slots by date
+  //   // ---------------------------------------------------
+  //   const slotsByDate = new Map<
+  //     string,
+  //     { start: number; end: number; raw: any }[]
+  //   >();
+
+  //   for (const slot of dto.slots) {
+  //     const start = toMinutes(slot.startTime);
+  //     const end = toMinutes(slot.endTime);
+
+  //     if (start >= end) {
+  //       throw new BadRequestException(
+  //         `Invalid slot time ${slot.startTime} - ${slot.endTime}`,
+  //       );
+  //     }
+
+  //     if (!slotsByDate.has(slot.date)) {
+  //       slotsByDate.set(slot.date, []);
+  //     }
+
+  //     slotsByDate.get(slot.date)!.push({
+  //       start,
+  //       end,
+  //       raw: slot,
+  //     });
+  //   }
+
+
+  //   // ---------------------------------------------------
+  //   // 2️⃣ Validate each day independently
+  //   // ---------------------------------------------------
+  //   for (const [date, slots] of slotsByDate.entries()) {
+  //     // ⏱ sort slots by start time
+  //     slots.sort((a, b) => a.start - b.start);
+
+  //     // 🔥 30-minute gap & overlap validation
+  //     for (let i = 1; i < slots.length; i++) {
+  //       const prev = slots[i - 1];
+  //       const curr = slots[i];
+  //       if (!curr || !prev) continue; // ⚠️ Type guard
+
+  //       // ❌ overlap
+  //       if (curr.start < prev.end) {
+  //         return {
+  //           available: false,
+  //           message: `Overlapping slots on ${date}`,
+  //         };
+  //       }
+
+  //       // ❌ less than 30 min gap
+  //       const gap = curr.start - prev.end;
+  //       if (gap < 30) {
+  //         return {
+  //           available: false,
+  //           message: `Minimum 30 minutes gap required between slots on ${date}`,
+  //         };
+  //       }
+  //     }
+
+  //     // ---------------------------------------------------
+  //     // 3️⃣ Check against instructor availability
+  //     // ---------------------------------------------------
+  //     for (const req of slots) {
+  //       let matchedSlot = null;
+
+  //       for (const week of instructor.availability?.weeks || []) {
+  //         for (const day of week.days) {
+  //           if (day.date !== date) continue;
+
+  //           for (const slot of day.slots) {
+  //             const dbStart = toMinutes(slot.startTime);
+  //             const dbEnd = toMinutes(slot.endTime);
+
+  //             // ✅ containment check
+  //             if (req.start >= dbStart && req.end <= dbEnd) {
+  //               matchedSlot = slot;
+  //               break;
+  //             }
+  //           }
+  //         }
+  //       }
+
+  //       if (!matchedSlot) {
+  //         return {
+  //           available: false,
+  //           message: `Requested slot is outside instructor availability on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+  //         };
+  //       }
+
+  //       if (matchedSlot.isBooked) {
+  //         return {
+  //           available: false,
+  //           message: `Slot already booked on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+  //         };
+  //       }
+  //     }
+  //   }
+
+  //   // ---------------------------------------------------
+  //   // ✅ All checks passed
+  //   // ---------------------------------------------------
+  //   return {
+  //     available: true,
+  //     validSlots: dto.slots.length,
+  //     message: 'All requested slots are available',
+  //   };
+  // }
   async checkAvailability(
     instructorId: string,
     dto: CheckAvailabilityDto,
@@ -1160,79 +1399,68 @@ private toTimeString(minutes: number): string {
     const instructor = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(instructorId),
     });
-
+  
     if (!instructor) {
       throw new NotFoundException('Instructor not found');
     }
-
-    // 🔥 helper → AM/PM or 24h → minutes
+  
     const toMinutes = (time: string): number => {
-      const t = time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')
-        ? amPmTo24(time)   // 👈 convert only if needed
-        : time;
-
+      const t =
+        time.toUpperCase().includes('AM') ||
+        time.toUpperCase().includes('PM')
+          ? amPmTo24(time)
+          : time;
+  
       const [h, m] = t.split(':').map(Number);
-
+  
       if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
         throw new BadRequestException(`Invalid time format: ${time}`);
       }
-
+  
       return h * 60 + m;
     };
-
-
-    // ---------------------------------------------------
-    // 1️⃣ Group requested slots by date
-    // ---------------------------------------------------
+  
     const slotsByDate = new Map<
       string,
       { start: number; end: number; raw: any }[]
     >();
-
+  
     for (const slot of dto.slots) {
       const start = toMinutes(slot.startTime);
       const end = toMinutes(slot.endTime);
-
+  
       if (start >= end) {
         throw new BadRequestException(
           `Invalid slot time ${slot.startTime} - ${slot.endTime}`,
         );
       }
-
+  
       if (!slotsByDate.has(slot.date)) {
         slotsByDate.set(slot.date, []);
       }
-
+  
       slotsByDate.get(slot.date)!.push({
         start,
         end,
         raw: slot,
       });
     }
-
-
-    // ---------------------------------------------------
-    // 2️⃣ Validate each day independently
-    // ---------------------------------------------------
+  
     for (const [date, slots] of slotsByDate.entries()) {
-      // ⏱ sort slots by start time
       slots.sort((a, b) => a.start - b.start);
-
-      // 🔥 30-minute gap & overlap validation
+  
       for (let i = 1; i < slots.length; i++) {
         const prev = slots[i - 1];
         const curr = slots[i];
-        if (!curr || !prev) continue; // ⚠️ Type guard
-
-        // ❌ overlap
+        if (!curr || !prev) continue;
+  
         if (curr.start < prev.end) {
           return {
             available: false,
             message: `Overlapping slots on ${date}`,
           };
         }
-
-        // ❌ less than 30 min gap
+  
         const gap = curr.start - prev.end;
         if (gap < 30) {
           return {
@@ -1241,22 +1469,19 @@ private toTimeString(minutes: number): string {
           };
         }
       }
-
-      // ---------------------------------------------------
-      // 3️⃣ Check against instructor availability
-      // ---------------------------------------------------
+  
       for (const req of slots) {
         let matchedSlot = null;
-
+  
         for (const week of instructor.availability?.weeks || []) {
           for (const day of week.days) {
             if (day.date !== date) continue;
-
+  
             for (const slot of day.slots) {
               const dbStart = toMinutes(slot.startTime);
               const dbEnd = toMinutes(slot.endTime);
-
-              // ✅ containment check
+  
+              // ✅ EXISTING containment logic (UNCHANGED)
               if (req.start >= dbStart && req.end <= dbEnd) {
                 matchedSlot = slot;
                 break;
@@ -1264,26 +1489,24 @@ private toTimeString(minutes: number): string {
             }
           }
         }
-
+  
         if (!matchedSlot) {
           return {
             available: false,
             message: `Requested slot is outside instructor availability on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
           };
         }
-
-        if (matchedSlot.isBooked) {
+  
+        /** ✅ ONLY CHANGE (ADD TEMP BLOCK CHECK) */
+        if (matchedSlot.isBooked || matchedSlot.isTempBlocked) {
           return {
             available: false,
-            message: `Slot already booked on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+            message: `Slot not available on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
           };
         }
       }
     }
-
-    // ---------------------------------------------------
-    // ✅ All checks passed
-    // ---------------------------------------------------
+  
     return {
       available: true,
       validSlots: dto.slots.length,
