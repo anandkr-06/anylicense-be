@@ -796,38 +796,38 @@ export class OrderService {
         path: 'learnerId',
         select: 'firstName lastName email mobileNumber',
       });
-  
+
     if (!order) throw new NotFoundException('Order not found');
-  
+
     const learner = order.learnerId;
     const instructorUser = order.instructorId?.userId;
-  
+
     const slot = order.bookedSlots.id(slotId);
     if (!slot) throw new NotFoundException('Slot not found');
-  
+
     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
       throw new BadRequestException(
         `Slot cannot be marked no-show from ${slot.status}`,
       );
     }
-  
+
     /* ===============================
        ⏱️ CALCULATE HOURS
     =============================== */
     const start = normalizeTime(slot.startTime);
     const end = normalizeTime(slot.endTime);
     const hours = calculateSlotDurationInHours(start, end);
-  
+
     /* ===============================
        ✅ UPDATE SLOT
     =============================== */
     slot.status = 'NOSHOW';
-  
+
     slot.notification = {
       learner: true,
       instructor: true,
     };
-  
+
     slot.actionMeta = {
       actedBy: role,
       reasonType: body.reasonType,
@@ -835,23 +835,23 @@ export class OrderService {
       attachment: body.attachmentUrl,
       actedAt: new Date(),
     };
-  
+
     /* ===============================
        ✅ UPDATE ORDER (same as completed)
     =============================== */
     order.usedHours += hours;
-  
+
     order.remainingHours = Math.max(
       0,
       order.totalHours - order.usedHours,
     );
-  
+
     if (order.remainingHours === 0) {
       order.scheduleStatus = 'FULLY_SCHEDULED';
     }
-  
+
     await order.save();
-  
+
     /* ===============================
        ✅ INSTRUCTOR HOURS UPDATE
     =============================== */
@@ -859,26 +859,26 @@ export class OrderService {
       { _id: new Types.ObjectId(order.instructorId._id) },
       { $inc: { totalHours: hours } },
     );
-  
+
     /* ===============================
        💰 EARNINGS CALCULATION
     =============================== */
     let grossAmount = 0;
     let pricePerHour = 0;
-  
+
     if (slot.type === 'LESSON') {
       grossAmount = hours * order.pricePerHour;
       pricePerHour = order.pricePerHour;
     }
-  
+
     if (slot.type === 'TEST') {
       grossAmount = order.testPrice;
       pricePerHour = order.testPrice;
     }
-  
+
     const platformCommission = grossAmount * 0.17;
     const instructorEarning = grossAmount - platformCommission;
-  
+
     /* ===============================
        💳 CREATE TRANSACTION (same as completed)
     =============================== */
@@ -894,16 +894,16 @@ export class OrderService {
       platformCommission,
       instructorEarning,
     });
-  
+
     /* ===============================
        💰 CREDIT WALLET
     =============================== */
     await this.payoutService.creditInstructorWallet(txn._id);
-  
+
     /* ===============================
        🔔 SEND NOTIFICATIONS
     =============================== */
-  
+
     // 👉 Learner
     if (learner?.email) {
       try {
@@ -922,7 +922,7 @@ export class OrderService {
         console.error('Learner email failed:', error);
       }
     }
-  
+
     // 👉 Instructor
     if (instructorUser?.email) {
       try {
@@ -942,7 +942,7 @@ export class OrderService {
         console.error('Instructor email failed:', error);
       }
     }
-  
+
     return {
       success: true,
       message: 'Slot marked as no-show',
@@ -1073,21 +1073,21 @@ export class OrderService {
 
     // 👉 Instructor
     if (instructorUser?.email) {
-      try{
-      await this.notificationService.sendSlotCompletedNotification({
-        receiverEmail: instructorUser.email,
-        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-        receiverPhone: instructorUser.mobileNumber,
-        slotDate: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        type: slot.type,
-        hours,
-        instructorEarning, // 💰 only for instructor
-      });
-    } catch (error) {
-      console.error('Email failed:', error);
-    }
+      try {
+        await this.notificationService.sendSlotCompletedNotification({
+          receiverEmail: instructorUser.email,
+          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+          receiverPhone: instructorUser.mobileNumber,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          type: slot.type,
+          hours,
+          instructorEarning, // 💰 only for instructor
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
     }
 
     return {
@@ -1261,6 +1261,153 @@ export class OrderService {
   //   };
   // }
 
+  // async respondSlotReschedule(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   action: 'ACCEPTED' | 'REJECTED',
+  // ) {
+  //   const order = await this.orderModel.findById(orderId);
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const instructorData = await this.instructorProfileModel.findOne({
+  //     userId: new Types.ObjectId(userId),
+  //   });
+
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot || !slot.reschedule) {
+  //     throw new NotFoundException('No reschedule request found');
+  //   }
+
+  //   const isLearner = order.learnerId.toString() === userId;
+
+  //   const isInstructor =
+  //     instructorData &&
+  //     order.instructorId.toString() === instructorData._id.toString();
+
+  //   if (!isLearner && !isInstructor) {
+  //     throw new ForbiddenException('Unauthorized');
+  //   }
+
+  //   if (
+  //     (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
+  //     (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
+  //   ) {
+  //     throw new ForbiddenException('Requester cannot respond');
+  //   }
+
+  //   /* ✅ HANDLE ACCEPT */
+  //   if (action === 'ACCEPTED') {
+  //     const oldSlot = {
+  //       date: slot.date,
+  //       startTime: slot.startTime,
+  //       endTime: slot.endTime,
+  //       type: slot.type, // ✅ FIX
+  //     };
+
+  //     const newSlot = slot.reschedule.proposedSlot;
+
+  //     const instructorProfile = await this.instructorProfileModel.findById(
+  //       order.instructorId, // ✅ FIX
+  //     );
+
+  //     if (!instructorProfile) {
+  //       throw new NotFoundException('Instructor profile not found');
+  //     }
+
+  //     /* 🚨 Validate conflict */
+  //     await this.validateSlotConflict(order.instructorId, {
+  //       date: newSlot.date,
+  //       startTime: newSlot.startTime,
+  //       endTime: newSlot.endTime,
+  //       type: slot.type,
+  //     });
+
+  //     /* 1️⃣ REMOVE OLD SLOT */
+  //     this.removeBookingByRange(instructorProfile, oldSlot);
+
+  //     /* 2️⃣ UPDATE ORDER SLOT */
+  //     slot.date = newSlot.date;
+  //     slot.startTime = newSlot.startTime;
+  //     slot.endTime = newSlot.endTime;
+  //     slot.status = 'RESCHEDULED';
+
+  //     /* 3️⃣ ATTACH NEW SLOT */
+  //     // this.attachBookingByRange(
+  //     //   instructorProfile,
+  //     //   {
+  //     //     date: newSlot.date,
+  //     //     startTime: newSlot.startTime,
+  //     //     endTime: newSlot.endTime,
+  //     //     type: slot.type,
+  //     //   },
+  //     //   order._id,
+  //     // );
+  //     /* 🔓 REMOVE TEMP BLOCK */
+  //     this.removeTempBookingByRange(instructorProfile, {
+  //       date: newSlot.date,
+  //       startTime: newSlot.startTime,
+  //       endTime: newSlot.endTime,
+  //     });
+
+  //     /* 3️⃣ ATTACH NEW SLOT (REAL BOOKING) */
+  //     this.attachBookingByRange(
+  //       instructorProfile,
+  //       {
+  //         date: newSlot.date,
+  //         startTime: newSlot.startTime,
+  //         endTime: newSlot.endTime,
+  //         type: slot.type,
+  //       },
+  //       order._id,
+  //     );
+
+  //     await instructorProfile.save();
+  //   }
+
+  //   /* ❌ HANDLE REJECT */
+  //   // if (action === 'REJECTED') {
+  //   //   slot.status = 'BOOKED';
+  //   // }
+  //   if (action === 'REJECTED') {
+  //     const newSlot = slot.reschedule.proposedSlot;
+
+  //     const instructorProfile = await this.instructorProfileModel.findById(
+  //       order.instructorId,
+  //     );
+
+  //     if (instructorProfile) {
+  //       this.removeTempBookingByRange(instructorProfile, {
+  //         date: newSlot.date,
+  //         startTime: newSlot.startTime,
+  //         endTime: newSlot.endTime,
+  //       });
+
+  //       await instructorProfile.save();
+  //     }
+
+  //     slot.status = 'BOOKED';
+  //   }
+
+  //   /* COMMON */
+  //   slot.reschedule.status = action;
+  //   slot.reschedule.respondedAt = new Date();
+
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+
+  //   slot.reschedule = undefined;
+
+  //   await order.save();
+
+  //   return {
+  //     success: true,
+  //     message: `Slot reschedule ${action.toLowerCase()}`,
+  //   };
+  // }
+
   async respondSlotReschedule(
     orderId: string,
     slotId: string,
@@ -1269,139 +1416,98 @@ export class OrderService {
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-
+  
     const instructorData = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(userId),
     });
-
+  
     const slot = order.bookedSlots.id(slotId);
     if (!slot || !slot.reschedule) {
       throw new NotFoundException('No reschedule request found');
     }
-
+  
     const isLearner = order.learnerId.toString() === userId;
-
+  
     const isInstructor =
       instructorData &&
       order.instructorId.toString() === instructorData._id.toString();
-
+  
     if (!isLearner && !isInstructor) {
       throw new ForbiddenException('Unauthorized');
     }
-
+  
     if (
       (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
       (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
     ) {
       throw new ForbiddenException('Requester cannot respond');
     }
-
-    /* ✅ HANDLE ACCEPT */
+  
+    const instructorProfile = await this.instructorProfileModel.findById(
+      order.instructorId,
+    );
+  
+    if (!instructorProfile) {
+      throw new NotFoundException('Instructor profile not found');
+    }
+  
+    const newSlot = slot.reschedule.proposedSlot;
+  
+    /* ✅ ACCEPT */
     if (action === 'ACCEPTED') {
       const oldSlot = {
         date: slot.date,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        type: slot.type, // ✅ FIX
-      };
-
-      const newSlot = slot.reschedule.proposedSlot;
-
-      const instructorProfile = await this.instructorProfileModel.findById(
-        order.instructorId, // ✅ FIX
-      );
-
-      if (!instructorProfile) {
-        throw new NotFoundException('Instructor profile not found');
-      }
-
-      /* 🚨 Validate conflict */
-      await this.validateSlotConflict(order.instructorId, {
-        date: newSlot.date,
-        startTime: newSlot.startTime,
-        endTime: newSlot.endTime,
         type: slot.type,
-      });
-
-      /* 1️⃣ REMOVE OLD SLOT */
+      };
+  
+      /* 🔓 remove temp block first */
+      this.removeTempBookingByRange(instructorProfile, newSlot);
+  
+      /* 🧹 remove old booking */
       this.removeBookingByRange(instructorProfile, oldSlot);
-
-      /* 2️⃣ UPDATE ORDER SLOT */
+  
+      /* ✏️ update order slot */
       slot.date = newSlot.date;
       slot.startTime = newSlot.startTime;
       slot.endTime = newSlot.endTime;
       slot.status = 'RESCHEDULED';
-
-      /* 3️⃣ ATTACH NEW SLOT */
-      // this.attachBookingByRange(
-      //   instructorProfile,
-      //   {
-      //     date: newSlot.date,
-      //     startTime: newSlot.startTime,
-      //     endTime: newSlot.endTime,
-      //     type: slot.type,
-      //   },
-      //   order._id,
-      // );
-      /* 🔓 REMOVE TEMP BLOCK */
-this.removeTempBookingByRange(instructorProfile, {
-  date: newSlot.date,
-  startTime: newSlot.startTime,
-  endTime: newSlot.endTime,
-});
-
-/* 3️⃣ ATTACH NEW SLOT (REAL BOOKING) */
-this.attachBookingByRange(
-  instructorProfile,
-  {
-    date: newSlot.date,
-    startTime: newSlot.startTime,
-    endTime: newSlot.endTime,
-    type: slot.type,
-  },
-  order._id,
-);
-
+  
+      /* ✅ attach real booking */
+      this.attachBookingByRange(
+        instructorProfile,
+        {
+          ...newSlot,
+          type: slot.type,
+        },
+        order._id,
+      );
+  
       await instructorProfile.save();
     }
-
-    /* ❌ HANDLE REJECT */
-    // if (action === 'REJECTED') {
-    //   slot.status = 'BOOKED';
-    // }
+  
+    /* ❌ REJECT */
     if (action === 'REJECTED') {
-      const newSlot = slot.reschedule.proposedSlot;
-    
-      const instructorProfile = await this.instructorProfileModel.findById(
-        order.instructorId,
-      );
-    
-      if (instructorProfile) {
-        this.removeTempBookingByRange(instructorProfile, {
-          date: newSlot.date,
-          startTime: newSlot.startTime,
-          endTime: newSlot.endTime,
-        });
-    
-        await instructorProfile.save();
-      }
-    
+      /* 🔓 remove temp block */
+      this.removeTempBookingByRange(instructorProfile, newSlot);
+  
       slot.status = 'BOOKED';
     }
-
+  
     /* COMMON */
     slot.reschedule.status = action;
     slot.reschedule.respondedAt = new Date();
-
+  
     slot.notification = {
       learner: true,
       instructor: true,
     };
-
+  
     slot.reschedule = undefined;
-
+  
     await order.save();
-
+  
     return {
       success: true,
       message: `Slot reschedule ${action.toLowerCase()}`,
@@ -1725,35 +1831,35 @@ this.attachBookingByRange(
       =============================== */
 
       // 👉 Learner
-      try{
-      await this.notificationService.sendRescheduleNotification({
-        receiverEmail: learner.email,
-        receiverName: learner.firstName,
-        receiverPhone: learner.mobileNumber,
-        role: 'LEARNER',
-        action: 'AUTO_APPROVED',
-        requestedBy: 'LEARNER',
-        oldSlot,
-        newSlot,
-      });
-    } catch (error) {
-      console.error('Email failed:', error);
-    }
+      try {
+        await this.notificationService.sendRescheduleNotification({
+          receiverEmail: learner.email,
+          receiverName: learner.firstName,
+          receiverPhone: learner.mobileNumber,
+          role: 'LEARNER',
+          action: 'AUTO_APPROVED',
+          requestedBy: 'LEARNER',
+          oldSlot,
+          newSlot,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
 
       // 👉 Instructor
-      try{
-      await this.notificationService.sendRescheduleNotification({
-        receiverEmail: instructorUser?.email,
-        receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
-        role: 'INSTRUCTOR',
-        action: 'AUTO_APPROVED',
-        requestedBy: 'LEARNER',
-        oldSlot,
-        newSlot,
-      });
-    } catch (error) {
-      console.error('Email failed:', error);
-    }
+      try {
+        await this.notificationService.sendRescheduleNotification({
+          receiverEmail: instructorUser?.email,
+          receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
+          role: 'INSTRUCTOR',
+          action: 'AUTO_APPROVED',
+          requestedBy: 'LEARNER',
+          oldSlot,
+          newSlot,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
 
       return {
         success: true,
@@ -1763,8 +1869,9 @@ this.attachBookingByRange(
     }
 
     /* ===============================
-       🔁 REQUEST FLOW
-    =============================== */
+   🔁 REQUEST FLOW
+=============================== */
+
     if (slot.reschedule?.status === 'PENDING') {
       throw new BadRequestException('Reschedule already pending');
     }
@@ -1781,44 +1888,45 @@ this.attachBookingByRange(
 
     await order.save();
 
-    /* 🔔 NOTIFICATIONS */
-
+    /* ✅ TEMP BLOCK ONLY IF INSTRUCTOR */
     if (isInstructor) {
       const instructorProfileDoc =
         await this.instructorProfileModel.findById(order.instructorId._id);
-    
+
       if (!instructorProfileDoc) {
         throw new NotFoundException('Instructor profile not found');
       }
-    
-      /* 🔒 TEMP LOCK NEW SLOT */
-      this.attachTempBookingByRange(
-        instructorProfileDoc,
-        {
-          ...newSlot,
-          type: slot.type as 'LESSON' | 'TEST',
-        },
-        order._id,
-      );
-    
+
+      // 🚨 IMPORTANT: validate BEFORE blocking
+      await this.validateSlotConflict(order.instructorId._id, {
+        ...newSlot,
+        type: slot.type,
+      });
+
+      // 🔒 TEMP BLOCK (NO bookingId, NO isBooked)
+      this.attachTempBookingByRange(instructorProfileDoc, {
+        ...newSlot,
+        type: slot.type,
+      });
+
       await instructorProfileDoc.save();
     }
 
     if (isLearner) {
       // Learner → notify instructor
-      try{
-      await this.notificationService.sendRescheduleNotification({
-        receiverEmail: instructorUser?.email,
-        receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
-        role: 'INSTRUCTOR',
-        action: 'REQUESTED',
-        requestedBy: 'LEARNER',
-        oldSlot,
-        newSlot,
-      });
-    } catch (error) {
-      console.error('Email failed:', error);
-    }
+      try {
+        await this.notificationService.sendRescheduleNotification({
+          receiverEmail: instructorUser?.email,
+          receiverName: `${instructorUser?.firstName} ${instructorUser?.lastName}`,
+          role: 'INSTRUCTOR',
+          action: 'REQUESTED',
+          requestedBy: 'LEARNER',
+          oldSlot,
+          newSlot,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
     }
 
     return {
@@ -3396,27 +3504,27 @@ this.attachBookingByRange(
     slot: NormalizedSlot,
     orderId: Types.ObjectId,
   ): void {
-  
+
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     for (const week of instructor.availability.weeks) {
-  
+
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       for (let i = 0; i < day.slots.length; i++) {
-  
+
         const s = day.slots[i];
         if (!s) continue;
-  
+
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-  
+
         if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
-  
+
           const newSlots: any[] = [];
-  
+
           // before part
           if (reqStart > sStart) {
             newSlots.push({
@@ -3425,7 +3533,7 @@ this.attachBookingByRange(
               isBooked: false,
             });
           }
-  
+
           // 🔒 TEMP BLOCK SLOT
           newSlots.push({
             startTime: slot.startTime,
@@ -3434,7 +3542,7 @@ this.attachBookingByRange(
             isTempBlocked: true,         // ✅ NEW FLAG
             bookingId: orderId,
           });
-  
+
           // after part
           if (reqEnd < sEnd) {
             newSlots.push({
@@ -3443,13 +3551,13 @@ this.attachBookingByRange(
               isBooked: false,
             });
           }
-  
+
           day.slots.splice(i, 1, ...newSlots);
           return;
         }
       }
     }
-  
+
     throw new BadRequestException(
       `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
     );
@@ -3750,116 +3858,105 @@ this.attachBookingByRange(
   }
 
 
-  private attachTempBookingByRange(
-    instructor: any,
-    slot: any,
-    orderId: Types.ObjectId,
-  ) {
-    const reqStart = this.toMinutes(slot.startTime);
-    const reqEnd = this.toMinutes(slot.endTime);
-  
-    for (const week of instructor.availability.weeks) {
-      const day = week.days.find((d: any) => d.date === slot.date);
-      if (!day) continue;
-  
-      for (let i = 0; i < day.slots.length; i++) {
-        const s = day.slots[i];
-        if (!s) continue;
-  
-        const sStart = this.toMinutes(s.startTime);
-        const sEnd = this.toMinutes(s.endTime);
-  
-        if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
-          const newSlots: any[] = [];
-  
-          if (reqStart > sStart) {
-            newSlots.push({
-              startTime: s.startTime,
-              endTime: slot.startTime,
-              isBooked: false,
-            });
-          }
-  
-          /* 🔒 TEMP BLOCK SLOT */
-          newSlots.push({
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            isBooked: false,
-            isTempBlocked: true,
-            tempBookingId: orderId,
-          });
-  
-          if (reqEnd < sEnd) {
-            newSlots.push({
-              startTime: slot.endTime,
-              endTime: s.endTime,
-              isBooked: false,
-            });
-          }
-  
-          day.slots.splice(i, 1, ...newSlots);
-          return;
-        }
-      }
-    }
-  
-    throw new BadRequestException(
-      `Instructor not available for temp lock`,
-    );
-  }
-
-  // private removeTempBookingByRange(
+  // private attachTempBookingByRange(
   //   instructor: any,
   //   slot: any,
+  //   orderId: Types.ObjectId,
   // ) {
+  //   const reqStart = this.toMinutes(slot.startTime);
+  //   const reqEnd = this.toMinutes(slot.endTime);
+
   //   for (const week of instructor.availability.weeks) {
   //     const day = week.days.find((d: any) => d.date === slot.date);
   //     if (!day) continue;
-  
-  //     day.slots = day.slots.map((s: any) => {
-  //       if (
-  //         s.startTime === slot.startTime &&
-  //         s.endTime === slot.endTime &&
-  //         s.isTempBlocked
-  //       ) {
-  //         return {
-  //           startTime: s.startTime,
-  //           endTime: s.endTime,
+
+  //     for (let i = 0; i < day.slots.length; i++) {
+  //       const s = day.slots[i];
+  //       if (!s) continue;
+
+  //       const sStart = this.toMinutes(s.startTime);
+  //       const sEnd = this.toMinutes(s.endTime);
+
+  //       if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
+  //         const newSlots: any[] = [];
+
+  //         if (reqStart > sStart) {
+  //           newSlots.push({
+  //             startTime: s.startTime,
+  //             endTime: slot.startTime,
+  //             isBooked: false,
+  //           });
+  //         }
+
+  //         /* 🔒 TEMP BLOCK SLOT */
+  //         newSlots.push({
+  //           startTime: slot.startTime,
+  //           endTime: slot.endTime,
   //           isBooked: false,
-  //         };
+  //           isTempBlocked: true,
+  //           tempBookingId: orderId,
+  //         });
+
+  //         if (reqEnd < sEnd) {
+  //           newSlots.push({
+  //             startTime: slot.endTime,
+  //             endTime: s.endTime,
+  //             isBooked: false,
+  //           });
+  //         }
+
+  //         day.slots.splice(i, 1, ...newSlots);
+  //         return;
   //       }
-  //       return s;
-  //     });
+  //     }
   //   }
+
+  //   throw new BadRequestException(
+  //     `Instructor not available for temp lock`,
+  //   );
   // }
-  private removeTempBookingByRange(
+
+  private attachTempBookingByRange(
     instructor: InstructorProfileDocument,
-    slot: {
-      date: string;
-      startTime: string;
-      endTime: string;
-    },
-  ): void {
-  
+    slot: NormalizedSlot,
+  ) {
+    const reqStart = this.toMinutes(slot.startTime);
+    const reqEnd = this.toMinutes(slot.endTime);
+
     for (const week of instructor.availability.weeks) {
-  
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
-      day.slots = day.slots.map(s => {
-        if (
-          s.startTime === slot.startTime &&
-          s.endTime === slot.endTime &&
-          s.isTempBlocked
-        ) {
-          return {
-            ...s,
-            isBooked: false,
-            bookingId: undefined, // ✅ important
-            isTempBlocked: false,
-          };
+
+      for (const s of day.slots) {
+        const sStart = this.toMinutes(s.startTime);
+        const sEnd = this.toMinutes(s.endTime);
+
+        // ✅ exact match OR fully inside slot
+        if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
+          s.isTempBlocked = true;
         }
-        return s;
+      }
+    }
+  }
+
+  private removeTempBookingByRange(
+    instructor: InstructorProfileDocument,
+    slot: { date: string; startTime: string; endTime: string },
+  ) {
+    const reqStart = this.toMinutes(slot.startTime);
+    const reqEnd = this.toMinutes(slot.endTime);
+
+    for (const week of instructor.availability.weeks) {
+      const day = week.days.find(d => d.date === slot.date);
+      if (!day) continue;
+
+      day.slots.forEach((s: any) => {
+        const sStart = this.toMinutes(s.startTime);
+        const sEnd = this.toMinutes(s.endTime);
+
+        if (reqStart < sEnd && reqEnd > sStart) {
+          s.isTempBlocked = false;
+        }
       });
     }
   }
