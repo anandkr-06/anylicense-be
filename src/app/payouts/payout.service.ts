@@ -450,7 +450,7 @@ async getTransactions(
  * @param transactionId 
  * @returns 
  */
-async creditInstructorWallet(transactionId: Types.ObjectId) {
+async creditInstructorWallet(transactionId: Types.ObjectId,source:string) {
 
   const txn = await this.transactionModel.findById(transactionId);
 
@@ -494,7 +494,7 @@ async creditInstructorWallet(transactionId: Types.ObjectId) {
     role: 'instructor',
     amount: instructorEarning,
     balanceAfter: instructor.walletBalance,
-    source: 'LESSON_COMPLETED',
+    source: (source)?source:'LESSON_COMPLETED',
     referenceId: txn.orderId
   });
 

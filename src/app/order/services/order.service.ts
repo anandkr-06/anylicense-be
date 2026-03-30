@@ -898,7 +898,7 @@ export class OrderService {
     /* ===============================
        💰 CREDIT WALLET
     =============================== */
-    await this.payoutService.creditInstructorWallet(txn._id);
+    await this.payoutService.creditInstructorWallet(txn._id,'NOSHOW');
 
     /* ===============================
        🔔 SEND NOTIFICATIONS
@@ -1047,7 +1047,7 @@ export class OrderService {
       instructorEarning,
     });
 
-    await this.payoutService.creditInstructorWallet(txn._id);
+    await this.payoutService.creditInstructorWallet(txn._id,'LESSON_COMPLETED');
 
     /* ===============================
        🔔 SEND NOTIFICATIONS
