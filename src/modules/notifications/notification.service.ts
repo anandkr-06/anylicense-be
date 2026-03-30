@@ -534,4 +534,37 @@ export class NotificationService {
       });
     }
   }
+
+
+
+  /**
+   * Forgot mailer service
+   */
+  async sendForgotPassword(payload: {
+    recipientEmail: string;
+    instructorName: string;
+    resetLink: string;
+  }) {
+    await this.mailerService.sendMail({
+      to: payload.recipientEmail,
+      subject: 'Password Reset Request',
+      template: MAILER_TEMPLATES.FORGOT_PASSWORD,
+      context: {
+        receiverName: payload.instructorName || 'User',
+  
+        // ✅ FIXED
+        resetLink: payload.resetLink,
+  
+        // messaging
+        mainMessage: 'We received a request to reset your password.',
+        ctaMessage: 'Click below to reset your password securely.',
+  
+        expiryMinutes: 15,
+  
+        support_email: process.env['SUPPORT_EMAIL'],
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+  }
+
 }
