@@ -30,6 +30,7 @@ import { PayoutService } from '@app/payouts/payout.service';
 import { StripeService } from '@app/payouts/stripe.service';
 import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
 import { NotificationModule } from 'modules/notifications/notification.module';
+import { SlotCronService } from './services/cron.service';
 
 
 @Module({
@@ -64,10 +65,11 @@ import { NotificationModule } from 'modules/notifications/notification.module';
     LeanerModule,
     WalletModule, // ✅ ADD THIS
     NotificationModule,
+    
 
   ],
   controllers: [OrdersController, PrivateLearnersController],
-  providers: [OrderService, UserDbService, PrivateLearnerService, InstructorService,SlotService,PricingService,PaymentService,PayoutService, StripeService],
+  providers: [OrderService, UserDbService, PrivateLearnerService, InstructorService,SlotService,PricingService,PaymentService,PayoutService, StripeService,SlotCronService],
   exports: [OrderService],
 })
 export class OrdersModule {}

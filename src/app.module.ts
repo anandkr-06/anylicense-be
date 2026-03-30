@@ -32,10 +32,12 @@ import { GiftVoucherModule } from '@app/gift-vouchers/gift-vouchers.module';
 import { PayoutService } from '@app/payouts/payout.service';
 import { PayoutScheduler } from '@app/schedulers/payout.scheduler';
 import { PayoutModule } from '@app/payouts/payout.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     AppConfigModule,
+    ScheduleModule.forRoot(), // ✅ REQUIRED
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
