@@ -5,6 +5,7 @@ import { AuthController } from './controllers/auth.controller';
 import { UserModule } from '@app/users/user.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '@common/db/schemas/user.schema';
+import { NotificationModule } from 'modules/notifications/notification.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { User, UserSchema } from '@common/db/schemas/user.schema';
       { name: User.name, schema: UserSchema },
     ]),
     UserModule,
+    NotificationModule,
   ],
   providers: [AuthService],
   controllers: [AuthController],
