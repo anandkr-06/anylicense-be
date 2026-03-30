@@ -1120,7 +1120,7 @@ async getAvailableSlots(
 
       const slotMap = new Map<string, any>();
 
-      /** ✅ ONLY FREE SLOTS (FIXED) */
+      /** ✅ FREE SLOTS (IMPORTANT FIX) */
       const freeSlots = day.slots.filter(
         s => !s.isBooked && !s.isTempBlocked
       );
@@ -1159,13 +1159,12 @@ async getAvailableSlots(
             if (timeOfDay === 'PM' && hour < 12) continue;
           }
 
-          /** ✅ BLOCK overlapping BOOKED + TEMP slots (FIXED) */
-          const isOverlappingBlocked = blockedSlots.some(b =>
+          /** ❌ BLOCK overlapping booked OR temp */
+          const isBlocked = blockedSlots.some(b =>
             isOverlapping(sStart, sEnd, b.start, b.end)
           );
 
-          /** ❌ skip invalid slots */
-          if (isOverlappingBlocked) continue;
+          if (isBlocked) continue;
 
           const key = `${day.date}-${sStart}-${sEnd}`;
 
@@ -1175,7 +1174,7 @@ async getAvailableSlots(
               endTime: toAmPm(sEnd),
               rawStart: sStart,
               duration,
-              isBooked: false
+              isBooked: false,
             });
           }
         }
@@ -1406,8 +1405,7 @@ private toTimeString(minutes: number): string {
   
     const toMinutes = (time: string): number => {
       const t =
-        time.toUpperCase().includes('AM') ||
-        time.toUpperCase().includes('PM')
+        time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')
           ? amPmTo24(time)
           : time;
   
@@ -1439,29 +1437,30 @@ private toTimeString(minutes: number): string {
         slotsByDate.set(slot.date, []);
       }
   
-      slotsByDate.get(slot.date)!.push({
-        start,
-        end,
-        raw: slot,
-      });
+      slotsByDate.get(slot.date)!.push({ start, end, raw: slot });
     }
   
     for (const [date, slots] of slotsByDate.entries()) {
+  
+      /** ✅ SORT */
       slots.sort((a, b) => a.start - b.start);
   
+      /** 🔥 STRICT GAP VALIDATION */
       for (let i = 1; i < slots.length; i++) {
         const prev = slots[i - 1];
         const curr = slots[i];
-        if (!curr || !prev) continue;
-  
+      
+        if (!prev || !curr) continue; // ✅ TS safety guard
+      
         if (curr.start < prev.end) {
           return {
             available: false,
             message: `Overlapping slots on ${date}`,
           };
         }
-  
+      
         const gap = curr.start - prev.end;
+      
         if (gap < 30) {
           return {
             available: false,
@@ -1470,7 +1469,9 @@ private toTimeString(minutes: number): string {
         }
       }
   
+      /** 🔥 CHECK AGAINST DB */
       for (const req of slots) {
+  
         let matchedSlot = null;
   
         for (const week of instructor.availability?.weeks || []) {
@@ -1481,7 +1482,6 @@ private toTimeString(minutes: number): string {
               const dbStart = toMinutes(slot.startTime);
               const dbEnd = toMinutes(slot.endTime);
   
-              // ✅ EXISTING containment logic (UNCHANGED)
               if (req.start >= dbStart && req.end <= dbEnd) {
                 matchedSlot = slot;
                 break;
@@ -1493,11 +1493,11 @@ private toTimeString(minutes: number): string {
         if (!matchedSlot) {
           return {
             available: false,
-            message: `Requested slot is outside instructor availability on ${date} (${req.raw.startTime} - ${req.raw.endTime})`,
+            message: `Outside availability on ${date}`,
           };
         }
   
-        /** ✅ ONLY CHANGE (ADD TEMP BLOCK CHECK) */
+        /** ❌ BLOCK IF BOOKED OR TEMP */
         if (matchedSlot.isBooked || matchedSlot.isTempBlocked) {
           return {
             available: false,
