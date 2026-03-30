@@ -172,6 +172,9 @@ export class TimeSlot {
 
   @Prop({ default: false })
   isBooked?: boolean;
+  
+  @Prop({ default: false })
+  isTempBlocked?: boolean;
 
   @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
   bookingId?: Types.ObjectId;
