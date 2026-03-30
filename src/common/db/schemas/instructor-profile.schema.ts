@@ -175,6 +175,12 @@ export class TimeSlot {
   
   @Prop({ default: false })
   isTempBlocked?: boolean;
+  // @Prop({ required: false })
+  tempBlockedAt?: Date | null;
+  // @Prop({ required: false })
+  tempBlockedTill?: Date | null;
+  @Prop({ type: Types.ObjectId, ref: 'Order', default: null, required:false })
+  tempBookingId?: Types.ObjectId | null;
 
   @Prop({ type: Types.ObjectId, ref: 'Order', default: null })
   bookingId?: Types.ObjectId;
