@@ -3068,22 +3068,62 @@ export class OrderService {
        1️⃣3️⃣ ATTACH SLOTS (wallet case)
     ===================================================== */
 
+    // if (isFullyPaidByWallet && mappedSlots.length > 0) {
+    //   const instructorDoc = await this.instructorProfileModel.findById(
+    //     instructor._id,
+    //   );
+
+    //   if (!instructorDoc) {
+    //     throw new NotFoundException('Instructor not found');
+    //   }
+
+    //   for (const slot of slots) {
+    //     await this.validateSlotConflict(instructor._id, slot);
+    //     this.attachBookingByRange(instructorDoc, slot, order._id);
+    //   }
+
+    //   await instructorDoc.save();
+    // }
     if (isFullyPaidByWallet && mappedSlots.length > 0) {
-      const instructorDoc = await this.instructorProfileModel.findById(
-        instructor._id,
-      );
+  const instructorDoc = await this.instructorProfileModel.findById(
+    instructor._id,
+  );
 
-      if (!instructorDoc) {
-        throw new NotFoundException('Instructor not found');
-      }
+  if (!instructorDoc) {
+    throw new NotFoundException('Instructor not found');
+  }
 
-      for (const slot of slots) {
-        await this.validateSlotConflict(instructor._id, slot);
-        this.attachBookingByRange(instructorDoc, slot, order._id);
-      }
+  /* ✅ SORT SLOTS (CRITICAL FIX) */
+  const sortedSlots = [...slots].sort((a, b) => {
+    const aStart = this.toMinutes(a.startTime);
+    const bStart = this.toMinutes(b.startTime);
 
-      await instructorDoc.save();
-    }
+    if (aStart !== bStart) return aStart - bStart;
+
+    const aDuration = this.toMinutes(a.endTime) - aStart;
+    const bDuration = this.toMinutes(b.endTime) - bStart;
+
+    return aDuration - bDuration;
+  });
+
+  /* ✅ ATTACH IN ORDER */
+  for (const slot of sortedSlots) {
+    await this.validateSlotConflict(instructor._id, slot);
+
+    this.attachBookingByRange(
+      instructorDoc,
+      {
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        type: slot.type,
+      },
+      order._id,
+    );
+  }
+
+  await instructorDoc.save();
+}
 
     /* =====================================================
        1️⃣4️⃣ WALLET DEBIT

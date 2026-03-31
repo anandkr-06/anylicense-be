@@ -387,7 +387,7 @@ export class StripeWebhookController {
   //   cardMeta: StripeCardMeta,
   // ) {
   //   const orderId = new Types.ObjectId(metadata.orderId);
-  
+
   //   /** -----------------------------------------
   //    * ✅ STEP 1: ATOMIC LOCK (prevents race)
   //    ------------------------------------------ */
@@ -402,27 +402,27 @@ export class StripeWebhookController {
   //     },
   //     { new: true },
   //   );
-  
+
   //   /** -----------------------------------------
   //    * ✅ STEP 2: FALLBACK (important for retries)
   //    ------------------------------------------ */
   //   let order = lockedOrder;
-  
+
   //   if (!order) {
   //     order = await this.orderModel.findById(orderId);
   //     if (!order) return;
-  
+
   //     // 🔒 Already processed → skip safely
   //     if (order.paymentStatus === 'PAID') {
   //       console.log('⚠️ Order already processed');
   //       return;
   //     }
-  
+
   //     // Optional: lock again if needed
   //     order.status = 'CONFIRMING';
   //     await order.save();
   //   }
-  
+
   //   try {
   //     /** -----------------------------------------
   //      * ✅ STEP 3: ATTACH SLOTS (FIRST)
@@ -431,33 +431,33 @@ export class StripeWebhookController {
   //       const instructor = await this.instructorProfileModel.findById(
   //         order.instructorId,
   //       );
-      
+
   //       if (instructor) {
   //         for (const slot of order.bookedSlots) {
   //           try {
   //             await this.validateSlotConflict(order, slot);
-      
+
   //             this.attachBookingByRange(
   //               instructor,
   //               slot,
   //               order._id,
   //             );
-      
+
   //           } catch (err) {
   //             console.warn("⚠️ SLOT SKIPPED:", slot);
   //           }
   //         }
-      
+
   //         await instructor.save();
   //       }
   //     }
-  
+
   //     /** -----------------------------------------
   //      * ✅ STEP 4: WALLET CREDIT (LESSON ONLY)
   //      ------------------------------------------ */
   //     const lessonWalletAmount =
   //       (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
+
   //     if (
   //       order.totalHours > 0 &&
   //       lessonWalletAmount > 0 &&
@@ -467,7 +467,7 @@ export class StripeWebhookController {
   //         lessonWalletAmount,
   //         learnerId: order.learnerId,
   //       });
-  
+
   //       await this.walletService.creditWallet(
   //         new Types.ObjectId(order.learnerId),
   //         lessonWalletAmount,
@@ -477,28 +477,28 @@ export class StripeWebhookController {
   //         cardMeta,
   //         order.orderTypeFullName,
   //       );
-  
+
   //       order.walletCredited = lessonWalletAmount;
   //     }
-  
+
   //     /** -----------------------------------------
   //      * ✅ STEP 5: FINAL STATUS UPDATE
   //      ------------------------------------------ */
   //     order.status = 'CONFIRMED';
   //     order.paymentStatus = 'PAID';
-  
+
   //     await order.save();
-  
+
   //   } catch (err) {
   //     /** -----------------------------------------
   //      * ❌ ROLLBACK SAFETY
   //      ------------------------------------------ */
   //     console.error('❌ Webhook failed, rolling back', err);
-  
+
   //     await this.orderModel.findByIdAndUpdate(orderId, {
   //       status: 'PENDING_PAYMENT',
   //     });
-  
+
   //     throw err;
   //   }
   // }
@@ -508,7 +508,7 @@ export class StripeWebhookController {
     cardMeta: StripeCardMeta,
   ) {
     const orderId = new Types.ObjectId(metadata.orderId);
-  
+
     /* ===============================
        1️⃣ ATOMIC LOCK
     =============================== */
@@ -521,22 +521,22 @@ export class StripeWebhookController {
       { $set: { status: 'CONFIRMING' } },
       { new: true },
     );
-  
+
     let order = lockedOrder;
-  
+
     if (!order) {
       order = await this.orderModel.findById(orderId);
       if (!order) return;
-  
+
       if (order.paymentStatus === 'PAID') {
         console.log('⚠️ Order already processed');
         return;
       }
-  
+
       order.status = 'CONFIRMING';
       await order.save();
     }
-  
+
     try {
       /* ===============================
          2️⃣ ATTACH SLOTS
@@ -545,32 +545,62 @@ export class StripeWebhookController {
         const instructor = await this.instructorProfileModel.findById(
           order.instructorId,
         );
-  
+
         if (instructor) {
-          for (const slot of order.bookedSlots) {
-            try {
-              await this.validateSlotConflict(order, slot);
-  
-              this.attachBookingByRange(
-                instructor,
-                slot,
-                order._id,
-              );
-            } catch (err) {
-              console.warn('⚠️ SLOT SKIPPED:', slot);
-            }
-          }
-  
+          // for (const slot of order.bookedSlots) {
+          //   try {
+          //     await this.validateSlotConflict(order, slot);
+
+          //     this.attachBookingByRange(
+          //       instructor,
+          //       slot,
+          //       order._id,
+          //     );
+          //   } catch (err) {
+          //     console.warn('⚠️ SLOT SKIPPED:', slot);
+          //   }
+          // }
+          /* ✅ SORT SLOTS */
+          const sortedSlots = [...order.bookedSlots].sort((a, b) => {
+            const aStart = this.toMinutes(a.startTime);
+            const bStart = this.toMinutes(b.startTime);
+
+            if (aStart !== bStart) return aStart - bStart;
+
+            const aDuration = this.toMinutes(a.endTime) - aStart;
+            const bDuration = this.toMinutes(b.endTime) - bStart;
+
+            return aDuration - bDuration;
+          });
+
+          /* ✅ ATTACH IN ORDER (SAFE) */
+for (const slot of sortedSlots) {
+  try {
+    await this.validateSlotConflict(order, slot);
+
+    this.attachBookingByRange(
+      instructor,
+      slot,
+      order._id,
+    );
+  } catch (err) {
+    console.warn('⚠️ SLOT SKIPPED:', {
+      slot,
+      error: err instanceof Error ? err.message : err,
+    });
+  }
+}
+
           await instructor.save();
         }
       }
-  
+
       /* ===============================
          3️⃣ WALLET CREDIT
       =============================== */
       const lessonWalletAmount =
         (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-  
+
       if (
         order.totalHours > 0 &&
         lessonWalletAmount > 0 &&
@@ -585,18 +615,18 @@ export class StripeWebhookController {
           cardMeta,
           order.orderTypeFullName,
         );
-  
+
         order.walletCredited = lessonWalletAmount;
       }
-  
+
       /* ===============================
          4️⃣ FINAL STATUS
       =============================== */
       order.status = 'CONFIRMED';
       order.paymentStatus = 'PAID';
-  
+
       await order.save();
-  
+
       /* ===============================
          5️⃣ SEND EMAIL ✅ (NEW)
       =============================== */
@@ -611,41 +641,41 @@ export class StripeWebhookController {
           },
         })
         .lean() as PopulatedOrder | null;
-  
+
       if (populatedOrder) {
         const learnerUser = populatedOrder.learnerId as any;
         const instructorUser = populatedOrder.instructorId?.userId as any;
-  
+
         try {
           await this.notificationService.sendOrderCreatedEmail({
             learnerEmail: learnerUser?.email,
             learnerName: learnerUser?.firstName,
-  
+
             instructorEmail: instructorUser?.email,
             instructorName: instructorUser
               ? `${instructorUser.firstName} ${instructorUser.lastName}`
               : undefined,
-  
+
             // learnerPhone: learnerUser?.mobileNumber,
             // instructorPhone: instructorUser?.mobileNumber,
-  
+
             order: populatedOrder,
           });
         } catch (err) {
           console.error('❌ Webhook email failed', err);
         }
       }
-  
+
     } catch (err) {
       /* ===============================
          ❌ ROLLBACK
       =============================== */
       console.error('❌ Webhook failed, rolling back', err);
-  
+
       await this.orderModel.findByIdAndUpdate(orderId, {
         status: 'PENDING_PAYMENT',
       });
-  
+
       throw err;
     }
   }
