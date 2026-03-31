@@ -4,9 +4,12 @@ import { PayoutService } from '../payouts/payout.service'
 
 @Injectable()
 export class PayoutScheduler {
-  constructor(private readonly payoutService: PayoutService) {}
+  constructor(private readonly payoutService: PayoutService) { }
 
-  @Cron('0 0 * * 0') // Every Sunday
+
+  @Cron('0 0 * * 0', {
+    name: 'running-weekly-payout-job',
+  }) // Every Sunday
   async handleWeeklyPayout() {
     console.log('Running weekly payout job');
 

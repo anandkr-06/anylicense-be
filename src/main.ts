@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
-import * as crypto from 'crypto';
+// import * as crypto from 'crypto';
 
-if (!(global as any).crypto) {
-  (global as any).crypto = crypto;
-}
+// if (!(global as any).crypto) {
+//   (global as any).crypto = crypto;
+// }
 
 async function bootstrap() {
 
