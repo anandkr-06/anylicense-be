@@ -4061,8 +4061,9 @@ export class OrderService {
     }
   }
 
-@Cron('*/5 * * * *') // every 5 mins
-//@Cron('*/10 * * * * *') // every 10 seconds
+@Cron('*/5 * * * *', {
+  name: 'release-temp-locks',
+}) // every 5 mins
 async releaseExpiredTempLocks() {
   console.log("service running every 5mins")
   const instructors = await this.instructorProfileModel.find();
