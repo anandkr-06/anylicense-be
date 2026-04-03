@@ -8,6 +8,7 @@ import { CourseProvider } from '../schema/course-provider.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
 import { PinoLogger } from 'nestjs-pino';
+import { courseType } from '@constant/enum';
 
 @Injectable()
 export class PublicCourseService {
@@ -117,7 +118,7 @@ export class PublicCourseService {
         logoUrl: course.providerId?.logoUrl,
         courseName: course.courseName,
         category: course.category,
-        // url: course.url,
+        courseType: course.courseType,
         location: course.location,
         schedules: course.schedules,
         price: course.price,
