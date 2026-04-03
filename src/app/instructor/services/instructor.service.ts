@@ -20,7 +20,7 @@ import { CryptoHelper } from '@common/helpers/crypto.helper';
 import { comparePassword, hashPassword } from '@common/helpers/bcrypt.helper';
 import { UpdateVehicleDto } from '../dto/update-vehicle.dto';
 import { UpdatePrivateVehicleDto } from '../dto/update-private-vehicle.dto';
-import { InstructorProfileDocument, InstructorProfile } from '@common/db/schemas/instructor-profile.schema';
+import { InstructorProfileDocument, InstructorProfile, TimeSlot } from '@common/db/schemas/instructor-profile.schema';
 import { UpdateFinancialDetailsDto } from '../dto/update-financial-details.dto'
 import { UpdateDocumentsDto } from '../dto/update-documents.dto'
 import { ServiceAreaDto } from '../dto/service-area.dto'
@@ -1819,15 +1819,112 @@ async checkAvailability(
       );
     }
 
-    // ✅ Normalize + validate slots (same rules as appendWeek)
-    for (const day of body.days) {
-      day.slots = normalizeAndValidateSlots(
-        day.slots,
-        day.date,
+    const existingDaysMap = new Map(
+      week.days.map(d => [d.date, d]),
+    );
+    
+    const updatedDays: AvailabilityDay[] = [];
+    
+    for (const incomingDay of body.days) {
+      const existingDay = existingDaysMap.get(incomingDay.date);
+    
+      const normalizedSlots = normalizeAndValidateSlots(
+        incomingDay.slots,
+        incomingDay.date,
       );
+    
+      // -----------------------------------------------------
+      // NEW DAY → safe
+      // -----------------------------------------------------
+      if (!existingDay) {
+        updatedDays.push({
+          date: incomingDay.date,
+          slots: normalizedSlots,
+        });
+        continue;
+      }
+    
+      // -----------------------------------------------------
+      // EXISTING DAY → merge
+      // -----------------------------------------------------
+      const existingSlotMap = new Map(
+        existingDay.slots.map(
+          s => [`${s.startTime}-${s.endTime}`, s],
+        ),
+      );
+    
+      const mergedSlots: TimeSlot[] = [];
+    
+      // 1️⃣ Process incoming slots
+      for (const slot of normalizedSlots) {
+        const key = `${slot.startTime}-${slot.endTime}`;
+        const existingSlot = existingSlotMap.get(key);
+    
+        if (existingSlot) {
+          if (
+            existingSlot.isBooked ||
+            existingSlot.bookingId ||
+            existingSlot.tempBookingId
+          ) {
+            // 🔒 Keep booked slot unchanged
+            mergedSlots.push(existingSlot);
+          } else {
+            // ✅ Update free slot
+            mergedSlots.push({
+              ...existingSlot,
+              ...slot,
+            });
+          }
+        } else {
+          // ✅ New slot
+          mergedSlots.push(slot);
+        }
+      }
+    
+      // 2️⃣ Re-add booked slots if missing
+      const bookedSlots = existingDay.slots.filter(
+        s =>
+          s.isBooked ||
+          s.bookingId ||
+          s.tempBookingId,
+      );
+    
+      for (const booked of bookedSlots) {
+        const key = `${booked.startTime}-${booked.endTime}`;
+    
+        const exists = mergedSlots.find(
+          s => `${s.startTime}-${s.endTime}` === key,
+        );
+    
+        if (!exists) {
+          mergedSlots.push(booked);
+        }
+      }
+    
+      // 3️⃣ Prevent removing booked slots
+      const incomingKeys = new Set(
+        normalizedSlots.map(
+          s => `${s.startTime}-${s.endTime}`,
+        ),
+      );
+    
+      for (const booked of bookedSlots) {
+        const key = `${booked.startTime}-${booked.endTime}`;
+    
+        if (!incomingKeys.has(key)) {
+          throw new BadRequestException(
+            `Cannot remove booked slot ${booked.startTime}-${booked.endTime}`,
+          );
+        }
+      }
+    
+      updatedDays.push({
+        date: incomingDay.date,
+        slots: mergedSlots,
+      });
     }
-
-    week.days = body.days;
+    
+    week.days = updatedDays;
 
     await profile.save();
 
