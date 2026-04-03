@@ -549,6 +549,7 @@ export class OrderService {
         userId: order.learnerId,
         role: "learner",
         type: 'CREDIT',
+        description:"SLOT CANCELLED",
         amount: refund,
         balanceAfter: learner.walletBalance,
         source: 'SLOT_CANCELLED',

@@ -381,6 +381,7 @@ export class StripeService {
       type: 'DEBIT',
       amount,
       balanceAfter: newBalance,
+      description:"Withdrawal from wallet",
       source: 'STRIPE_REFUND',
       referenceEntityId: refund.id,
       status: 'COMPLETED',
