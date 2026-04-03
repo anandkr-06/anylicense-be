@@ -1,11 +1,16 @@
-import { IsDateString, IsArray, IsString, ValidateNested } from 'class-validator';
+import {
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  ArrayNotEmpty,
+  Validate,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { AvailabilityDayDto } from './availability-day.dto';
+import { UniqueDatesConstraint } from '../services/custom-prevent';
+
 
 export class AvailabilityWeekDto {
-  // @IsString()
-  // weekId!: string;
-
   @IsDateString()
   startDate!: string;
 
@@ -13,7 +18,12 @@ export class AvailabilityWeekDto {
   endDate!: string;
 
   @IsArray()
+  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => AvailabilityDayDto)
+
+  // 👇 THIS LINE GOES HERE
+  @Validate(UniqueDatesConstraint)
+
   days!: AvailabilityDayDto[];
 }
