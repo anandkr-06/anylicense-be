@@ -1924,7 +1924,21 @@ async checkAvailability(
       });
     }
     
-    week.days = updatedDays;
+    // 🧠 Track incoming dates
+const incomingDates = new Set(body.days.map(d => d.date));
+
+// 🧠 Add untouched existing days
+for (const existingDay of week.days) {
+  if (!incomingDates.has(existingDay.date)) {
+    updatedDays.push(existingDay);
+  }
+}
+
+// 🧠 Optional: sort by date
+updatedDays.sort((a, b) => a.date.localeCompare(b.date));
+
+// ✅ Final assignment
+week.days = updatedDays;
 
     await profile.save();
 
