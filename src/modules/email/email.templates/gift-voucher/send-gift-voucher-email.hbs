@@ -12,13 +12,14 @@
   <tr>
     <td align="center" style="padding:20px 0;">
 
-```
+
+  <!-- Main Container -->
   <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
     <!-- Header -->
     <tr>
       <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
-        <img style="width:140px;" src="https://static.anylicence.com/media/statics/logo.png" alt="Any Licence" />
+        <img style="width:140px;" src="https://static.anylicence.com/media/statics/logo.png" alt="AnyLicence" />
       </td>
     </tr>
 
@@ -33,35 +34,52 @@
         </p>
 
         <p>
-          {{senderName}} has sent you a Gift Voucher on <strong>AnyLicence</strong>.
+          {{senderName}} has sent you a gift voucher on <strong>AnyLicence</strong>.
         </p>
 
         <p><strong>Voucher Details:</strong></p>
 
-        <ol style="padding-left:18px;">
-          <li>Amount: ₹{{amount}}</li>
-          <li>Voucher Code: <strong>{{voucherCode}}</strong></li>
-          <li>Valid Until: {{expiryDate}}</li>
-        </ol>
+        <table width="100%" cellpadding="5" cellspacing="0" style="margin-bottom:20px; font-size:14px;">
+          <tr>
+            <td><strong>Amount:</strong></td>
+            <td>${{amount}}</td>
+          </tr>
+          <tr>
+            <td><strong>Voucher Code:</strong></td>
+            <td><strong>{{voucherCode}}</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Valid Until:</strong></td>
+            <td>{{expiryDate}}</td>
+          </tr>
+        </table>
+
+        <p><strong>How to Redeem:</strong></p>
+
+        <ul style="padding-left:18px; margin-bottom:20px;">
+          <li style="margin-bottom:8px;">
+            If you already have an AnyLicence account, the voucher will be automatically credited to your wallet.
+          </li>
+          <li>
+            If you’re new, simply register using this email or mobile number and the voucher credit will be added to your wallet.
+          </li>
+        </ul>
 
         <p>
-          <strong>How to redeem:</strong><br/>
-          • If you already have an AnyLicence account, the voucher will be credited automatically.<br/>
-          • If you are new, simply register using this email or mobile number to receive the wallet credit.
+          Use your voucher for lessons, tests, or course bookings across AnyLicence.
         </p>
 
         <p>
-          Start learning today and use your voucher for lessons, tests, or bookings.
-        </p>
-
-        <p>
-          <strong>Team AnyLicence</strong><br/>
-          <a href="{{website_url}}" style="color:#ff9800;">{{website_name}}</a>
+          <strong>Team AnyLicence</strong><br />
+          <a href="https://www.anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+            www.anylicence.com.au
+          </a>
         </p>
 
       </td>
     </tr>
 
+    <!-- Footer -->
     <tr>
       <td style="background-color:#ffb300; height:5px;"></td>
     </tr>
@@ -69,7 +87,7 @@
   </table>
 
 </td>
-```
+
 
   </tr>
 </table>

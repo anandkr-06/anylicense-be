@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to AnyLicence</title>
+  <title>AnyLicence</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f4f4; font-family: Arial, Helvetica, sans-serif;">
 
@@ -11,82 +12,91 @@
     <tr>
       <td align="center" style="padding:20px 0;">
 
-        <!-- Main Container -->
-        <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#3a3a3a; padding:15px 30px 5px;"><img style="width:140px; height:auto" src="https://static.anylicence.com/media/statics/logo.png" alt="Any Licence" />
-            </td>
-          </tr>
+    <!-- Main Container -->
+    <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
-          <!-- Body -->
-          <tr>
-            <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
+      <!-- Header -->
+      <tr>
+        <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
+          <img style="width:140px; height:auto"
+               src="https://static.anylicence.com/media/statics/logo.png"
+               alt="AnyLicence" />
+        </td>
+      </tr>
 
-              <p style="margin:0 0 15px;">
-                <strong>Hi {{firstName}},</strong>
-              </p>
+      <!-- Body -->
+      <tr>
+        <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
 
-              <p style="margin:0 0 15px;">
-                Thank you for sharing your details with us:
-              </p>
+          <p><strong>Hi {{firstName}},</strong></p>
 
-              <p style="margin:0 0 20px;">
-                We have successfully cpatured your information and you are now being redirected to our trusted third party partner website to continue the next step of your process.
-              </p>
+          <p>
+            Thank you for sharing your details with us.
+          </p>
 
-              <p style="margin:0 0 10px;">
-                <strong>Your Submitted Details:</strong>
-              </p>
+          <p>
+            We have successfully <strong>captured your information</strong>. You are now being securely redirected to our trusted partner’s website to continue the next step of your process.
+          </p>
 
-              <ol style="padding-left:18px; margin:0 0 20px;">
-                <li style="margin-bottom:8px;">
-                  Name:{{firstName}} {{lastName}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Email:{{email}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Phone:{{phone}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Suburb:{{suburb}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Submitted On: {{submittedAt}}
-                </li>
+          <p><strong>Your Submitted Details:</strong></p>
 
-              </ol>
+          <table width="100%" cellpadding="5" cellspacing="0" style="margin-bottom:20px; font-size:14px;">
+            <tr>
+              <td><strong>Name:</strong></td>
+              <td>{{firstName}} {{lastName}}</td>
+            </tr>
+            <tr>
+              <td><strong>Email:</strong></td>
+              <td>{{email}}</td>
+            </tr>
+            <tr>
+              <td><strong>Phone:</strong></td>
+              <td>{{phone}}</td>
+            </tr>
+            <tr>
+              <td><strong>Suburb:</strong></td>
+              <td>{{suburb}}</td>
+            </tr>
+            <tr>
+              <td><strong>Submitted On:</strong></td>
+              <td>{{submittedAt}}</td>
+            </tr>
+          </table>
 
-              <p style="margin:0 0 15px;">
-                If you have any questions or require assistance, please contact us at
-                <a href="mailto:{{support_email}}" style="color:#ff9800; text-decoration:none;">
-                  {{support_email}}</a>.
-              </p>
-              <p style="margin:0 0 25px;">
-                We wish you a safe and successful learning course experience.
-              </p>
+          <p>
+            If you have any questions or need assistance, please contact us at
+            <a href="mailto:support@anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+              support@anylicence.com.au
+            </a>.
+          </p>
 
-              <p style="margin:0;">
-                <strong>Sincerely,</strong><br />
-                Team AnyLicence<br />
-                <a href="{{website_url}}" style="color:#ff9800; text-decoration:none;">
-                  {{website_name}}
-                </a>
-              </p>
+          <p>
+            We wish you a smooth and successful experience.
+          </p>
 
-            </td>
-          </tr>
+          <p>
+            <strong>Sincerely,</strong><br />
+            Team AnyLicence<br />
+            <a href="https://www.anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+              www.anylicence.com.au
+            </a>
+          </p>
 
-          <tr>
-            <td style="background-color:#ffb300; height:5px; font-size:0px"></td>
-          </tr>
+        </td>
+      </tr>
 
-        </table>
+      <!-- Footer -->
+      <tr>
+        <td style="background-color:#ffb300; height:5px; font-size:0px"></td>
+      </tr>
 
-      </td>
-    </tr>
+    </table>
+
+  </td>
+</tr>
+
+
   </table>
 
 </body>
