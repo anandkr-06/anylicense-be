@@ -1,115 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
 
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to AnyLicence</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to AnyLicence</title>
 </head>
 
 <body style="margin:0; padding:0; background-color:#f4f4f4; font-family: Arial, Helvetica, sans-serif;">
 
-    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f4">
-        <tr>
-            <td align="center" style="padding:20px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f4">
+  <tr>
+    <td align="center" style="padding:20px 0;">
 
-                <!-- Main Container -->
-                <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
+  <!-- Main Container -->
+  <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
-                    <!-- Header -->
-                    <tr>
-                        <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
-                            <img style="width:140px; height:auto"
-                                src="https://static.anylicence.com/media/statics/logo.png" alt="AnyLicence" />
-                        </td>
-                    </tr>
+    <!-- Header -->
+    <tr>
+      <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
+        <img style="width:140px; height:auto"
+             src="https://static.anylicence.com/media/statics/logo.png"
+             alt="AnyLicence" />
+      </td>
+    </tr>
 
-                    <!-- Body -->
-                    <tr>
-                        <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
+    <!-- Body -->
+    <tr>
+      <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
 
-                            <p style="margin:0 0 15px;">
-                                <strong>Hi {{instructorName}},</strong>
-                            </p>
+        <p><strong>Hi {{instructorName}},</strong></p>
 
-                            <p style="margin:0 0 15px;">
-                                Thank you for joining <strong>AnyLicence</strong> as an Instructor.
-                            </p>
+        <p>
+          Welcome to <strong>AnyLicence</strong> — we’re excited to have you join our community of trusted driving instructors.
+        </p>
 
-                            <p style="margin:0 0 20px;">
-                                Your instructor account has been successfully created. AnyLicence helps you connect with
-                                genuine learners, manage enquiries, and grow your driving practice efficiently.
-                            </p>
-                            <p style="margin:0 0 15px;">
-                                <strong>Your login credentials:</strong>
-                            </p>
-                            <p>
-                                Email : <strong>{{recipientEmail}}</strong>
-                            </p>
-                            <p>
-                                Password : <strong>{{password}}</strong>
-                            </p>
+        <p>
+          Your instructor account has been successfully created. Below are your temporary login details. You can update your password anytime after logging in.
+        </p>
 
-                            <p style="margin:0 0 10px;">
-                                <strong>Get started in 3 simple steps:</strong>
-                            </p>
+        <p><strong>Your Login Details:</strong></p>
 
-                            <ol style="padding-left:18px; margin:0 0 20px;">
-                                <li style="margin-bottom:8px;">
-                                    Log in to your instructor dashboard:
-                                    <a href="https://dev.anylicence.com" style="color:#ff9800; text-decoration:none;">
-                                        Login
-                                    </a>
-                                </li>
-                                <li style="margin-bottom:8px;">
-                                    Complete your profile and verification details:
-                                    <a href="https://dev.anylicence.com/profile"
-                                        style="color:#ff9800; text-decoration:none;">
-                                        Complete Profile
-                                    </a>
-                                </li>
-                                <li>
-                                    Start receiving learner enquiries and managing courses:
-                                    <a href="https://dev.anylicence.com/dashboard"
-                                        style="color:#ff9800; text-decoration:none;">
-                                        Go to Dashboard
-                                    </a>
-                                </li>
-                            </ol>
+        <table width="100%" cellpadding="5" cellspacing="0" style="margin-bottom:20px; font-size:14px;">
+          <tr>
+            <td><strong>Email:</strong></td>
+            <td>{{recipientEmail}}</td>
+          </tr>
+          <tr>
+            <td><strong>Temporary Password:</strong></td>
+            <td><strong>{{password}}</strong></td>
+          </tr>
+        </table>
 
-                            <p style="margin:0 0 15px;">
-                                If you have any questions or need assistance, feel free to reach us at
-                                <a href="mailto:support@anylicence.com" style="color:#ff9800; text-decoration:none;">
-                                    support@anylicence.com
-                                </a>.
-                            </p>
+        <p><strong>Get Started in 3 Simple Steps:</strong></p>
 
-                            <p style="margin:0 0 25px;">
-                                We’re excited to have you onboard and look forward to supporting your success.
-                            </p>
+        <ol style="padding-left:18px; margin-bottom:20px;">
+          <li style="margin-bottom:8px;">
+            Log in to your Instructor Dashboard:
+            <a href="{{loginLink}}" style="color:#ff9800; text-decoration:none;">
+              Login
+            </a>
+          </li>
+          <li style="margin-bottom:8px;">
+            Update your password and complete your profile: Add your photo, bio, service areas, pricing, Stripe/financial details, and vehicle details.
+          </li>
+          <li>
+            Upload your credentials for verification: Submit your instructor licence, accreditations, and other required documents.
+          </li>
+        </ol>
 
-                            <p style="margin:0;">
-                                <strong>Warm regards,</strong><br />
-                                Team AnyLicence<br />
-                                <a href="https://www.anylicence.com" style="color:#ff9800; text-decoration:none;">
-                                    www.anylicence.com
-                                </a>
-                            </p>
+        <p>
+          Once your profile and documents are submitted, our team will review them for verification. After approval, you’ll start receiving genuine learner enquiries directly through your dashboard and email.
+        </p>
 
-                        </td>
-                    </tr>
+        <p>
+          If you need any help during setup, our support team is here for you at 
+          <a href="mailto:support@anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+            support@anylicence.com.au
+          </a>.
+        </p>
 
-                    <!-- Footer Accent -->
-                    <tr>
-                        <td style="background-color:#ffb300; height:5px; font-size:0px;"></td>
-                    </tr>
+        <p>
+          We’re looking forward to supporting your success on AnyLicence.
+        </p>
 
-                </table>
+        <p>
+          <strong>Warm regards,</strong><br />
+          Team AnyLicence<br />
+          <a href="https://www.anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+            www.anylicence.com.au
+          </a>
+        </p>
 
-            </td>
-        </tr>
-    </table>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color:#ffb300; height:5px;"></td>
+    </tr>
+
+  </table>
+
+</td>
+
+
+  </tr>
+</table>
 
 </body>
-
 </html>

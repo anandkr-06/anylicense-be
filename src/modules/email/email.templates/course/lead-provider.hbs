@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,88 +12,96 @@
     <tr>
       <td align="center" style="padding:20px 0;">
 
-        <!-- Main Container -->
-        <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
-              <img style="width:140px; height:auto"
-                   src="https://static.anylicence.com/media/statics/logo.png"
-                   alt="AnyLicence" />
-            </td>
-          </tr>
+    <!-- Main Container -->
+    <table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-collapse:collapse;">
 
-          <!-- Body -->
-          <tr>
-            <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
+      <!-- Header -->
+      <tr>
+        <td style="background-color:#3a3a3a; padding:15px 30px 5px;">
+          <img style="width:140px; height:auto"
+               src="https://static.anylicence.com/media/statics/logo.png"
+               alt="AnyLicence" />
+        </td>
+      </tr>
 
-              <p style="margin:0 0 15px;">
-                <strong>Hi {{instituteName}},</strong>
-              </p>
+      <!-- Body -->
+      <tr>
+        <td style="padding:25px 30px; color:#333333; font-size:14px; line-height:1.6;">
 
-              <p style="margin:0 0 15px;">
-                You have received a <strong>new customer lead</strong> from AnyLicence.
-              </p>
+          <p><strong>Hi {{instituteName}},</strong></p>
 
-              <p style="margin:0 0 20px;">
-                The customer has shown interest in your services. Please review the details below and
-                contact the customer as soon as possible.
-              </p>
+          <p>
+            You have received a <strong>new customer lead</strong> from AnyLicence.
+          </p>
 
-              <p style="margin:0 0 10px;">
-                <strong>Lead Details:</strong>
-              </p>
+          <p>
+            The customer has shown interest in your <strong>{{serviceName}}</strong>.
+            Please review the details below and contact the customer as soon as possible.
+          </p>
 
-              <ol style="padding-left:18px; margin:0 0 20px;">
-                <li style="margin-bottom:8px;">
-                  Name: {{firstName}} {{lastName}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Email: {{email}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Phone: {{phone}}
-                </li>
-                <li style="margin-bottom:8px;">
-                  Suburb: {{suburb}}
-                </li>
-                <li>
-                  Submitted On: {{submittedAt}}
-                </li>
-              </ol>
+          <p><strong>Lead Details:</strong></p>
 
-              <p style="margin:0 0 15px;">
-                Please ensure timely follow-up to provide the best customer experience.
-              </p>
+          <table width="100%" cellpadding="5" cellspacing="0" style="margin-bottom:20px; font-size:14px;">
+            <tr>
+              <td><strong>Name:</strong></td>
+              <td>{{firstName}} {{lastName}}</td>
+            </tr>
+            <tr>
+              <td><strong>Email:</strong></td>
+              <td>{{email}}</td>
+            </tr>
+            <tr>
+              <td><strong>Phone:</strong></td>
+              <td>{{phone}}</td>
+            </tr>
+            <tr>
+              <td><strong>Suburb:</strong></td>
+              <td>{{suburb}}</td>
+            </tr>
+            <tr>
+              <td><strong>Service Interested:</strong></td>
+              <td>{{serviceName}}</td>
+            </tr>
+            <tr>
+              <td><strong>Submitted On:</strong></td>
+              <td>{{submittedAt}}</td>
+            </tr>
+          </table>
 
-              <p style="margin:0 0 25px;">
-                For any questions, reach out to us at
-                <a href="mailto:{{support_email}}" style="color:#ff9800; text-decoration:none;">
-                  {{support_email}}
-                </a>.
-              </p>
+          <p>
+            Please ensure timely follow-up to provide the best customer experience.
+          </p>
 
-              <p style="margin:0;">
-                <strong>Regards,</strong><br />
-                Team AnyLicence<br />
-                <a href="{{website_url}}" style="color:#ff9800; text-decoration:none;">
-                  {{website_name}}
-                </a>
-              </p>
+          <p>
+            If you have any questions, our support team is available at
+            <a href="mailto:support@anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+              support@anylicence.com.au
+            </a>.
+          </p>
 
-            </td>
-          </tr>
+          <p>
+            <strong>Regards,</strong><br />
+            Team AnyLicence<br />
+            <a href="https://www.anylicence.com.au" style="color:#ff9800; text-decoration:none;">
+              www.anylicence.com.au
+            </a>
+          </p>
 
-          <!-- Footer Accent -->
-          <tr>
-            <td style="background-color:#ffb300; height:5px; font-size:0;"></td>
-          </tr>
+        </td>
+      </tr>
 
-        </table>
+      <!-- Footer Accent -->
+      <tr>
+        <td style="background-color:#ffb300; height:5px; font-size:0;"></td>
+      </tr>
 
-      </td>
-    </tr>
+    </table>
+
+  </td>
+</tr>
+
+
   </table>
 
 </body>
