@@ -100,6 +100,7 @@ export class CourseService {
         { email: identifier },
         { mobile: identifier },
       ],
+      isActive: true,
     });
   
     if (!provider) {

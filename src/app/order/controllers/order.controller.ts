@@ -113,7 +113,7 @@ export class OrdersController {
       orderId,
       slotId,
       user.sub,
-      type as FeedbackOwnerType
+      user.role,
     );
   }
 
