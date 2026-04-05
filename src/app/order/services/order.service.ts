@@ -440,7 +440,7 @@ export class OrderService {
     orderId: string,
     slotId: string,
     userId: string,
-    role: FeedbackOwnerType,
+    role: string,
   ) {
 
     const order = await this.orderModel.findById(orderId);
@@ -2901,7 +2901,7 @@ export class OrderService {
       .toString()
       .padStart(2, '0')}`;
   }
-  
+
   async getUpcomingStats(instructorId: string) {
     const today = new Date().toISOString().split('T')[0];
     const instructor = await this.instructorProfileModel.findOne({ userId: new Types.ObjectId(instructorId) })

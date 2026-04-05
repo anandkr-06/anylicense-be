@@ -25,6 +25,7 @@ import { PopulatedInstructor } from '@constant/instructors';
 import { Request } from 'express';
 import { Referral } from '@common/db/schemas/referral.schema';
 import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
+import { UserRole } from '@constant/users';
 @Injectable()
 export class LearnerService {
   constructor(
@@ -260,7 +261,7 @@ export class LearnerService {
         { email: identifier },
         { mobileNumber: identifier },
       ],
-      //isActive: true,
+      isActive: true,
     });
 
     if (!learner) {
@@ -279,6 +280,7 @@ export class LearnerService {
     const payload = {
       sub: learner._id,
       email: learner.email,
+      role: UserRole.LEARNER,
     };
 
     return {

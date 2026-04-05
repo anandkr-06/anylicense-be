@@ -14,6 +14,7 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { MAILER_TEMPLATES } from 'modules/email/email.constants';
 import { NotificationService } from 'modules/notifications/notification.service';
+import { UserRole } from '@constant/users';
 @Injectable()
 export class AuthService {
   // constructor(
@@ -76,6 +77,7 @@ export class AuthService {
       const payload = {
         sub: instructor._id,
         email: instructor.email,
+        role:UserRole.INSTRUCTOR,
       };
   
       return {
