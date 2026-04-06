@@ -13,7 +13,8 @@ export const MAILER_TEMPLATES = {
      NO_SHOW: 'order-actions/no-show',
      SLOT_COMPLETED: 'order-actions/slot-completed',
      ORDER_CREATED: 'order-created',
-     FORGOT_PASSWORD:'instructor/forgot-password'
+     FORGOT_PASSWORD:'instructor/forgot-password',
+     SLOT_CANCELLED:'order-actions/slot-cancelled',
   };
   
   
