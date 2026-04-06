@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -44,6 +45,7 @@ import { PayoutService } from '@app/payouts/payout.service';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { PopulatedOrder } from '@constant/helper';
 import { Cron } from '@nestjs/schedule';
+import { User, UserDocument } from '@common/db/schemas/user.schema';
 
 interface InstructorHour {
   startTime: string;
@@ -97,6 +99,10 @@ export class OrderService {
 
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
+
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
+    
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
@@ -436,132 +442,141 @@ export class OrderService {
 
 
 
-  async cancelSlot(
-    orderId: string,
-    slotId: string,
-    userId: string,
-    role: string,
-  ) {
+  // async cancelSlot(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   role: string,
+  // ) {
 
-    const order = await this.orderModel.findById(orderId);
+  //   const order = await this.orderModel.findById(orderId);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+  //   if (!order) {
+  //     throw new NotFoundException('Order not found');
+  //   }
 
-    const slot = order.bookedSlots.id(slotId);
+  //   const slot = order.bookedSlots.id(slotId);
 
-    if (!slot) {
-      throw new NotFoundException('Slot not found');
-    }
-
-
-    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
-      throw new BadRequestException('Slot not cancellable');
-    }
-
-    const within24h = this.isWithin24Hours(
-      slot.date,
-      slot.startTime,
-    );
-
-    slot.status = 'CANCELLED';
-
-    slot.notification = {
-      learner: true,
-      instructor: true,
-    };
-
-    slot.actionMeta = {
-      actedBy: role,
-      actedAt: new Date(),
-      reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
-    };
-
-    let refund = 0;
+  //   if (!slot) {
+  //     throw new NotFoundException('Slot not found');
+  //   }
 
 
-    if (!within24h) {
+  //   if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+  //     throw new BadRequestException('Slot not cancellable');
+  //   }
 
-      const hours = this.calculateSlotHours(
-        slot.startTime,
-        slot.endTime,
-      );
+  //   const within24h = this.isWithin24Hours(
+  //     slot.date,
+  //     slot.startTime,
+  //   );
 
-      const grossAmount = hours * order.pricePerHour;
-      refund = grossAmount;
+  //   slot.status = 'CANCELLED';
+
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+
+  //   slot.actionMeta = {
+  //     actedBy: role,
+  //     actedAt: new Date(),
+  //     reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+  //   };
+
+  //   let refund = 0;
 
 
+  //   if (!within24h) {
 
-      // await this.instructorTransactionModel.create({
-      //   instructorId: order.instructorId,
-      //   learnerId: order.learnerId,
-      //   orderId: order._id,
-      //   slotId: slot._id,
-      //   type: slot.type,
-      //   hours: hours,
-      //   pricePerHour: order.pricePerHour,
-      //   grossAmount: grossAmount,
-      //   instructorEarning: 0
-      // });
+  //     const hours = this.calculateSlotHours(
+  //       slot.startTime,
+  //       slot.endTime,
+  //     );
 
-    }
+  //     const grossAmount = hours * order.pricePerHour;
+  //     refund = grossAmount;
 
-    await order.save();
+  //   }
 
-    /**
-     * Free instructor slot
-     */
-    await this.instructorProfileModel.updateOne(
-      { _id: order.instructorId },
-      {
-        $pull: {
-          "availability.weeks.$[].days.$[day].slots": {
-            startTime: normalizeTime(slot.startTime),
-            endTime: normalizeTime(slot.endTime)
-          }
-        }
-      },
-      {
-        arrayFilters: [
-          { "day.date": slot.date } // date is string
-        ]
-      }
-    );
+  //   await order.save();
 
-    /**
-     * Wallet refund
-     */
-    if (refund > 0) {
+  //   /**
+  //    * Free instructor slot
+  //    */
 
-      const learner = await this.learnerModel.findById(order.learnerId);
+  //   // ✅ ownership check
+  //   if (
+  //     (role === 'learner' && order.learnerId.toString() !== userId) ||
+  //     (role === 'instructor' && order.instructorId.toString() !== userId)
+  //   ) {
+  //     throw new ForbiddenException('Unauthorized');
+  //   }
 
-      if (!learner) {
-        throw new NotFoundException('Learner not found');
-      }
+  //   // ✅ prevent double cancel
+  //   if (slot.status === 'CANCELLED') {
+  //     throw new BadRequestException('Already cancelled');
+  //   }
 
-      learner.walletBalance += refund;
+  //   // ... existing logic
 
-      await learner.save();
+  //   const result = await this.instructorProfileModel.updateOne(
+  //     { _id: order.instructorId },
+  //     {
+  //       $set: {
+  //         "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false,
+  //         "availability.weeks.$[].days.$[day].slots.$[slot].isTempBlocked": false
+  //       }
+  //     },
+  //     {
+  //       arrayFilters: [
+  //         { "day.date": slot.date },
+  //         {
+  //           "slot.startTime": normalizeTime(slot.startTime),
+  //           "slot.endTime": normalizeTime(slot.endTime)
+  //         }
+  //       ]
+  //     }
+  //   );
 
-      await this.walletModel.create({
-        learnerId: order.learnerId,
-        userId: order.learnerId,
-        role: "learner",
-        type: 'CREDIT',
-        description:"SLOT CANCELLED",
-        amount: refund,
-        balanceAfter: learner.walletBalance,
-        source: 'SLOT_CANCELLED',
-        referenceEntityId: order._id
-      });
-    }
+  //   // ✅ debug safety
+  //   if (result.modifiedCount === 0) {
+  //     console.warn('Slot not freed properly');
+  //   }
 
-    return {
-      success: true,
-      message: 'Slot cancelled successfully'
-    };
-  }
+  //   /**
+  //    * Wallet refund
+  //    */
+  //   if (refund > 0) {
+
+  //     const learner = await this.learnerModel.findById(order.learnerId);
+
+  //     if (!learner) {
+  //       throw new NotFoundException('Learner not found');
+  //     }
+
+  //     learner.walletBalance += refund;
+
+  //     await learner.save();
+
+  //     await this.walletModel.create({
+  //       learnerId: order.learnerId,
+  //       userId: order.learnerId,
+  //       role: "learner",
+  //       type: 'CREDIT',
+  //       description: "SLOT CANCELLED",
+  //       amount: refund,
+  //       balanceAfter: learner.walletBalance,
+  //       source: 'SLOT_CANCELLED',
+  //       referenceEntityId: order._id
+  //     });
+  //   }
+
+  //   return {
+  //     success: true,
+  //     message: 'Slot cancelled successfully'
+  //   };
+  // }
 
   // async noShowSlot(
   //   orderId: string,
@@ -778,6 +793,179 @@ export class OrderService {
   //     message: 'Slot marked as no-show',
   //   };
   // }
+
+  async cancelSlot(
+    orderId: string,
+    slotId: string,
+    userId: string,
+    role: string, // ✅ use enum instead of string
+  ) {
+    const order = await this.orderModel.findById(orderId);
+  
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+  
+    const slot = order.bookedSlots.id(slotId);
+  
+    if (!slot) {
+      throw new NotFoundException('Slot not found');
+    }
+  
+    // ✅ Ownership check (SECURITY)
+    if (
+      (role === 'learner' && order.learnerId.toString() !== userId) ||
+      (role === 'instructor' && order.instructorId.toString() !== userId)
+    ) {
+      throw new ForbiddenException('Unauthorized');
+    }
+  
+    // ✅ Prevent double cancel
+    if (slot.status === 'CANCELLED') {
+      throw new BadRequestException('Slot already cancelled');
+    }
+  
+    // ✅ Allowed states
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+      throw new BadRequestException('Slot not cancellable');
+    }
+  
+    // ✅ Calculate before mutation
+    const within24h = this.isWithin24Hours(
+      slot.date,
+      slot.startTime,
+    );
+  
+    let refund = 0;
+  
+    if (!within24h) {
+      const hours = this.calculateSlotHours(
+        slot.startTime,
+        slot.endTime,
+      );
+  
+      refund = hours * order.pricePerHour;
+    }
+  
+    // ✅ Update slot status
+    slot.status = 'CANCELLED';
+  
+    slot.notification = {
+      learner: true,
+      instructor: true,
+    };
+  
+    slot.actionMeta = {
+      actedBy: role,
+      actedAt: new Date(),
+      reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+    };
+  
+    await order.save();
+  
+    /**
+     * ✅ Free instructor slot (non-destructive)
+     */
+    const result = await this.instructorProfileModel.updateOne(
+      { _id: order.instructorId },
+      {
+        $set: {
+          "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false,
+          "availability.weeks.$[].days.$[day].slots.$[slot].isTempBlocked": false
+        }
+      },
+      {
+        arrayFilters: [
+          { "day.date": slot.date },
+          {
+            "slot.startTime": normalizeTime(slot.startTime),
+            "slot.endTime": normalizeTime(slot.endTime)
+          }
+        ]
+      }
+    );
+  
+    if (result.modifiedCount === 0) {
+      console.error('Slot not freed properly', {
+        instructorId: order.instructorId,
+        slot,
+      });
+    }
+  
+    /**
+     * ✅ Wallet refund
+     */
+const learner = await this.learnerModel.findById(order.learnerId);
+const instructorUser = await this.userModel.findById(order.instructorId);
+
+    if (refund > 0) {
+      
+      if (!learner) {
+        throw new NotFoundException('Learner not found');
+      }
+  
+      learner.walletBalance += refund;
+  
+      await learner.save();
+  
+      await this.walletModel.create({
+        learnerId: order.learnerId,
+        userId: order.learnerId,
+        role: 'learner', // ✅ FIXED
+        type: 'CREDIT',
+        description: 'SLOT CANCELLED',
+        amount: refund,
+        balanceAfter: learner.walletBalance,
+        source: 'SLOT_CANCELLED',
+        referenceEntityId: order._id
+      });
+    }
+  
+    /* ===============================
+   🔔 SEND NOTIFICATIONS
+================================= */
+
+
+const notificationPayload = {
+  actedBy: role,
+  slotDate: slot.date,
+  startTime: slot.startTime,
+  endTime: slot.endTime,
+  reasonType: slot.actionMeta.reasonType,
+  comment: '',
+};
+
+// 👉 Run in parallel (non-blocking style)
+ Promise.allSettled([
+
+  // 👉 Learner
+  learner?.email
+    ? this.notificationService.sendSlotCancelledNotification({
+        receiverEmail: learner.email,
+        receiverName: learner.firstName,
+        receiverPhone: learner.mobileNumber,
+        ...notificationPayload,
+      })
+    : Promise.resolve(),
+
+  // 👉 Instructor
+  instructorUser?.email
+    ? this.notificationService.sendSlotCancelledNotification({
+        receiverEmail: instructorUser.email,
+        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+        receiverPhone: instructorUser.mobileNumber,
+        ...notificationPayload,
+      })
+    : Promise.resolve(),
+
+]);
+
+    return {
+      success: true,
+      message: 'Slot cancelled successfully'
+    };
+  }
+
   async noShowSlot(
     orderId: string,
     slotId: string,
@@ -900,7 +1088,7 @@ export class OrderService {
     /* ===============================
        💰 CREDIT WALLET
     =============================== */
-    await this.payoutService.creditInstructorWallet(txn._id,'NOSHOW');
+    await this.payoutService.creditInstructorWallet(txn._id, 'NOSHOW');
 
     /* ===============================
        🔔 SEND NOTIFICATIONS
@@ -1049,7 +1237,7 @@ export class OrderService {
       instructorEarning,
     });
 
-    await this.payoutService.creditInstructorWallet(txn._id,'LESSON_COMPLETED');
+    await this.payoutService.creditInstructorWallet(txn._id, 'LESSON_COMPLETED');
 
     /* ===============================
        🔔 SEND NOTIFICATIONS
@@ -1418,43 +1606,43 @@ export class OrderService {
   ) {
     const order = await this.orderModel.findById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-  
+
     const instructorData = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(userId),
     });
-  
+
     const slot = order.bookedSlots.id(slotId);
     if (!slot || !slot.reschedule) {
       throw new NotFoundException('No reschedule request found');
     }
-  
+
     const isLearner = order.learnerId.toString() === userId;
-  
+
     const isInstructor =
       instructorData &&
       order.instructorId.toString() === instructorData._id.toString();
-  
+
     if (!isLearner && !isInstructor) {
       throw new ForbiddenException('Unauthorized');
     }
-  
+
     if (
       (slot.reschedule.requestedBy === 'LEARNER' && isLearner) ||
       (slot.reschedule.requestedBy === 'INSTRUCTOR' && isInstructor)
     ) {
       throw new ForbiddenException('Requester cannot respond');
     }
-  
+
     const instructorProfile = await this.instructorProfileModel.findById(
       order.instructorId,
     );
-  
+
     if (!instructorProfile) {
       throw new NotFoundException('Instructor profile not found');
     }
-  
+
     const newSlot = slot.reschedule.proposedSlot;
-  
+
     /* ✅ ACCEPT */
     // if (action === 'ACCEPTED') {
     //   const oldSlot = {
@@ -1463,19 +1651,19 @@ export class OrderService {
     //     endTime: slot.endTime,
     //     type: slot.type,
     //   };
-  
+
     //   /* 🔓 remove temp block first */
     //   this.removeTempBookingByRange(instructorProfile, newSlot);
-  
+
     //   /* 🧹 remove old booking */
     //   this.removeBookingByRange(instructorProfile, oldSlot);
-  
+
     //   /* ✏️ update order slot */
     //   slot.date = newSlot.date;
     //   slot.startTime = newSlot.startTime;
     //   slot.endTime = newSlot.endTime;
     //   slot.status = 'RESCHEDULED';
-  
+
     //   /* ✅ attach real booking */
     //   this.attachBookingByRange(
     //     instructorProfile,
@@ -1485,7 +1673,7 @@ export class OrderService {
     //     },
     //     order._id,
     //   );
-  
+
     //   await instructorProfile.save();
     // }
     if (action === 'ACCEPTED') {
@@ -1496,18 +1684,18 @@ export class OrderService {
         endTime: slot.endTime,
         type: slot.type,
       };
-    
+
       const newSlot = slot.reschedule.proposedSlot;
-    
+
       this.unlockTempSlots(instructorProfile, order._id);
-    
+
       this.removeBookingByRange(instructorProfile, oldSlot);
-    
+
       slot.date = newSlot.date;
       slot.startTime = newSlot.startTime;
       slot.endTime = newSlot.endTime;
       slot.status = 'RESCHEDULED';
-    
+
       this.attachBookingByRange(
         instructorProfile,
         {
@@ -1516,37 +1704,37 @@ export class OrderService {
         },
         order._id,
       );
-    
+
       await instructorProfile.save();
     }
-  
+
     /* ❌ REJECT */
     // if (action === 'REJECTED') {
     //   /* 🔓 remove temp block */
     //   this.removeTempBookingByRange(instructorProfile, newSlot);
-  
+
     //   slot.status = 'BOOKED';
     // }
     if (action === 'REJECTED') {
 
       this.unlockTempSlots(instructorProfile, order._id);
-    
+
       slot.status = 'BOOKED';
     }
-  
+
     /* COMMON */
     slot.reschedule.status = action;
     slot.reschedule.respondedAt = new Date();
-  
+
     slot.notification = {
       learner: true,
       instructor: true,
     };
-  
+
     slot.reschedule = undefined;
-  
+
     await order.save();
-  
+
     return {
       success: true,
       message: `Slot reschedule ${action.toLowerCase()}`,
@@ -1953,18 +2141,18 @@ export class OrderService {
     if (isInstructor) {
       const instructorProfileDoc =
         await this.instructorProfileModel.findById(order.instructorId._id);
-    
+
       if (!instructorProfileDoc) {
         throw new NotFoundException('Instructor profile not found');
       }
-    
+
       // ✅ lock proposed slot
       this.lockSlotTemporarily(
         instructorProfileDoc,
         newSlot,
         order._id,
       );
-    
+
       await instructorProfileDoc.save();
     }
 
@@ -2031,7 +2219,7 @@ export class OrderService {
 
 
 
- 
+
   async createOrder(learnerId: string, dto: CreateOrderDto) {
     const learnerObjectId = new Types.ObjectId(learnerId);
 
@@ -2241,45 +2429,45 @@ export class OrderService {
     //   await instructorDoc.save();
     // }
     if (isFullyPaidByWallet && mappedSlots.length > 0) {
-  const instructorDoc = await this.instructorProfileModel.findById(
-    instructor._id,
-  );
+      const instructorDoc = await this.instructorProfileModel.findById(
+        instructor._id,
+      );
 
-  if (!instructorDoc) {
-    throw new NotFoundException('Instructor not found');
-  }
+      if (!instructorDoc) {
+        throw new NotFoundException('Instructor not found');
+      }
 
-  /* ✅ SORT SLOTS (CRITICAL FIX) */
-  const sortedSlots = [...slots].sort((a, b) => {
-    const aStart = this.toMinutes(a.startTime);
-    const bStart = this.toMinutes(b.startTime);
+      /* ✅ SORT SLOTS (CRITICAL FIX) */
+      const sortedSlots = [...slots].sort((a, b) => {
+        const aStart = this.toMinutes(a.startTime);
+        const bStart = this.toMinutes(b.startTime);
 
-    if (aStart !== bStart) return aStart - bStart;
+        if (aStart !== bStart) return aStart - bStart;
 
-    const aDuration = this.toMinutes(a.endTime) - aStart;
-    const bDuration = this.toMinutes(b.endTime) - bStart;
+        const aDuration = this.toMinutes(a.endTime) - aStart;
+        const bDuration = this.toMinutes(b.endTime) - bStart;
 
-    return aDuration - bDuration;
-  });
+        return aDuration - bDuration;
+      });
 
-  /* ✅ ATTACH IN ORDER */
-  for (const slot of sortedSlots) {
-    await this.validateSlotConflict(instructor._id, slot);
+      /* ✅ ATTACH IN ORDER */
+      for (const slot of sortedSlots) {
+        await this.validateSlotConflict(instructor._id, slot);
 
-    this.attachBookingByRange(
-      instructorDoc,
-      {
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        type: slot.type,
-      },
-      order._id,
-    );
-  }
+        this.attachBookingByRange(
+          instructorDoc,
+          {
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+          },
+          order._id,
+        );
+      }
 
-  await instructorDoc.save();
-}
+      await instructorDoc.save();
+    }
 
     /* =====================================================
        1️⃣4️⃣ WALLET DEBIT
@@ -2698,34 +2886,34 @@ export class OrderService {
     reqEnd: number,
   ) {
     const GAP = 30;
-  
+
     const duration = reqEnd - reqStart;
-  
+
     // ✅ Allowed durations
     if (![60, 120, 150].includes(duration)) {
       throw new BadRequestException(
         'Only 1h, 2h or 2.5h bookings allowed',
       );
     }
-  
+
     /* -----------------------------------------
        ✅ AFTER GAP VALIDATION
     ----------------------------------------- */
-  
+
     const remainingAfter = sEnd - reqEnd;
-  
+
     if (remainingAfter > 0 && remainingAfter < GAP + 60) {
       throw new BadRequestException(
         'Not enough space after booking for gap + next slot',
       );
     }
-  
+
     /* -----------------------------------------
        ✅ BEFORE GAP VALIDATION
     ----------------------------------------- */
-  
+
     const remainingBefore = reqStart - sStart;
-  
+
     if (remainingBefore > 0 && remainingBefore < GAP + 60) {
       throw new BadRequestException(
         'Not enough space before booking for gap + slot',
@@ -2801,41 +2989,41 @@ export class OrderService {
     slot: NormalizedSlot,
     orderId: Types.ObjectId,
   ): void {
-  
+
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
     const GAP = 30;
-  
+
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       for (let i = 0; i < day.slots.length; i++) {
         const s = day.slots[i];
         if (!s) continue;
-  
+
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-  
+
         if (reqStart >= sStart && reqEnd <= sEnd && !s.isBooked) {
-  
+
           /* 🔥 VALIDATION */
           this.validateBookingRules(sStart, sEnd, reqStart, reqEnd);
-  
+
           const baseMeta = {
             pickupAddress: s.pickupAddress,
             suburb: s.suburb,
             state: s.state,
           };
-  
+
           const newSlots: any[] = [];
-  
+
           /* ===============================
              BEFORE SLOT (with GAP)
           =============================== */
-  
+
           const beforeEndMinutes = reqStart - GAP;
-  
+
           if (beforeEndMinutes > sStart) {
             newSlots.push({
               ...baseMeta,
@@ -2844,11 +3032,11 @@ export class OrderService {
               isBooked: false,
             });
           }
-  
+
           /* ===============================
              BOOKED SLOT
           =============================== */
-  
+
           newSlots.push({
             ...baseMeta,
             startTime: slot.startTime,
@@ -2856,13 +3044,13 @@ export class OrderService {
             isBooked: true,
             bookingId: orderId,
           });
-  
+
           /* ===============================
              AFTER SLOT (with GAP)
           =============================== */
-  
+
           const afterStartMinutes = reqEnd + GAP;
-  
+
           if (afterStartMinutes < sEnd) {
             newSlots.push({
               ...baseMeta,
@@ -2871,23 +3059,23 @@ export class OrderService {
               isBooked: false,
             });
           }
-  
+
           /* ===============================
              APPLY SPLIT
           =============================== */
-  
+
           day.slots.splice(i, 1, ...newSlots);
-  
+
           // ✅ keep sorted
           day.slots.sort((a, b) =>
             a.startTime.localeCompare(b.startTime),
           );
-  
+
           return;
         }
       }
     }
-  
+
     throw new BadRequestException(
       `Instructor not available ${slot.startTime}-${slot.endTime} on ${slot.date}`,
     );
@@ -2896,7 +3084,7 @@ export class OrderService {
   private toTimeString(minutes: number): string {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-  
+
     return `${h.toString().padStart(2, '0')}:${m
       .toString()
       .padStart(2, '0')}`;
@@ -3307,15 +3495,15 @@ export class OrderService {
   ) {
     const reqStart = this.toMinutes(slot.startTime);
     const reqEnd = this.toMinutes(slot.endTime);
-  
+
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
-  
+
       for (const s of day.slots) {
         const sStart = this.toMinutes(s.startTime);
         const sEnd = this.toMinutes(s.endTime);
-  
+
         // ✅ overlap check
         if (reqStart < sEnd && reqEnd > sStart) {
           s.isTempBlocked = true;
@@ -3345,41 +3533,41 @@ export class OrderService {
     }
   }
 
-@Cron('*/5 * * * *', {
-  name: 'release-temp-locks',
-}) // every 5 mins
-async releaseExpiredTempLocks() {
-  console.log("service running every 5mins")
-  const instructors = await this.instructorProfileModel.find();
+  @Cron('*/5 * * * *', {
+    name: 'release-temp-locks',
+  }) // every 5 mins
+  async releaseExpiredTempLocks() {
+    console.log("service running every 5mins")
+    const instructors = await this.instructorProfileModel.find();
 
-  const now = new Date();
+    const now = new Date();
 
-  for (const instructor of instructors) {
-    let changed = false;
+    for (const instructor of instructors) {
+      let changed = false;
 
-    for (const week of instructor.availability.weeks) {
-      for (const day of week.days) {
-        for (const slot of day.slots) {
-          if (
-            slot.isTempBlocked &&
-            slot.tempBlockedTill &&
-            slot.tempBlockedTill < now
-          ) {
-            slot.isTempBlocked = false;
-            slot.tempBlockedAt = null;
-            slot.tempBlockedTill = null;
-            slot.tempBookingId = null;
-            changed = true;
+      for (const week of instructor.availability.weeks) {
+        for (const day of week.days) {
+          for (const slot of day.slots) {
+            if (
+              slot.isTempBlocked &&
+              slot.tempBlockedTill &&
+              slot.tempBlockedTill < now
+            ) {
+              slot.isTempBlocked = false;
+              slot.tempBlockedAt = null;
+              slot.tempBlockedTill = null;
+              slot.tempBookingId = null;
+              changed = true;
+            }
           }
         }
       }
-    }
 
-    if (changed) {
-      await instructor.save();
+      if (changed) {
+        await instructor.save();
+      }
     }
   }
-}
 }
 
 

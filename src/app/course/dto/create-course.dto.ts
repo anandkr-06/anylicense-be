@@ -65,6 +65,8 @@ export class CreateCourseDto {
   @IsEnum(courseType)
   courseType!: courseType;
 
+  
+
   @IsOptional()
   @IsString()
   url?: string;
