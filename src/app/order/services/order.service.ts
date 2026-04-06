@@ -883,7 +883,8 @@ const instructorUser = instructorProfile
       {
         $set: {
           "availability.weeks.$[].days.$[day].slots.$[slot].isBooked": false,
-          "availability.weeks.$[].days.$[day].slots.$[slot].isTempBlocked": false
+          "availability.weeks.$[].days.$[day].slots.$[slot].isTempBlocked": false,
+          "availability.weeks.$[].days.$[day].slots.$[slot].bookingId": null
         }
       },
       {
