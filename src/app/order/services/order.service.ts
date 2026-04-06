@@ -822,9 +822,7 @@ const instructorUser = instructorProfile
       .select('email firstName lastName mobileNumber')
       .lean()
   : null;
-const learner = await this.learnerModel.findById(order.learnerId)
-.select('email firstName lastName mobileNumber')
-  .lean();
+
 
     // ✅ Ownership check (SECURITY)
     if (
@@ -909,7 +907,7 @@ const learner = await this.learnerModel.findById(order.learnerId)
     /**
      * ✅ Wallet refund
      */
-// const learner = await this.learnerModel.findById(order.learnerId);
+const learner = await this.learnerModel.findById(order.learnerId);
 // const instructorUser = await this.userModel.findById(order.instructorId);
 
     if (refund > 0) {
