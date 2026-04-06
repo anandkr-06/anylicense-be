@@ -811,11 +811,25 @@ export class OrderService {
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
-  
+    const instructorProfile = await this.instructorProfileModel
+  .findById(order.instructorId)
+  .select('userId')
+  .lean();
+
+const instructorUser = instructorProfile
+  ? await this.userModel
+      .findById(instructorProfile.userId)
+      .select('email firstName lastName mobileNumber')
+      .lean()
+  : null;
+const learner = await this.learnerModel.findById(order.learnerId)
+.select('email firstName lastName mobileNumber')
+  .lean();
+
     // ✅ Ownership check (SECURITY)
     if (
       (role === 'learner' && order.learnerId.toString() !== userId) ||
-      (role === 'instructor' && order.instructorId.toString() !== userId)
+      (role === 'instructor' && instructorProfile?.userId.toString() !== userId)
     ) {
       throw new ForbiddenException('Unauthorized');
     }
@@ -895,8 +909,8 @@ export class OrderService {
     /**
      * ✅ Wallet refund
      */
-const learner = await this.learnerModel.findById(order.learnerId);
-const instructorUser = await this.userModel.findById(order.instructorId);
+// const learner = await this.learnerModel.findById(order.learnerId);
+// const instructorUser = await this.userModel.findById(order.instructorId);
 
     if (refund > 0) {
       
