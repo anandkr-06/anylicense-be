@@ -3015,26 +3015,16 @@ const notificationPayload = {
         const sEnd = this.toMinutes(normalizeTime(s.endTime));
 
         // ✅ overlap check
-        //   if (
-        //     reqStart < sEnd &&
-        //     reqEnd > sStart &&
-        //     Math.abs(sStart - reqStart) < 180 // 🔥 limit to nearby slots (3 hrs window)
-        //   ) {
-        //   s.isTempBlocked = true;
-        //   s.tempBlockedAt = new Date();
-        //   s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
-        //   s.tempBookingId = orderId;
-        // }
-        if (
-          normalizeTime(s.startTime) === normalizeTime(slot.startTime) &&
-          normalizeTime(s.endTime) === normalizeTime(slot.endTime)
-        ) {
+        // if (reqStart < sEnd && reqEnd > sStart) {
+          if (
+            reqStart < sEnd &&
+            reqEnd > sStart &&
+            Math.abs(sStart - reqStart) < 180 // 🔥 limit to nearby slots (3 hrs window)
+          ) {
           s.isTempBlocked = true;
           s.tempBlockedAt = new Date();
-          s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000);
+          s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
           s.tempBookingId = orderId;
-        
-          return; // ✅ stop here
         }
       }
     }
