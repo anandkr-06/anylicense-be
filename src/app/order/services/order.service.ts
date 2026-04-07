@@ -1624,29 +1624,6 @@ const notificationPayload = {
 
     await order.save();
 
-    /* ✅ TEMP BLOCK ONLY IF INSTRUCTOR */
-    // if (isInstructor) {
-    //   const instructorProfileDoc =
-    //     await this.instructorProfileModel.findById(order.instructorId._id);
-
-    //   if (!instructorProfileDoc) {
-    //     throw new NotFoundException('Instructor profile not found');
-    //   }
-
-    //   // 🚨 IMPORTANT: validate BEFORE blocking
-    //   await this.validateSlotConflict(order.instructorId._id, {
-    //     ...newSlot,
-    //     type: slot.type,
-    //   });
-
-    //   // 🔒 TEMP BLOCK (NO bookingId, NO isBooked)
-    //   this.attachTempBookingByRange(instructorProfileDoc, {
-    //     ...newSlot,
-    //     type: slot.type,
-    //   });
-
-    //   await instructorProfileDoc.save();
-    // }
     if (isInstructor) {
       const instructorProfileDoc =
         await this.instructorProfileModel.findById(order.instructorId._id);
@@ -2171,13 +2148,32 @@ const notificationPayload = {
   }
 
 
-  private toMinutes = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
-      throw new BadRequestException(`Invalid time format: ${time}`);
+  // private toMinutes = (time: string): number => {
+  //   const [h, m] = time.split(':').map(Number);
+  //   if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+  //     throw new BadRequestException(`Invalid time format: ${time}`);
+  //   }
+  //   return h * 60 + m;
+  // }
+
+  private toMinutes(time: string): number {
+    const [timePart, modifier] = time.trim().split(' '); // "12:30 PM"
+    if(!timePart){
+      throw new BadRequestException('Invalid time format'+time)
     }
-    return h * 60 + m;
+    let [hours=0, minutes=0] = timePart.split(':').map(Number);
+  
+    if (modifier === 'PM' && hours !== 12) {
+      hours += 12;
+    }
+  
+    if (modifier === 'AM' && hours === 12) {
+      hours = 0;
+    }
+  
+    return hours * 60 + minutes;
   }
+  
 
   private overlaps(
     aStart: number,
@@ -3002,23 +2998,43 @@ const notificationPayload = {
     slot: { date: string; startTime: string; endTime: string },
     orderId: Types.ObjectId,
   ) {
-    const reqStart = this.toMinutes(slot.startTime);
-    const reqEnd = this.toMinutes(slot.endTime);
+    // const reqStart = this.toMinutes(slot.startTime);
+    // const reqEnd = this.toMinutes(slot.endTime);
+    const reqStart = this.toMinutes(normalizeTime(slot.startTime));
+    const reqEnd = this.toMinutes(normalizeTime(slot.endTime));
+
 
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
 
       for (const s of day.slots) {
-        const sStart = this.toMinutes(s.startTime);
-        const sEnd = this.toMinutes(s.endTime);
+        // const sStart = this.toMinutes(s.startTime);
+        // const sEnd = this.toMinutes(s.endTime);
+        const sStart = this.toMinutes(normalizeTime(s.startTime));
+        const sEnd = this.toMinutes(normalizeTime(s.endTime));
 
         // ✅ overlap check
-        if (reqStart < sEnd && reqEnd > sStart) {
+        //   if (
+        //     reqStart < sEnd &&
+        //     reqEnd > sStart &&
+        //     Math.abs(sStart - reqStart) < 180 // 🔥 limit to nearby slots (3 hrs window)
+        //   ) {
+        //   s.isTempBlocked = true;
+        //   s.tempBlockedAt = new Date();
+        //   s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
+        //   s.tempBookingId = orderId;
+        // }
+        if (
+          normalizeTime(s.startTime) === normalizeTime(slot.startTime) &&
+          normalizeTime(s.endTime) === normalizeTime(slot.endTime)
+        ) {
           s.isTempBlocked = true;
           s.tempBlockedAt = new Date();
-          s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
+          s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000);
           s.tempBookingId = orderId;
+        
+          return; // ✅ stop here
         }
       }
     }
