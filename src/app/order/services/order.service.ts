@@ -3025,6 +3025,7 @@ const notificationPayload = {
           s.tempBlockedAt = new Date();
           s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
           s.tempBookingId = orderId;
+          return;
         }
       }
     }
