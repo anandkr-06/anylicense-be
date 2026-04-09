@@ -860,7 +860,6 @@ const learner = await this.learnerModel.findById(order.learnerId);
    🔔 SEND NOTIFICATIONS
 ================================= */
 
-
 const notificationPayload = {
   actedBy: role,
   slotDate: slot.date,
@@ -870,9 +869,8 @@ const notificationPayload = {
   comment: '',
 };
 
-// 👉 Run in parallel (non-blocking style)
- Promise.allSettled([
-
+// 👉 Wait for notifications properly
+const results = await Promise.allSettled([
   // 👉 Learner
   learner?.email
     ? this.notificationService.sendSlotCancelledNotification({
@@ -892,8 +890,10 @@ const notificationPayload = {
         ...notificationPayload,
       })
     : Promise.resolve(),
-
 ]);
+console.log('Notification Learner:', learner);
+console.log('Notification Instructor:', instructorUser);
+console.log('Notification Results:', results);
 
     return {
       success: true,
