@@ -52,7 +52,7 @@ referredBy?: Types.ObjectId;
   @Prop({ required: true })
   purchaser?: Array<string>;
   
-  @Prop({ default: false, index: true })
+  @Prop({ default: true, index: true })
   isActive!: boolean;
 
   @Prop({ default: false, index: true })
