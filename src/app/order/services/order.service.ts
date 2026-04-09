@@ -518,7 +518,7 @@ export class OrderService {
     ]);
 
     return {
-      data,
+      data: data.map(order => this.formatPrivateOrder(order)), // ✅ FIX
       pagination: {
         total,
         page,
@@ -528,6 +528,41 @@ export class OrderService {
     };
   }
 
+  private toAmPm(time: string): string {
+    if (!time) return time;
+  
+    const [hoursStr, minutesStr] = time.split(':');
+    let hours = Number(hoursStr);
+    const minutes = minutesStr ?? '00';
+  
+    if (isNaN(hours)) return time;
+  
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+  
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+  
+    return `${hours.toString().padStart(2, '0')}:${minutes} ${suffix}`;
+  }
+  private formatPrivateOrder(order: any) {
+    return {
+      ...order,
+  
+      lessonSlots: order.lessonSlots?.map((slot: any) => ({
+        ...slot,
+        startTime: this.toAmPm(slot.startTime),
+        endTime: this.toAmPm(slot.endTime),
+      })),
+  
+      testPackage: order.testPackage
+        ? {
+            ...order.testPackage,
+            startTime: this.toAmPm(order.testPackage.startTime),
+            endTime: this.toAmPm(order.testPackage.endTime),
+          }
+        : null,
+    };
+  }
   async getInstructorPrivateOrderDetails(
     instructorId: string,
     orderId: string,
