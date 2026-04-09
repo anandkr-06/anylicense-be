@@ -228,7 +228,9 @@ export class OrderService {
   ) {
     let learner;
   
-    // 1️⃣ Resolve learner
+    /* =====================================================
+       1️⃣ Resolve learner
+    ===================================================== */
     if (dto.privateLearnerId) {
       learner = await this.privateLearnerService.findOne(
         instructorId,
@@ -255,16 +257,72 @@ export class OrderService {
       });
     }
   
-    // 2️⃣ Load instructor profile (lean for pricing only)
+    /* =====================================================
+       2️⃣ Load instructor profile
+    ===================================================== */
     const instructorProfile = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(instructorId),
-    }).lean();
+    });
   
     if (!instructorProfile) {
       throw new BadRequestException('Instructor profile not found');
     }
   
-    // 3️⃣ Prepare lesson slots
+    /* =====================================================
+       3️⃣ Helper: normalize time
+    ===================================================== */
+    const toMinutes = (time: string): number => {
+      if (!time) {
+        throw new BadRequestException('Invalid time');
+      }
+  
+      time = time.trim();
+  
+      // 24-hour format: 09:00
+      if (!time.includes('AM') && !time.includes('PM')) {
+        const [hours=0, minutes=0] = time.split(':').map(Number);
+  
+        if (isNaN(hours) || isNaN(minutes)) {
+          throw new BadRequestException(`Invalid time format: ${time}`);
+        }
+  
+        return hours * 60 + minutes;
+      }
+  
+      // 12-hour format: 09:00 AM
+      const [timePart, modifier] = time.split(' ');
+  
+      if (!timePart || !modifier) {
+        throw new BadRequestException(`Invalid time format: ${time}`);
+      }
+  
+      let [hours=0, minutes=0] = timePart.split(':').map(Number);
+  
+      if (isNaN(hours) || isNaN(minutes)) {
+        throw new BadRequestException(`Invalid time format: ${time}`);
+      }
+  
+      if (modifier === 'PM' && hours !== 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+  
+      return hours * 60 + minutes;
+    };
+  
+    const normalizeTime = (time: string): string => {
+      const mins = toMinutes(time);
+  
+      const h = Math.floor(mins / 60)
+        .toString()
+        .padStart(2, '0');
+  
+      const m = (mins % 60).toString().padStart(2, '0');
+  
+      return `${h}:${m}`;
+    };
+  
+    /* =====================================================
+       4️⃣ Prepare lesson slots + pricing
+    ===================================================== */
     const lessonSlots = dto.lessonSlots.map(slot => {
       const hourlyPrice = this.resolvePrivatePrice(
         instructorProfile,
@@ -274,135 +332,31 @@ export class OrderService {
   
       return {
         ...slot,
+        startTime: normalizeTime(slot.startTime),
+        endTime: normalizeTime(slot.endTime),
         price: hourlyPrice * slot.bookingPeriod,
       };
     });
   
-    // const slotsToBook = lessonSlots.map(slot => ({
-    //   date: slot.date,
-    //   startTime: slot.startTime,
-    //   endTime: slot.endTime,
-    //   type: 'LESSON',
-    // }));
-    const LESSON_TYPE: 'LESSON' = 'LESSON';
-
     const slotsToBook: NormalizedSlot[] = lessonSlots.map(slot => ({
       date: slot.date,
       startTime: slot.startTime,
       endTime: slot.endTime,
-      type: LESSON_TYPE,
+      type: 'LESSON',
     }));
-    // -------------------------------
-    // 🧠 4️⃣ BUFFER CONFLICT CHECK
-    // -------------------------------
   
-    // const toMinutes = (time: string): number => {
-    //   const [timePart, modifier] = time.split(' ');
-    //   if(!timePart) {
-    //     throw new BadRequestException('Time format invalid = '+ timePart)
-
-    //   }
-    //   let [hours = 0, minutes = 0] = timePart.split(':').map(Number);
-  
-    //   if (modifier === 'PM' && hours !== 12) hours += 12;
-    //   if (modifier === 'AM' && hours === 12) hours = 0;
-  
-    //   return hours * 60 + minutes;
-    // };
-    const toMinutes = (time: string): number => {
-      if (!time) {
-        throw new BadRequestException('Invalid time');
-      }
-    
-      time = time.trim();
-    
-      // ✅ Handle 24-hour format directly: 09:00
-      if (!time.includes('AM') && !time.includes('PM')) {
-        const [hours=0, minutes=0] = time.split(':').map(Number);
-    
-        if (isNaN(hours) || isNaN(minutes)) {
-          throw new BadRequestException(`Invalid time format: ${time}`);
-        }
-    
-        return hours * 60 + minutes;
-      }
-    
-      // ✅ Handle AM/PM format: 09:00 AM
-      const [timePart, modifier] = time.split(' ');
-    
-      if (!timePart || !modifier) {
-        throw new BadRequestException(`Invalid time format: ${time}`);
-      }
-    
-      let [hours=0, minutes=0] = timePart.split(':').map(Number);
-    
-      if (isNaN(hours) || isNaN(minutes)) {
-        throw new BadRequestException(`Invalid time format: ${time}`);
-      }
-    
-      if (modifier === 'PM' && hours !== 12) {
-        hours += 12;
-      }
-    
-      if (modifier === 'AM' && hours === 12) {
-        hours = 0;
-      }
-    
-      return hours * 60 + minutes;
-    };
-  
-    const isConflict = (
-      newSlot: PrivateSlot,
-      existingSlot: PrivateSlot,
-      buffer = 30,
-    ) => {
-      const newStart = toMinutes(newSlot.startTime);
-      const newEnd = toMinutes(newSlot.endTime);
-  
-      const existingStart = toMinutes(existingSlot.startTime);
-      const existingEnd = toMinutes(existingSlot.endTime);
-  
-      return (
-        newStart < existingEnd + buffer &&
-        newEnd > existingStart - buffer
-      );
-    };
-  
-    const bookedSlots: any[] = [];
-  
-    for (const week of instructorProfile.availability?.weeks || []) {
-      for (const day of week.days || []) {
-        if (slotsToBook.some(s => s.date === day.date)) {
-          for (const slot of day.slots || []) {
-            if (slot.isBooked) {
-              bookedSlots.push({
-                date: day.date,
-                startTime: slot.startTime,
-                endTime: slot.endTime,
-              });
-            }
-          }
-        }
-      }
+    /* =====================================================
+       5️⃣ Validate slot conflicts
+    ===================================================== */
+    for (const slot of slotsToBook) {
+      await this.validateSlotConflict(instructorProfile._id, slot);
     }
   
-    for (const newSlot of slotsToBook) {
-      for (const existing of bookedSlots) {
-        if (
-          newSlot.date === existing.date &&
-          isConflict(newSlot, existing, 30)
-        ) {
-          throw new BadRequestException(
-            `Slot conflict (30min buffer): ${newSlot.date} ${newSlot.startTime}`,
-          );
-        }
-      }
-    }
-  
-    // -------------------------------
-    // 💰 5️⃣ Test package pricing
-    // -------------------------------
+    /* =====================================================
+       6️⃣ Test package pricing
+    ===================================================== */
     let testPackage;
+  
     if (dto.testPackage) {
       const testPrice = this.resolvePrivatePrice(
         instructorProfile,
@@ -412,16 +366,22 @@ export class OrderService {
   
       testPackage = {
         ...dto.testPackage,
+        startTime: normalizeTime(dto.testPackage.startTime),
+        endTime: normalizeTime(dto.testPackage.endTime),
         price: testPrice,
       };
     }
   
-    // 6️⃣ Total
+    /* =====================================================
+       7️⃣ Total amount
+    ===================================================== */
     const totalAmount =
       lessonSlots.reduce((sum, s) => sum + s.price, 0) +
       (testPackage?.price || 0);
   
-    // 7️⃣ Create order FIRST
+    /* =====================================================
+       8️⃣ Create private order first
+    ===================================================== */
     const orderData = await this.privateOrderModel.create({
       instructorId: new Types.ObjectId(instructorId),
       privateLearnerId: learner._id,
@@ -433,33 +393,24 @@ export class OrderService {
     });
   
     if (!orderData?._id) {
-      throw new BadRequestException('Failed to create order');
+      throw new BadRequestException('Failed to create private order');
     }
   
+    /* =====================================================
+       9️⃣ Attach booking to instructor availability
+           SAME FLOW AS createOrder
+    ===================================================== */
     try {
-      // -------------------------------
-      // 🔥 8️⃣ SLOT BOOKING (FINAL FIX)
-      // -------------------------------
-  
-      const instructorDoc = await this.instructorProfileModel.findById(
-        instructorProfile._id,
-      );
-  
-      if (!instructorDoc) {
-        throw new NotFoundException('Instructor not found');
-      }
-  
-      // ✅ SORT slots (IMPORTANT)
+      // sort slots before applying
       const sortedSlots = [...slotsToBook].sort((a, b) => {
         return toMinutes(a.startTime) - toMinutes(b.startTime);
       });
   
-      // ✅ APPLY RANGE BOOKING
       for (const slot of sortedSlots) {
-        await this.validateSlotConflict(instructorDoc._id, slot);
+        await this.validateSlotConflict(instructorProfile._id, slot);
   
         this.attachBookingByRange(
-          instructorDoc,
+          instructorProfile,
           {
             date: slot.date,
             startTime: slot.startTime,
@@ -470,20 +421,26 @@ export class OrderService {
         );
       }
   
-      // ✅ SAVE ONCE
-      await instructorDoc.save();
+      // save instructor profile once
+      await instructorProfile.save();
   
-      // ✅ Confirm order
+      /* =====================================================
+         🔟 Confirm order
+      ===================================================== */
       await this.privateOrderModel.updateOne(
         { _id: orderData._id },
         { status: 'CONFIRMED' },
       );
   
       return orderData;
-  
     } catch (error) {
-      // ❗ rollback order only (slots handled in memory before save)
-      await this.privateOrderModel.deleteOne({ _id: orderData._id });
+      /* =====================================================
+         ❗ rollback order if slot booking fails
+      ===================================================== */
+      await this.privateOrderModel.deleteOne({
+        _id: orderData._id,
+      });
+  
       throw error;
     }
   }

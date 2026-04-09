@@ -52,11 +52,30 @@ import {
     state!: string;
   }
   
+  // class TestPackageDto {
+  //   date!: string;
+  //   time!: string;
+  //   testLocation!: string;
+  //   pickupPoint!: string;
+  //   dropPoint!: string;
+  // }
   class TestPackageDto {
+    @IsString()
     date!: string;
-    time!: string;
+  
+    @IsString()
+    startTime!: string;
+  
+    @IsString()
+    endTime!: string;
+  
+    @IsString()
     testLocation!: string;
+  
+    @IsString()
     pickupPoint!: string;
+  
+    @IsString()
     dropPoint!: string;
   }
   

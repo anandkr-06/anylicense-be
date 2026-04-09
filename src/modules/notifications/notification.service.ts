@@ -571,6 +571,43 @@ export class NotificationService {
 /**
  * cancelled
  */
+// async sendSlotCancelledNotification(payload: {
+//   receiverEmail: string;
+//   receiverName: string;
+//   receiverPhone?: string;
+//   slotDate: string;
+//   startTime: string;
+//   endTime: string;
+//   actedBy: string;
+//   reasonType: string;
+//   comment?: string;
+// }) {
+//   await this.mailerService.sendMail({
+//     to: payload.receiverEmail,
+//     subject: 'Slot Cancelled',
+//     template: MAILER_TEMPLATES.SLOT_CANCELLED, // 🔥 new template
+//     context: {
+//       receiverName: payload.receiverName,
+//       slotDate: payload.slotDate,
+//       startTime: payload.startTime,
+//       endTime: payload.endTime,
+//       actedBy: payload.actedBy,
+//       reasonType: payload.reasonType,
+//       comment: payload.comment || '',
+//       website_url: process.env['WEBSITE_URL'],
+//     },
+//   });
+
+//   // ✅ SMS (optional but consistent with your pattern)
+//   if (payload.receiverPhone) {
+//     this.smsService
+//       .send(
+//         payload.receiverPhone,
+//         `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`,
+//       )
+//       .catch(() => {});
+//   }
+// }
 async sendSlotCancelledNotification(payload: {
   receiverEmail: string;
   receiverName: string;
@@ -585,7 +622,7 @@ async sendSlotCancelledNotification(payload: {
   await this.mailerService.sendMail({
     to: payload.receiverEmail,
     subject: 'Slot Cancelled',
-    template: MAILER_TEMPLATES.SLOT_CANCELLED, // 🔥 new template
+    template: MAILER_TEMPLATES.SLOT_CANCELLED,
     context: {
       receiverName: payload.receiverName,
       slotDate: payload.slotDate,
@@ -594,11 +631,12 @@ async sendSlotCancelledNotification(payload: {
       actedBy: payload.actedBy,
       reasonType: payload.reasonType,
       comment: payload.comment || '',
+      cancelledByLearner: payload.actedBy === 'learner',
+      cancelledByInstructor: payload.actedBy === 'instructor',
       website_url: process.env['WEBSITE_URL'],
     },
   });
 
-  // ✅ SMS (optional but consistent with your pattern)
   if (payload.receiverPhone) {
     this.smsService
       .send(
