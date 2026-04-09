@@ -3,6 +3,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { SmsService } from '../sms/sms.service';
 import { EmailService } from 'modules/email/email.service';
 import { MAILER_TEMPLATES } from 'modules/email/email.constants';
+import { FeedbackType } from '@constant/enum';
 @Injectable()
 export class NotificationService {
   constructor(
@@ -603,6 +604,43 @@ async sendSlotCancelledNotification(payload: {
       .send(
         payload.receiverPhone,
         `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`,
+      )
+      .catch(() => {});
+  }
+}
+
+/**
+ * Feedback
+ */
+async sendFeedbackNotification(payload: {
+  receiverEmail: string;
+  receiverName: string;
+  receiverPhone?: string;
+  feedbackType: FeedbackType;
+  description: string;
+  attachmentUrl?: string;
+  submittedBy?: string; // learner / instructor / admin
+}) {
+  await this.mailerService.sendMail({
+    to: payload.receiverEmail,
+    subject: `New Feedback Submitted - ${payload.feedbackType}`,
+    template: MAILER_TEMPLATES.FEEDBACK_NOTIFICATION,
+    context: {
+      receiverName: payload.receiverName,
+      feedbackType: payload.feedbackType,
+      description: payload.description,
+      attachmentUrl: payload.attachmentUrl || '',
+      submittedBy: payload.submittedBy || 'User',
+      website_url: process.env['WEBSITE_URL'],
+    },
+  });
+
+  // ✅ Optional SMS Notification
+  if (payload.receiverPhone) {
+    this.smsService
+      .send(
+        payload.receiverPhone,
+        `Your feedback (${payload.feedbackType}) has been submitted successfully. Thank you for helping us improve.`,
       )
       .catch(() => {});
   }

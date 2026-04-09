@@ -69,6 +69,12 @@ type BookedSlot = {
   reschedule?: any;
 };
 
+type PrivateSlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
 
 @Injectable()
 export class OrderService {
@@ -121,19 +127,114 @@ export class OrderService {
 
 
   // 🔐 Centralized pricing logic
+  // async createPrivateOrder(
+  //   instructorId: string,
+  //   dto: CreatePrivateOrderDto,
+  // ) {
+  //   let learner;
+
+  //   // 1️⃣ Resolve learner
+  //   if (dto.privateLearnerId) {
+  //     learner = await this.privateLearnerService.findOne(
+  //       instructorId,
+  //       dto.privateLearnerId,
+  //     );
+
+  //     if (!learner) {
+  //       throw new BadRequestException('Private learner not found');
+  //     }
+  //   } else {
+  //     if (!dto.newLearner) {
+  //       throw new BadRequestException('New learner details required');
+  //     }
+
+  //     learner = await this.privateLearnerService.create(instructorId, {
+  //       firstName: dto.newLearner.firstName,
+  //       lastName: dto.newLearner.lastName,
+  //       mobileNumber: dto.newLearner.mobileNumber,
+  //       email: dto.newLearner.email,
+  //       pickupAddress: dto.newLearner.pickupAddress,
+  //       suburb: dto.newLearner.suburb,
+  //       state: dto.newLearner.state,
+  //       preferredVehicleType: dto.newLearner.vehicleType,
+  //     });
+  //   }
+
+  //   // 2️⃣ Load instructor profile ONCE
+  //   const instructorProfile = await this.instructorProfileModel
+  //     .findOne({ userId: new Types.ObjectId(instructorId) })
+  //     .select({ vehicles: 1 })
+  //     .lean();
+
+  //   if (!instructorProfile) {
+  //     throw new BadRequestException('Instructor profile not found');
+  //   }
+
+  //   // 3️⃣ Lesson slots pricing
+  //   const lessonSlots = dto.lessonSlots.map(slot => {
+  //     const hourlyPrice = this.resolvePrivatePrice(
+  //       instructorProfile,
+  //       learner.preferredVehicleType,
+  //       false,
+  //     );
+
+  //     return {
+  //       ...slot,
+  //       price: hourlyPrice * slot.bookingPeriod,
+  //     };
+  //   });
+
+  //   // 4️⃣ Test package pricing
+  //   let testPackage;
+  //   if (dto.testPackage) {
+  //     const testPrice = this.resolvePrivatePrice(
+  //       instructorProfile,
+  //       learner.preferredVehicleType,
+  //       true,
+  //     );
+
+  //     testPackage = {
+  //       ...dto.testPackage,
+  //       price: testPrice,
+  //     };
+  //   }
+
+  //   // 5️⃣ Total
+  //   const totalAmount =
+  //     lessonSlots.reduce((sum, s) => sum + s.price, 0) +
+  //     (testPackage?.price || 0);
+
+  //   // 6️⃣ Create private order
+  //   const orderData = await this.privateOrderModel.create({
+  //     instructorId: new Types.ObjectId(instructorId),
+  //     privateLearnerId: learner._id,
+  //     vehicleType: learner.preferredVehicleType,
+  //     lessonSlots,
+  //     testPackage,
+  //     totalAmount,
+  //   });
+
+  //   if (!orderData?._id) {
+  //     throw new BadRequestException('Failed to create private order');
+  //   }
+
+  //   return orderData;
+
+  // }
+
   async createPrivateOrder(
     instructorId: string,
     dto: CreatePrivateOrderDto,
   ) {
     let learner;
-
+  
     // 1️⃣ Resolve learner
     if (dto.privateLearnerId) {
       learner = await this.privateLearnerService.findOne(
         instructorId,
         dto.privateLearnerId,
       );
-
+  
       if (!learner) {
         throw new BadRequestException('Private learner not found');
       }
@@ -141,7 +242,7 @@ export class OrderService {
       if (!dto.newLearner) {
         throw new BadRequestException('New learner details required');
       }
-
+  
       learner = await this.privateLearnerService.create(instructorId, {
         firstName: dto.newLearner.firstName,
         lastName: dto.newLearner.lastName,
@@ -153,32 +254,113 @@ export class OrderService {
         preferredVehicleType: dto.newLearner.vehicleType,
       });
     }
-
-    // 2️⃣ Load instructor profile ONCE
-    const instructorProfile = await this.instructorProfileModel
-      .findOne({ userId: new Types.ObjectId(instructorId) })
-      .select({ vehicles: 1 })
-      .lean();
-
+  
+    // 2️⃣ Load instructor profile (lean for pricing only)
+    const instructorProfile = await this.instructorProfileModel.findOne({
+      userId: new Types.ObjectId(instructorId),
+    }).lean();
+  
     if (!instructorProfile) {
       throw new BadRequestException('Instructor profile not found');
     }
-
-    // 3️⃣ Lesson slots pricing
+  
+    // 3️⃣ Prepare lesson slots
     const lessonSlots = dto.lessonSlots.map(slot => {
       const hourlyPrice = this.resolvePrivatePrice(
         instructorProfile,
         learner.preferredVehicleType,
         false,
       );
-
+  
       return {
         ...slot,
         price: hourlyPrice * slot.bookingPeriod,
       };
     });
+  
+    // const slotsToBook = lessonSlots.map(slot => ({
+    //   date: slot.date,
+    //   startTime: slot.startTime,
+    //   endTime: slot.endTime,
+    //   type: 'LESSON',
+    // }));
+    const LESSON_TYPE: 'LESSON' = 'LESSON';
 
-    // 4️⃣ Test package pricing
+    const slotsToBook: NormalizedSlot[] = lessonSlots.map(slot => ({
+      date: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      type: LESSON_TYPE,
+    }));
+    // -------------------------------
+    // 🧠 4️⃣ BUFFER CONFLICT CHECK
+    // -------------------------------
+  
+    const toMinutes = (time: string): number => {
+      const [timePart, modifier] = time.split(' ');
+      if(!timePart) {
+        throw new BadRequestException('Time format invalid = '+ timePart)
+
+      }
+      let [hours = 0, minutes = 0] = timePart.split(':').map(Number);
+  
+      if (modifier === 'PM' && hours !== 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+  
+      return hours * 60 + minutes;
+    };
+  
+    const isConflict = (
+      newSlot: PrivateSlot,
+      existingSlot: PrivateSlot,
+      buffer = 30,
+    ) => {
+      const newStart = toMinutes(newSlot.startTime);
+      const newEnd = toMinutes(newSlot.endTime);
+  
+      const existingStart = toMinutes(existingSlot.startTime);
+      const existingEnd = toMinutes(existingSlot.endTime);
+  
+      return (
+        newStart < existingEnd + buffer &&
+        newEnd > existingStart - buffer
+      );
+    };
+  
+    const bookedSlots: any[] = [];
+  
+    for (const week of instructorProfile.availability?.weeks || []) {
+      for (const day of week.days || []) {
+        if (slotsToBook.some(s => s.date === day.date)) {
+          for (const slot of day.slots || []) {
+            if (slot.isBooked) {
+              bookedSlots.push({
+                date: day.date,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+              });
+            }
+          }
+        }
+      }
+    }
+  
+    for (const newSlot of slotsToBook) {
+      for (const existing of bookedSlots) {
+        if (
+          newSlot.date === existing.date &&
+          isConflict(newSlot, existing, 30)
+        ) {
+          throw new BadRequestException(
+            `Slot conflict (30min buffer): ${newSlot.date} ${newSlot.startTime}`,
+          );
+        }
+      }
+    }
+  
+    // -------------------------------
+    // 💰 5️⃣ Test package pricing
+    // -------------------------------
     let testPackage;
     if (dto.testPackage) {
       const testPrice = this.resolvePrivatePrice(
@@ -186,19 +368,19 @@ export class OrderService {
         learner.preferredVehicleType,
         true,
       );
-
+  
       testPackage = {
         ...dto.testPackage,
         price: testPrice,
       };
     }
-
-    // 5️⃣ Total
+  
+    // 6️⃣ Total
     const totalAmount =
       lessonSlots.reduce((sum, s) => sum + s.price, 0) +
       (testPackage?.price || 0);
-
-    // 6️⃣ Create private order
+  
+    // 7️⃣ Create order FIRST
     const orderData = await this.privateOrderModel.create({
       instructorId: new Types.ObjectId(instructorId),
       privateLearnerId: learner._id,
@@ -206,14 +388,63 @@ export class OrderService {
       lessonSlots,
       testPackage,
       totalAmount,
+      status: 'PENDING',
     });
-
+  
     if (!orderData?._id) {
-      throw new BadRequestException('Failed to create private order');
+      throw new BadRequestException('Failed to create order');
     }
-
-    return orderData;
-
+  
+    try {
+      // -------------------------------
+      // 🔥 8️⃣ SLOT BOOKING (FINAL FIX)
+      // -------------------------------
+  
+      const instructorDoc = await this.instructorProfileModel.findById(
+        instructorProfile._id,
+      );
+  
+      if (!instructorDoc) {
+        throw new NotFoundException('Instructor not found');
+      }
+  
+      // ✅ SORT slots (IMPORTANT)
+      const sortedSlots = [...slotsToBook].sort((a, b) => {
+        return toMinutes(a.startTime) - toMinutes(b.startTime);
+      });
+  
+      // ✅ APPLY RANGE BOOKING
+      for (const slot of sortedSlots) {
+        await this.validateSlotConflict(instructorDoc._id, slot);
+  
+        this.attachBookingByRange(
+          instructorDoc,
+          {
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            type: slot.type,
+          },
+          orderData._id,
+        );
+      }
+  
+      // ✅ SAVE ONCE
+      await instructorDoc.save();
+  
+      // ✅ Confirm order
+      await this.privateOrderModel.updateOne(
+        { _id: orderData._id },
+        { status: 'CONFIRMED' },
+      );
+  
+      return orderData;
+  
+    } catch (error) {
+      // ❗ rollback order only (slots handled in memory before save)
+      await this.privateOrderModel.deleteOne({ _id: orderData._id });
+      throw error;
+    }
   }
 
   private resolvePrivatePrice(
@@ -2148,31 +2379,15 @@ const notificationPayload = {
   }
 
 
-  // private toMinutes = (time: string): number => {
-  //   const [h, m] = time.split(':').map(Number);
-  //   if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
-  //     throw new BadRequestException(`Invalid time format: ${time}`);
-  //   }
-  //   return h * 60 + m;
-  // }
-
-  private toMinutes(time: string): number {
-    const [timePart, modifier] = time.trim().split(' '); // "12:30 PM"
-    if(!timePart){
-      throw new BadRequestException('Invalid time format'+time)
+  private toMinutes = (time: string): number => {
+    const [h, m] = time.split(':').map(Number);
+    if (h === undefined || m === undefined || isNaN(h) || isNaN(m)) {
+      throw new BadRequestException(`Invalid time format: ${time}`);
     }
-    let [hours=0, minutes=0] = timePart.split(':').map(Number);
-  
-    if (modifier === 'PM' && hours !== 12) {
-      hours += 12;
-    }
-  
-    if (modifier === 'AM' && hours === 12) {
-      hours = 0;
-    }
-  
-    return hours * 60 + minutes;
+    return h * 60 + m;
   }
+
+
   
 
   private overlaps(
@@ -2998,34 +3213,23 @@ const notificationPayload = {
     slot: { date: string; startTime: string; endTime: string },
     orderId: Types.ObjectId,
   ) {
-    // const reqStart = this.toMinutes(slot.startTime);
-    // const reqEnd = this.toMinutes(slot.endTime);
-    const reqStart = this.toMinutes(normalizeTime(slot.startTime));
-    const reqEnd = this.toMinutes(normalizeTime(slot.endTime));
-
+    const reqStart = this.toMinutes(slot.startTime);
+    const reqEnd = this.toMinutes(slot.endTime);
 
     for (const week of instructor.availability.weeks) {
       const day = week.days.find(d => d.date === slot.date);
       if (!day) continue;
 
       for (const s of day.slots) {
-        // const sStart = this.toMinutes(s.startTime);
-        // const sEnd = this.toMinutes(s.endTime);
-        const sStart = this.toMinutes(normalizeTime(s.startTime));
-        const sEnd = this.toMinutes(normalizeTime(s.endTime));
+        const sStart = this.toMinutes(s.startTime);
+        const sEnd = this.toMinutes(s.endTime);
 
         // ✅ overlap check
-        // if (reqStart < sEnd && reqEnd > sStart) {
-          if (
-            reqStart < sEnd &&
-            reqEnd > sStart &&
-            Math.abs(sStart - reqStart) < 180 // 🔥 limit to nearby slots (3 hrs window)
-          ) {
+        if (reqStart < sEnd && reqEnd > sStart) {
           s.isTempBlocked = true;
           s.tempBlockedAt = new Date();
           s.tempBlockedTill = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hrs
           s.tempBookingId = orderId;
-          return;
         }
       }
     }
