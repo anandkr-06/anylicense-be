@@ -631,8 +631,10 @@ async sendSlotCancelledNotification(payload: {
       actedBy: payload.actedBy,
       reasonType: payload.reasonType,
       comment: payload.comment || '',
-      cancelledByLearner: payload.actedBy === 'learner',
-      cancelledByInstructor: payload.actedBy === 'instructor',
+    
+      isEarlyCancel: payload.reasonType === 'EARLY_CANCEL',
+      isLateCancel: payload.reasonType === 'LATE_CANCEL',
+    
       website_url: process.env['WEBSITE_URL'],
     },
   });
