@@ -389,7 +389,7 @@ export class OrderService {
       lessonSlots,
       testPackage,
       totalAmount,
-      status: 'PENDING',
+      status: 'PENDING_PAYMENT',
     });
   
     if (!orderData?._id) {
