@@ -296,17 +296,58 @@ export class OrderService {
     // 🧠 4️⃣ BUFFER CONFLICT CHECK
     // -------------------------------
   
-    const toMinutes = (time: string): number => {
-      const [timePart, modifier] = time.split(' ');
-      if(!timePart) {
-        throw new BadRequestException('Time format invalid = '+ timePart)
+    // const toMinutes = (time: string): number => {
+    //   const [timePart, modifier] = time.split(' ');
+    //   if(!timePart) {
+    //     throw new BadRequestException('Time format invalid = '+ timePart)
 
+    //   }
+    //   let [hours = 0, minutes = 0] = timePart.split(':').map(Number);
+  
+    //   if (modifier === 'PM' && hours !== 12) hours += 12;
+    //   if (modifier === 'AM' && hours === 12) hours = 0;
+  
+    //   return hours * 60 + minutes;
+    // };
+    const toMinutes = (time: string): number => {
+      if (!time) {
+        throw new BadRequestException('Invalid time');
       }
-      let [hours = 0, minutes = 0] = timePart.split(':').map(Number);
-  
-      if (modifier === 'PM' && hours !== 12) hours += 12;
-      if (modifier === 'AM' && hours === 12) hours = 0;
-  
+    
+      time = time.trim();
+    
+      // ✅ Handle 24-hour format directly: 09:00
+      if (!time.includes('AM') && !time.includes('PM')) {
+        const [hours=0, minutes=0] = time.split(':').map(Number);
+    
+        if (isNaN(hours) || isNaN(minutes)) {
+          throw new BadRequestException(`Invalid time format: ${time}`);
+        }
+    
+        return hours * 60 + minutes;
+      }
+    
+      // ✅ Handle AM/PM format: 09:00 AM
+      const [timePart, modifier] = time.split(' ');
+    
+      if (!timePart || !modifier) {
+        throw new BadRequestException(`Invalid time format: ${time}`);
+      }
+    
+      let [hours=0, minutes=0] = timePart.split(':').map(Number);
+    
+      if (isNaN(hours) || isNaN(minutes)) {
+        throw new BadRequestException(`Invalid time format: ${time}`);
+      }
+    
+      if (modifier === 'PM' && hours !== 12) {
+        hours += 12;
+      }
+    
+      if (modifier === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    
       return hours * 60 + minutes;
     };
   
