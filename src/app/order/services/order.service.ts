@@ -2596,6 +2596,48 @@ console.log('Notification Results:', results);
   //   return { received: true };
   // }
 
+  // private validateBookingRules(
+  //   sStart: number,
+  //   sEnd: number,
+  //   reqStart: number,
+  //   reqEnd: number,
+  // ) {
+  //   const GAP = 30;
+
+  //   const duration = reqEnd - reqStart;
+
+  //   // ✅ Allowed durations
+  //   if (![60, 120, 150].includes(duration)) {
+  //     throw new BadRequestException(
+  //       'Only 1h, 2h or 2.5h bookings allowed',
+  //     );
+  //   }
+
+  //   /* -----------------------------------------
+  //      ✅ AFTER GAP VALIDATION
+  //   ----------------------------------------- */
+
+  //   const remainingAfter = sEnd - reqEnd;
+
+  //   if (remainingAfter > 0 && remainingAfter < GAP + 60) {
+  //     throw new BadRequestException(
+  //       'Not enough space after booking for gap + next slot',
+  //     );
+  //   }
+
+  //   /* -----------------------------------------
+  //      ✅ BEFORE GAP VALIDATION
+  //   ----------------------------------------- */
+
+  //   const remainingBefore = reqStart - sStart;
+
+  //   if (remainingBefore > 0 && remainingBefore < GAP + 60) {
+  //     throw new BadRequestException(
+  //       'Not enough space before booking for gap + slot',
+  //     );
+  //   }
+  // }
+
   private validateBookingRules(
     sStart: number,
     sEnd: number,
@@ -2603,37 +2645,45 @@ console.log('Notification Results:', results);
     reqEnd: number,
   ) {
     const GAP = 30;
-
+    const MIN_SLOT = 60;
+  
     const duration = reqEnd - reqStart;
-
+  
     // ✅ Allowed durations
     if (![60, 120, 150].includes(duration)) {
       throw new BadRequestException(
         'Only 1h, 2h or 2.5h bookings allowed',
       );
     }
-
+  
     /* -----------------------------------------
-       ✅ AFTER GAP VALIDATION
+       ✅ AFTER GAP VALIDATION (FINAL FIX)
     ----------------------------------------- */
-
+  
     const remainingAfter = sEnd - reqEnd;
-
-    if (remainingAfter > 0 && remainingAfter < GAP + 30) {
+  
+    // ❗ Allow exact 30 min gap OR no space
+    if (
+      remainingAfter > GAP && // 🔥 strictly greater
+      remainingAfter < GAP + MIN_SLOT
+    ) {
       throw new BadRequestException(
-        'Not enough space after booking for gap + next slot',
+        'Not enough space after booking for valid next slot',
       );
     }
-
+  
     /* -----------------------------------------
-       ✅ BEFORE GAP VALIDATION
+       ✅ BEFORE GAP VALIDATION (FINAL FIX)
     ----------------------------------------- */
-
+  
     const remainingBefore = reqStart - sStart;
-
-    if (remainingBefore > 0 && remainingBefore < GAP + 30) {
+  
+    if (
+      remainingBefore > GAP && // 🔥 strictly greater
+      remainingBefore < GAP + MIN_SLOT
+    ) {
       throw new BadRequestException(
-        'Not enough space before booking for gap + slot',
+        'Not enough space before booking for valid slot',
       );
     }
   }
