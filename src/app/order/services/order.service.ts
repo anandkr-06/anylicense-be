@@ -2619,7 +2619,7 @@ console.log('Notification Results:', results);
 
     const remainingAfter = sEnd - reqEnd;
 
-    if (remainingAfter > 0 && remainingAfter < GAP + 60) {
+    if (remainingAfter > 0 && remainingAfter < GAP + 30) {
       throw new BadRequestException(
         'Not enough space after booking for gap + next slot',
       );
@@ -2631,7 +2631,7 @@ console.log('Notification Results:', results);
 
     const remainingBefore = reqStart - sStart;
 
-    if (remainingBefore > 0 && remainingBefore < GAP + 60) {
+    if (remainingBefore > 0 && remainingBefore < GAP + 30) {
       throw new BadRequestException(
         'Not enough space before booking for gap + slot',
       );
