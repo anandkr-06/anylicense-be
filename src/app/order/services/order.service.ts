@@ -427,10 +427,10 @@ export class OrderService {
       /* =====================================================
          🔟 Confirm order
       ===================================================== */
-      await this.privateOrderModel.updateOne(
-        { _id: orderData._id },
-        { status: 'CONFIRMED' },
-      );
+      // await this.privateOrderModel.updateOne(
+      //   { _id: orderData._id },
+      //   { status: 'CONFIRMED' },
+      // );
   
       return orderData;
     } catch (error) {
