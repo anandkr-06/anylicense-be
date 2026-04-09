@@ -61,9 +61,9 @@ export class PublicCourseService {
 
     // ✅ BASE FILTER (ONLY VALID COURSES)
     const filter: any = {
-      //   status: 'APPROVED',   // must exist in DB
-      //   isActive: true,
-      //   isDeleted: false,
+        status: 'APPROVED',   // must exist in DB
+        // isActive: true,
+        // isDeleted: false,
     };
 
     // ✅ SIMPLE MATCHES

@@ -848,8 +848,7 @@ const results = await Promise.allSettled([
       })
     : Promise.resolve(),
 ]);
-console.log('Notification Learner:', learner);
-console.log('Notification Instructor:', instructorUser);
+
 console.log('Notification Results:', results);
 
     return {
