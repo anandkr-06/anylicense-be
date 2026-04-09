@@ -46,11 +46,11 @@ Here are the details for your reference:
 {{/if}}
 
 <p>
-{{#if (eq reasonType "EARLY_CANCEL")}}
+{{#if isEarlyCancel}}
 You are eligible for a refund as this cancellation was made more than 24 hours in advance.
 {{/if}}
 
-{{#if (eq reasonType "LATE_CANCEL")}}
+{{#if isLateCancel}}
 This cancellation was made within 24 hours of the session, so refund policies may apply.
 {{/if}}
 </p>
