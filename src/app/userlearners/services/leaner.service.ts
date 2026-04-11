@@ -203,7 +203,9 @@ export class LearnerService {
         suburb: payload.suburb,
         state: payload.state,
         whichBestDescribeYou: payload.whichBestDescribeYou,
-        purchaser: payload.purchaser || null,
+      
+        // ✅ Only attach if exists
+        ...(payload.purchaser && { purchaser: payload.purchaser }),
       };
       
       const learner = await this.learnerModel.create(learnerData);
