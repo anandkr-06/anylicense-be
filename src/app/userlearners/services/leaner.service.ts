@@ -190,7 +190,24 @@ export class LearnerService {
     const hashedPassword = await bcrypt.hash(payload.password, 10);
     payload.password = hashedPassword;
     try {
-      const learner = await this.learnerModel.create(payload);
+      const learnerData = {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        password: hashedPassword,
+        mobileNumber: payload.mobileNumber,
+        dob: payload.dob,
+        isTncApproved: payload.isTncApproved,
+        isNotificationSent: payload.isNotificationSent,
+        pickUpAddress: payload.pickUpAddress,
+        suburb: payload.suburb,
+        state: payload.state,
+        whichBestDescribeYou: payload.whichBestDescribeYou,
+        purchaser: payload.purchaser || null,
+      };
+      
+      const learner = await this.learnerModel.create(learnerData);
+      // const learner = await this.learnerModel.create(payload);
 
       /* -----------------------------------
      🎁 AUTO GIFT VOUCHER REDEEM
