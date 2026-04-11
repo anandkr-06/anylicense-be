@@ -49,7 +49,7 @@ referredBy?: Types.ObjectId;
   @Prop({ required: true })
   isTncApproved!: boolean;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   purchaser?: Array<string>;
   
   @Prop({ default: true, index: true })
