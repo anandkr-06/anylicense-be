@@ -426,10 +426,17 @@ export class StripeService {
       {
         $sort: { createdAt: -1 },
       },
+      // {
+      //   $group: {
+      //     _id: '$source',
+      //     lastTransaction: { $first: '$$ROOT' },
+      //   },
+      // },
       {
         $group: {
           _id: '$source',
-          lastTransaction: { $first: '$$ROOT' },
+          latest: { $first: '$$ROOT' },
+          history: { $push: '$$ROOT' },
         },
       },
       {
