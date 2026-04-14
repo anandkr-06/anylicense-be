@@ -433,13 +433,6 @@ export class StripeService {
       //   },
       // },
       {
-        $group: {
-          _id: '$source',
-          latest: { $first: '$$ROOT' },
-          history: { $push: '$$ROOT' },
-        },
-      },
-      {
         $project: {
           _id: 0,
           source: '$_id',
