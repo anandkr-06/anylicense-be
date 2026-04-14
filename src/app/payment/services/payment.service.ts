@@ -426,37 +426,26 @@ export class StripeService {
       {
         $sort: { createdAt: -1 },
       },
-      // {
-      //   $group: {
-      //     _id: '$source',
-      //     lastTransaction: { $first: '$$ROOT' },
-      //   },
-      // },
       {
         $project: {
           _id: 0,
-          source: '$_id',
-          data: {
-            learnerId: '$lastTransaction.learnerId',
-            type: '$lastTransaction.type',
-            amount: '$lastTransaction.amount',
-            balanceAfter: '$lastTransaction.balanceAfter',
-            referenceEntityId: '$lastTransaction.referenceEntityId',
-            status: '$lastTransaction.status',
-            stripePaymentIntentId: '$lastTransaction.stripePaymentIntentId',
-            createdAt: '$lastTransaction.createdAt',
-            updatedAt: '$lastTransaction.updatedAt',
-          },
+          source: 1,
+          learnerId: 1,
+          type: 1,
+          amount: 1,
+          balanceAfter: 1,
+          referenceEntityId: 1,
+          status: 1,
+          stripePaymentIntentId: 1,
+          createdAt: 1,
+          updatedAt: 1,
         },
       },
     ]);
   
-    // ❌ Remove null data (safety, though aggregation already avoids it)
-    const filtered = transactions.filter((item) => item.data !== null);
-  
     return {
-      count: filtered.length,
-      data: filtered,
+      count: transactions.length,
+      data: transactions,
     };
   }
 }
