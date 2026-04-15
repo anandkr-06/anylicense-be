@@ -165,27 +165,27 @@ export class StripeService {
     if (amount <= 0) {
       throw new BadRequestException('Invalid amount');
     }
-  
+
     /* ✅ Calculate 2% platform fee */
     const platformFee = Number((amount * 0.02).toFixed(2));
-  
+
     /* ✅ Total payable */
     const totalAmount = amount + platformFee;
-  
+
     const metadata: StripeIntentMetadata = {
       purpose: 'WALLET_TOPUP',
       learnerId,
       originalAmount: amount.toString(),
       platformFee: platformFee.toString(),
     };
-  
+
     const paymentIntent = await this.stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // ✅ charge total
       currency: 'AUD',
       automatic_payment_methods: { enabled: true },
       metadata,
     });
-  
+
     return {
       clientSecret: paymentIntent.client_secret,
       amount, // original amount (wallet credit)
@@ -253,7 +253,7 @@ export class StripeService {
    WITHDRAW WALLET BALANCE
 -------------------------------- */
 
- 
+
   // async withdrawToCard(learnerId: string, amount: number,
   //   stripePaymentIntentId: string,
   //   source: string) {
@@ -381,7 +381,7 @@ export class StripeService {
       type: 'DEBIT',
       amount,
       balanceAfter: newBalance,
-      description:"Withdrawal from wallet",
+      description: "Withdrawal from wallet",
       source: 'STRIPE_REFUND',
       referenceEntityId: refund.id,
       status: 'COMPLETED',
@@ -400,7 +400,54 @@ export class StripeService {
   }
 
 
-  
+
+  // async creditedAccounts(learnerId: string) {
+  //   if (!learnerId) {
+  //     throw new BadRequestException('Invalid learnerId !');
+  //   }
+
+  //   const learnerObjectId = new Types.ObjectId(learnerId);
+
+  //   const transactions = await this.walletModel.aggregate([
+  //     {
+  //       $match: {
+  //         learnerId: learnerObjectId,
+  //         type: 'CREDIT',
+  //         status: 'COMPLETED',
+  //         $or: [
+  //           { source: { $in: ['GIFT_VOUCHER', 'ORDER'] } },
+  //           {
+  //             source: 'STRIPE',
+  //             stripePaymentIntentId: { $exists: true, $nin: [null, ''] },
+  //           },
+  //         ],
+  //       },
+  //     },
+  //     {
+  //       $sort: { createdAt: -1 },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         source: 1,
+  //         learnerId: 1,
+  //         type: 1,
+  //         amount: 1,
+  //         balanceAfter: 1,
+  //         referenceEntityId: 1,
+  //         status: 1,
+  //         stripePaymentIntentId: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //       },
+  //     },
+  //   ]);
+
+  //   return {
+  //     count: transactions.length,
+  //     data: transactions,
+  //   };
+  // }
   async creditedAccounts(learnerId: string) {
     if (!learnerId) {
       throw new BadRequestException('Invalid learnerId !');
@@ -414,34 +461,15 @@ export class StripeService {
           learnerId: learnerObjectId,
           type: 'CREDIT',
           status: 'COMPLETED',
-          $or: [
-            { source: { $in: ['GIFT_VOUCHER', 'ORDER'] } },
-            {
-              source: 'STRIPE',
-              stripePaymentIntentId: { $exists: true, $nin: [null, ''] },
-            },
-          ],
+          source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
         },
       },
       {
         $sort: { createdAt: -1 },
       },
-      {
-        $project: {
-          _id: 0,
-          source: 1,
-          learnerId: 1,
-          type: 1,
-          amount: 1,
-          balanceAfter: 1,
-          referenceEntityId: 1,
-          status: 1,
-          stripePaymentIntentId: 1,
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
     ]);
+  
+    console.log('Transactions:', transactions);
   
     return {
       count: transactions.length,
