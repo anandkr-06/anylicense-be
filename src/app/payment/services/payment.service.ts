@@ -464,12 +464,53 @@ export class StripeService {
           source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
         },
       },
+  
+      // ✅ Join with orders collection
+      {
+        $lookup: {
+          from: 'orders', // ⚠️ make sure collection name is correct
+          localField: 'referenceEntityId',
+          foreignField: '_id',
+          as: 'orderDetails',
+        },
+      },
+  
+      // ✅ Convert array → object (optional)
+      {
+        $unwind: {
+          path: '$orderDetails',
+          preserveNullAndEmptyArrays: true, // important for non-order sources
+        },
+      },
+  
       {
         $sort: { createdAt: -1 },
       },
-    ]);
   
-    console.log('Transactions:', transactions);
+      {
+        $project: {
+          _id: 0,
+          source: 1,
+          amount: 1,
+          balanceAfter: 1,
+          status: 1,
+          stripePaymentIntentId: 1,
+          createdAt: 1,
+  
+          // ✅ Order Data
+          order: {
+            _id: '$orderDetails._id',
+            orderId: '$orderDetails.orderId',
+            totalAmount: '$orderDetails.totalAmount',
+            pricePerHour: '$orderDetails.pricePerHour',
+            status: '$orderDetails.status',
+            purchaseAmount: '$orderDetails.purchaseAmount',
+            discount: '$orderDetails.discount',
+            platformCharge: '$orderDetails.platformCharge',
+          },
+        },
+      },
+    ]);
   
     return {
       count: transactions.length,
