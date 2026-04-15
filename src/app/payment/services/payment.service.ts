@@ -460,7 +460,7 @@ export class StripeService {
           learnerId: learnerObjectId,
           type: 'CREDIT',
           status: 'COMPLETED',
-          isRefund: true,
+          isRefund: false,
           source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
         },
       },
