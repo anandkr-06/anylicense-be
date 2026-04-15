@@ -192,6 +192,7 @@ export class GiftVoucherService {
       WalletTxnSource.GIFT_VOUCHER,
       null,
       (updatedVoucher.code) ? updatedVoucher.code : 'GV-Redemption-CODE-MISSING',
+      { paymentIntentId: updatedVoucher.paymentId as string }
     );
 
     // 📧 Notify learner
