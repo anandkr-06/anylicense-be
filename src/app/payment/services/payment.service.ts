@@ -249,11 +249,6 @@ export class StripeService {
   }
 
 
-  /* -----------------------------
-   WITHDRAW WALLET BALANCE
--------------------------------- */
-
-
   // async withdrawToCard(learnerId: string, amount: number,
   //   stripePaymentIntentId: string,
   //   source: string) {
@@ -262,7 +257,7 @@ export class StripeService {
   //   }
 
   //   if (!stripePaymentIntentId) {
-  //     throw new BadRequestException('Invalid stripePaymentIntentId !');
+  //     throw new BadRequestException('No refundable payment found!');
   //   }
 
   //   if (!source) {
@@ -282,31 +277,9 @@ export class StripeService {
   //     throw new BadRequestException('Insufficient wallet balance');
   //   }
 
-  //   // 2️⃣ Find learner order
-  //   const order = await this.orderModel
-  //     .findOne({
-  //       learnerId: learnerObjectId, status: 'CONFIRMED',
-  //       paymentStatus: 'PAID', stripeAmount: { $gt: 0 }
-  //     })
-  //     .sort({ createdAt: -1 });
-
-  //   if (!order) {
-  //     throw new BadRequestException('No order found for learner');
-  //   }
-
-  //   // 3️⃣ Find payment using orderId
-  //   const payment = await this.paymentModel.findOne({
-  //     orderId: order._id,
-  //     status: 'SUCCESS',
-  //   });
-
-  //   if (!payment?.stripePaymentIntentId) {
-  //     throw new BadRequestException('No refundable payment found');
-  //   }
-
   //   // 4️⃣ Create Stripe refund
   //   const refund = await this.stripe.refunds.create({
-  //     payment_intent: payment.stripePaymentIntentId,
+  //     payment_intent: stripePaymentIntentId,
   //     amount: Math.round(amount * 100),
   //   });
 
@@ -320,6 +293,7 @@ export class StripeService {
   //     type: 'DEBIT',
   //     amount,
   //     balanceAfter: newBalance,
+  //     description: "Withdrawal from wallet",
   //     source: 'STRIPE_REFUND',
   //     referenceEntityId: refund.id,
   //     status: 'COMPLETED',
@@ -336,68 +310,6 @@ export class StripeService {
   //     balanceAfter: newBalance,
   //   };
   // }
-
-  async withdrawToCard(learnerId: string, amount: number,
-    stripePaymentIntentId: string,
-    source: string) {
-    if (amount <= 0) {
-      throw new BadRequestException('Invalid withdrawal amount');
-    }
-
-    if (!stripePaymentIntentId) {
-      throw new BadRequestException('No refundable payment found!');
-    }
-
-    if (!source) {
-      throw new BadRequestException('Invalid source !');
-    }
-
-    const learnerObjectId = new Types.ObjectId(learnerId);
-
-    // 1️⃣ Check wallet balance
-    const lastTxn = await this.walletModel
-      .findOne({ learnerId: learnerObjectId })
-      .sort({ createdAt: -1 });
-
-    const currentBalance = lastTxn?.balanceAfter || 0;
-
-    if (currentBalance < amount) {
-      throw new BadRequestException('Insufficient wallet balance');
-    }
-
-    // 4️⃣ Create Stripe refund
-    const refund = await this.stripe.refunds.create({
-      payment_intent: stripePaymentIntentId,
-      amount: Math.round(amount * 100),
-    });
-
-    // 5️⃣ Update wallet balance
-    const newBalance = currentBalance - amount;
-
-    const withdrawalTxn = await this.walletModel.create({
-      learnerId: learnerObjectId,
-      userId: learnerObjectId,
-      role: 'learner',
-      type: 'DEBIT',
-      amount,
-      balanceAfter: newBalance,
-      description: "Withdrawal from wallet",
-      source: 'STRIPE_REFUND',
-      referenceEntityId: refund.id,
-      status: 'COMPLETED',
-    });
-
-    await this.learnerModel.updateOne(
-      { _id: learnerObjectId },
-      { $inc: { walletBalance: -amount } },
-    );
-
-    return {
-      message: 'Withdrawal refunded to card',
-      refundId: refund.id,
-      balanceAfter: newBalance,
-    };
-  }
 
 
 
@@ -448,6 +360,93 @@ export class StripeService {
   //     data: transactions,
   //   };
   // }
+
+  async requestWithdrawToCard(
+    learnerId: string,
+    amount: number,
+    stripePaymentIntentId: string,
+    source: string,
+  ) {
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid withdrawal amount');
+    }
+  
+    const learnerObjectId = new Types.ObjectId(learnerId);
+  
+    // ✅ Get latest wallet balance
+    const lastTxn = await this.walletModel
+      .findOne({ learnerId: learnerObjectId })
+      .sort({ createdAt: -1 });
+  
+    const currentBalance = lastTxn?.balanceAfter || 0;
+  
+    if (currentBalance < amount) {
+      throw new BadRequestException('Insufficient wallet balance');
+    }
+  
+    // ✅ Get original transaction
+    const originalTxn = await this.walletModel.findOne({
+      learnerId: learnerObjectId,
+      stripePaymentIntentId,
+      type: 'CREDIT',
+      isRefund: false,
+    });
+  
+    if (!originalTxn) {
+      throw new BadRequestException('No valid refundable transaction found');
+    }
+  
+    if (amount > originalTxn.amount) {
+      throw new BadRequestException('Refund exceeds original amount');
+    }
+  
+    // ✅ Prevent duplicate requests
+    const existingRequest = await this.walletModel.findOne({
+      learnerId: learnerObjectId,
+      stripePaymentIntentId,
+      source: 'STRIPE_REFUND',
+      status: 'PENDING',
+    });
+  
+    if (existingRequest) {
+      throw new BadRequestException('Refund already requested');
+    }
+  
+    // ✅ Deduct (hold)
+    const newBalance = currentBalance - amount;
+  
+    const withdrawalTxn = await this.walletModel.create({
+      learnerId: learnerObjectId,
+      userId: learnerObjectId,
+      role: 'learner',
+      type: 'DEBIT',
+      amount,
+      balanceAfter: newBalance,
+      description: 'Refund Requested (Pending Approval)',
+      source: 'STRIPE_REFUND',
+      stripePaymentIntentId,
+      status: 'PENDING',
+    });
+  
+    // ✅ Update wallet
+    await this.learnerModel.updateOne(
+      { _id: learnerObjectId },
+      { $inc: { walletBalance: -amount } },
+    );
+  
+    // ✅ Mark original txn
+    await this.walletModel.updateOne(
+      { _id: originalTxn._id },
+      { $set: { isRefund: true } },
+    );
+  
+    return {
+      message: 'Refund request submitted for admin approval',
+      requestId: withdrawalTxn._id,
+      balanceAfter: newBalance,
+    };
+  }
+
   async creditedAccounts(learnerId: string) {
     if (!learnerId) {
       throw new BadRequestException('Invalid learnerId !');
