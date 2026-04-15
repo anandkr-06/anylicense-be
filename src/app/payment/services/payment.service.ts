@@ -420,7 +420,7 @@ export class StripeService {
       userId: learnerObjectId,
       role: 'learner',
       type: 'DEBIT',
-      amount,
+      amount:originalTxn.amount,
       balanceAfter: newBalance,
       description: 'Refund Requested (Pending Approval)',
       source: 'STRIPE_REFUND',
