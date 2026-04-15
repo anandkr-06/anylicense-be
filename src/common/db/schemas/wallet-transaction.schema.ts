@@ -25,6 +25,7 @@ export enum WalletTxnSource {
 export enum WalletTxnStatus {
   COMPLETED = 'COMPLETED',
   REVERSED = 'REVERSED',
+  PENDING = 'PENDING',
 }
 
 @Schema({ collection: 'wallet_transactions', timestamps: true })
@@ -60,6 +61,9 @@ export class WalletTransaction {
 
   @Prop({ required: false,default:'' })
   description?: string;
+
+  @Prop({required: false,default:false})
+  isRefund?: boolean;
 
   @Prop({ enum: WalletTxnStatus, default: WalletTxnStatus.COMPLETED })
   status!: WalletTxnStatus;

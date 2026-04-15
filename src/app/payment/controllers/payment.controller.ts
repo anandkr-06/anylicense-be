@@ -70,7 +70,7 @@ export class PaymentController {
   ) {
     const learnerId = currentUser.sub; // from JWT
 
-    return this.stripeService.withdrawToCard(
+    return this.stripeService.requestWithdrawToCard(
       learnerId,
       withdrawDto.amount,
       withdrawDto.stripePaymentIntentId,
