@@ -413,7 +413,7 @@ export class StripeService {
     }
   
     // ✅ Deduct (hold)
-    const newBalance = currentBalance - amount;
+    const newBalance = currentBalance - originalTxn.amount;
   
     const withdrawalTxn = await this.walletModel.create({
       learnerId: learnerObjectId,
@@ -431,7 +431,7 @@ export class StripeService {
     // ✅ Update wallet
     await this.learnerModel.updateOne(
       { _id: learnerObjectId },
-      { $inc: { walletBalance: -amount } },
+      { $inc: { walletBalance: -originalTxn.amount } },
     );
   
     // ✅ Mark original txn
