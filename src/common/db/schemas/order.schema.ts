@@ -84,7 +84,7 @@ export class Order {
   @Prop({ default: 0 })
   usedHours!: number;
 
-  @Prop({ required: true})
+  @Prop({ required: false})
   orderTypeFullName!: string;
 
   @Prop({ default: 0 })

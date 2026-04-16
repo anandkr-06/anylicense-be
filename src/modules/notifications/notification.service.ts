@@ -415,13 +415,31 @@ export class NotificationService {
     receiverEmail: string;
     receiverName: string;
     receiverPhone?: string;
-    actedBy: 'LEARNER' | 'INSTRUCTOR';
-    slotDate: string;
+    actedBy: string;
+    slotDate: Date;
     startTime: string;
     endTime: string;
     reasonType?: string;
     comment?: string;
+    status?: 'REQUESTED' | 'APPROVED' | 'REJECTED';
   }) {
+    let subject = '';
+  let message = '';
+
+  if (payload.status === 'REQUESTED') {
+    subject = 'No-Show Request Submitted';
+    message = `A no-show request has been raised by ${payload.actedBy}. It is pending admin approval.`;
+  }
+
+  if (payload.status === 'APPROVED') {
+    subject = 'No-Show Approved';
+    message = `Your no-show request has been approved by admin.`;
+  }
+
+  if (payload.status === 'REJECTED') {
+    subject = 'No-Show Rejected';
+    message = `Your no-show request has been rejected by admin.`;
+  }
     await this.mailerService.sendMail({
       to: payload.receiverEmail,
       subject: 'Slot Marked as No-Show',

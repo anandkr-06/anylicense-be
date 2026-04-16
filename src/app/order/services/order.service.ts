@@ -46,6 +46,7 @@ import { NotificationService } from 'modules/notifications/notification.service'
 import { PopulatedOrder } from '@constant/helper';
 import { Cron } from '@nestjs/schedule';
 import { User, UserDocument } from '@common/db/schemas/user.schema';
+import { NoShowDecision, NoShowRequest, NoShowRequestDocument } from '@common/db/schemas/no-show-request.schema';
 
 interface InstructorHour {
   startTime: string;
@@ -121,6 +122,9 @@ export class OrderService {
     private readonly instructorTransactionModel: Model<InstructorTransactionDocument>,
     @InjectModel(WalletTransaction.name)
     @InjectModel(WalletTransaction.name) private walletModel: Model<WalletTransaction>,
+
+    @InjectModel(NoShowRequest.name)
+    private readonly noShowRequestModel: Model<NoShowRequestDocument>,
 
   ) { }
 
@@ -892,178 +896,441 @@ console.log('Notification Results:', results);
     };
   }
 
-  async noShowSlot(
-    orderId: string,
-    slotId: string,
-    userId: string,
-    role: 'LEARNER' | 'INSTRUCTOR',
-    body: ActionMetaRequestDto,
-  ) {
-    const order: any = await this.orderModel
-      .findById(orderId)
-      .populate({
-        path: 'instructorId',
-        populate: {
-          path: 'userId',
-          select: 'firstName lastName email mobileNumber',
-        },
-      })
-      .populate({
-        path: 'learnerId',
+  // async noShowSlot(
+  //   orderId: string,
+  //   slotId: string,
+  //   userId: string,
+  //   role: 'LEARNER' | 'INSTRUCTOR',
+  //   body: ActionMetaRequestDto,
+  // ) {
+  //   const order: any = await this.orderModel
+  //     .findById(orderId)
+  //     .populate({
+  //       path: 'instructorId',
+  //       populate: {
+  //         path: 'userId',
+  //         select: 'firstName lastName email mobileNumber',
+  //       },
+  //     })
+  //     .populate({
+  //       path: 'learnerId',
+  //       select: 'firstName lastName email mobileNumber',
+  //     });
+
+  //   if (!order) throw new NotFoundException('Order not found');
+
+  //   const learner = order.learnerId;
+  //   const instructorUser = order.instructorId?.userId;
+
+  //   const slot = order.bookedSlots.id(slotId);
+  //   if (!slot) throw new NotFoundException('Slot not found');
+
+  //   if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+  //     throw new BadRequestException(
+  //       `Slot cannot be marked no-show from ${slot.status}`,
+  //     );
+  //   }
+
+  //   /* ===============================
+  //      ⏱️ CALCULATE HOURS
+  //   =============================== */
+  //   const start = normalizeTime(slot.startTime);
+  //   const end = normalizeTime(slot.endTime);
+  //   const hours = calculateSlotDurationInHours(start, end);
+
+  //   /* ===============================
+  //      ✅ UPDATE SLOT
+  //   =============================== */
+  //   slot.status = 'NOSHOW';
+
+  //   slot.notification = {
+  //     learner: true,
+  //     instructor: true,
+  //   };
+
+  //   slot.actionMeta = {
+  //     actedBy: role,
+  //     reasonType: body.reasonType,
+  //     comment: body.comment,
+  //     attachment: body.attachmentUrl,
+  //     actedAt: new Date(),
+  //   };
+
+  //   /* ===============================
+  //      ✅ UPDATE ORDER (same as completed)
+  //   =============================== */
+  //   order.usedHours += hours;
+
+  //   order.remainingHours = Math.max(
+  //     0,
+  //     order.totalHours - order.usedHours,
+  //   );
+
+  //   if (order.remainingHours === 0) {
+  //     order.scheduleStatus = 'FULLY_SCHEDULED';
+  //   }
+
+  //   await order.save();
+
+  //   /* ===============================
+  //      ✅ INSTRUCTOR HOURS UPDATE
+  //   =============================== */
+  //   await this.instructorProfileModel.updateOne(
+  //     { _id: new Types.ObjectId(order.instructorId._id) },
+  //     { $inc: { totalHours: hours } },
+  //   );
+
+  //   /* ===============================
+  //      💰 EARNINGS CALCULATION
+  //   =============================== */
+  //   let grossAmount = 0;
+  //   let pricePerHour = 0;
+
+  //   if (slot.type === 'LESSON') {
+  //     grossAmount = hours * order.pricePerHour;
+  //     pricePerHour = order.pricePerHour;
+  //   }
+
+  //   if (slot.type === 'TEST') {
+  //     grossAmount = order.testPrice;
+  //     pricePerHour = order.testPrice;
+  //   }
+
+  //   const platformCommission = grossAmount * 0.17;
+  //   const instructorEarning = grossAmount - platformCommission;
+
+  //   /* ===============================
+  //      💳 CREATE TRANSACTION (same as completed)
+  //   =============================== */
+  //   const txn = await this.instructorTransactionModel.create({
+  //     orderId: order._id,
+  //     slotId: slot._id,
+  //     learnerId: order.learnerId._id,
+  //     instructorId: order.instructorId._id,
+  //     type: slot.type,
+  //     hours,
+  //     pricePerHour,
+  //     grossAmount,
+  //     platformCommission,
+  //     instructorEarning,
+  //   });
+
+  //   /* ===============================
+  //      💰 CREDIT WALLET
+  //   =============================== */
+  //   await this.payoutService.creditInstructorWallet(txn._id, 'NOSHOW');
+
+  //   /* ===============================
+  //      🔔 SEND NOTIFICATIONS
+  //   =============================== */
+
+  //   // 👉 Learner
+  //   if (learner?.email) {
+  //     try {
+  //       await this.notificationService.sendNoShowNotification({
+  //         receiverEmail: learner.email,
+  //         receiverName: learner.firstName,
+  //         receiverPhone: learner.mobileNumber,
+  //         actedBy: role,
+  //         slotDate: slot.date,
+  //         startTime: slot.startTime,
+  //         endTime: slot.endTime,
+  //         reasonType: body.reasonType,
+  //         comment: body.comment,
+  //       });
+  //     } catch (error) {
+  //       console.error('Learner email failed:', error);
+  //     }
+  //   }
+
+  //   // 👉 Instructor
+  //   if (instructorUser?.email) {
+  //     try {
+  //       await this.notificationService.sendNoShowNotification({
+  //         receiverEmail: instructorUser.email,
+  //         receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+  //         receiverPhone: instructorUser.mobileNumber,
+  //         actedBy: role,
+  //         slotDate: slot.date,
+  //         startTime: slot.startTime,
+  //         endTime: slot.endTime,
+  //         reasonType: body.reasonType,
+  //         comment: body.comment,
+  //         // instructorEarning, // ✅ optional (good for transparency)
+  //       });
+  //     } catch (error) {
+  //       console.error('Instructor email failed:', error);
+  //     }
+  //   }
+
+  //   return {
+  //     success: true,
+  //     message: 'Slot marked as no-show',
+  //   };
+  // }
+
+//   async requestNoShowSlot(
+//     orderId: string,
+//     slotId: string,
+//     userId: string,
+//     role: 'LEARNER' | 'INSTRUCTOR',
+//     body: ActionMetaRequestDto,
+//   ) {
+//     // const order: any = await this.orderModel.findById(orderId);
+//     const order: any = await this.orderModel
+//       .findById(orderId)
+//       .populate({
+//         path: 'instructorId',
+//         populate: {
+//           path: 'userId',
+//           select: 'firstName lastName email mobileNumber',
+//         },
+//       })
+//       .populate({
+//         path: 'learnerId',
+//         select: 'firstName lastName email mobileNumber',
+//       });
+
+//     if (!order) throw new NotFoundException('Order not found');
+
+//     const learner = order.learnerId;
+//     const instructorUser = order.instructorId?.userId;
+
+  
+//     const slot = order.bookedSlots.id(slotId);
+//     if (!slot) throw new NotFoundException('Slot not found');
+  
+//     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+//       throw new BadRequestException(
+//         `Slot cannot be marked no-show from ${slot.status}`,
+//       );
+//     }
+  
+//     // ✅ CHANGE HERE
+//     slot.status = 'NOSHOW_REQUESTED';
+  
+//     slot.actionMeta = {
+//       actedBy: role,
+//       reasonType: body.reasonType,
+//       comment: body.comment,
+//       attachment: body.attachmentUrl,
+//       actedAt: new Date(),
+//     };
+  
+//     await order.save();
+  
+//     // ✅ Create approval entry
+//     await this.noShowRequestModel.create({
+//       bookingId: orderId, // ✅ FIXED
+//       slotId,
+//       requestedBy: role,
+//       requestedByUserId: userId,
+//       status: 'PENDING',
+    
+//       // ✅ FIXED: map properly
+//       reason: body.reasonType || body.comment || 'No reason provided',
+    
+//       comment: body.comment,
+//       attachment: body.attachmentUrl,
+//     });
+//   /* ===============================
+//    🔔 SEND NOTIFICATIONS (REQUEST STAGE)
+// =============================== */
+
+// // 👉 Learner
+// if (learner?.email) {
+//   try {
+//     await this.notificationService.sendNoShowNotification({
+//       receiverEmail: learner.email,
+//       receiverName: learner.firstName,
+//       receiverPhone: learner.mobileNumber,
+//       actedBy: role,
+//       slotDate: slot.date,
+//       startTime: slot.startTime,
+//       endTime: slot.endTime,
+//       reasonType: body.reasonType,
+//       comment: body.comment,
+
+//       // ✅ NEW FLAG
+//       status: 'REQUESTED',
+//     });
+//   } catch (error) {
+//     console.error('Learner email failed:', error);
+//   }
+// }
+
+// // 👉 Instructor
+// if (instructorUser?.email) {
+//   try {
+//     await this.notificationService.sendNoShowNotification({
+//       receiverEmail: instructorUser.email,
+//       receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+//       receiverPhone: instructorUser.mobileNumber,
+//       actedBy: role,
+//       slotDate: slot.date,
+//       startTime: slot.startTime,
+//       endTime: slot.endTime,
+//       reasonType: body.reasonType,
+//       comment: body.comment,
+
+//       // ✅ NEW FLAG
+//       status: 'REQUESTED',
+//     });
+//   } catch (error) {
+//     console.error('Instructor email failed:', error);
+//   }
+// }
+
+//     return {
+//       success: true,
+//       message: 'No-show request submitted for admin approval',
+//     };
+//   }
+async requestNoShowSlot(
+  orderId: string,
+  slotId: string,
+  userId: string,
+  role: 'LEARNER' | 'INSTRUCTOR',
+  body: ActionMetaRequestDto,
+) {
+  const order: any = await this.orderModel
+    .findById(orderId)
+    .populate({
+      path: 'instructorId',
+      populate: {
+        path: 'userId',
         select: 'firstName lastName email mobileNumber',
-      });
-
-    if (!order) throw new NotFoundException('Order not found');
-
-    const learner = order.learnerId;
-    const instructorUser = order.instructorId?.userId;
-
-    const slot = order.bookedSlots.id(slotId);
-    if (!slot) throw new NotFoundException('Slot not found');
-
-    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
-      throw new BadRequestException(
-        `Slot cannot be marked no-show from ${slot.status}`,
-      );
-    }
-
-    /* ===============================
-       ⏱️ CALCULATE HOURS
-    =============================== */
-    const start = normalizeTime(slot.startTime);
-    const end = normalizeTime(slot.endTime);
-    const hours = calculateSlotDurationInHours(start, end);
-
-    /* ===============================
-       ✅ UPDATE SLOT
-    =============================== */
-    slot.status = 'NOSHOW';
-
-    slot.notification = {
-      learner: true,
-      instructor: true,
-    };
-
-    slot.actionMeta = {
-      actedBy: role,
-      reasonType: body.reasonType,
-      comment: body.comment,
-      attachment: body.attachmentUrl,
-      actedAt: new Date(),
-    };
-
-    /* ===============================
-       ✅ UPDATE ORDER (same as completed)
-    =============================== */
-    order.usedHours += hours;
-
-    order.remainingHours = Math.max(
-      0,
-      order.totalHours - order.usedHours,
-    );
-
-    if (order.remainingHours === 0) {
-      order.scheduleStatus = 'FULLY_SCHEDULED';
-    }
-
-    await order.save();
-
-    /* ===============================
-       ✅ INSTRUCTOR HOURS UPDATE
-    =============================== */
-    await this.instructorProfileModel.updateOne(
-      { _id: new Types.ObjectId(order.instructorId._id) },
-      { $inc: { totalHours: hours } },
-    );
-
-    /* ===============================
-       💰 EARNINGS CALCULATION
-    =============================== */
-    let grossAmount = 0;
-    let pricePerHour = 0;
-
-    if (slot.type === 'LESSON') {
-      grossAmount = hours * order.pricePerHour;
-      pricePerHour = order.pricePerHour;
-    }
-
-    if (slot.type === 'TEST') {
-      grossAmount = order.testPrice;
-      pricePerHour = order.testPrice;
-    }
-
-    const platformCommission = grossAmount * 0.17;
-    const instructorEarning = grossAmount - platformCommission;
-
-    /* ===============================
-       💳 CREATE TRANSACTION (same as completed)
-    =============================== */
-    const txn = await this.instructorTransactionModel.create({
-      orderId: order._id,
-      slotId: slot._id,
-      learnerId: order.learnerId._id,
-      instructorId: order.instructorId._id,
-      type: slot.type,
-      hours,
-      pricePerHour,
-      grossAmount,
-      platformCommission,
-      instructorEarning,
+      },
+    })
+    .populate({
+      path: 'learnerId',
+      select: 'firstName lastName email mobileNumber',
     });
 
-    /* ===============================
-       💰 CREDIT WALLET
-    =============================== */
-    await this.payoutService.creditInstructorWallet(txn._id, 'NOSHOW');
+  if (!order) throw new NotFoundException('Order not found');
 
-    /* ===============================
-       🔔 SEND NOTIFICATIONS
-    =============================== */
+  const learner = order.learnerId;
+  const instructorUser = order.instructorId?.userId;
 
-    // 👉 Learner
-    if (learner?.email) {
-      try {
-        await this.notificationService.sendNoShowNotification({
-          receiverEmail: learner.email,
-          receiverName: learner.firstName,
-          receiverPhone: learner.mobileNumber,
-          actedBy: role,
-          slotDate: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          reasonType: body.reasonType,
-          comment: body.comment,
-        });
-      } catch (error) {
-        console.error('Learner email failed:', error);
-      }
-    }
+  const slot = order.bookedSlots.id(slotId);
+  if (!slot) throw new NotFoundException('Slot not found');
 
-    // 👉 Instructor
-    if (instructorUser?.email) {
-      try {
-        await this.notificationService.sendNoShowNotification({
-          receiverEmail: instructorUser.email,
-          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-          receiverPhone: instructorUser.mobileNumber,
-          actedBy: role,
-          slotDate: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          reasonType: body.reasonType,
-          comment: body.comment,
-          // instructorEarning, // ✅ optional (good for transparency)
-        });
-      } catch (error) {
-        console.error('Instructor email failed:', error);
-      }
-    }
-
+  /* ===============================
+     ✅ IDEMPOTENT CHECK (IMPORTANT)
+  =============================== */
+  if (slot.status === 'NOSHOW_REQUESTED') {
     return {
       success: true,
-      message: 'Slot marked as no-show',
+      message: 'No-show already requested and pending approval',
     };
   }
+
+  /* ===============================
+     ✅ VALID STATUS CHECK
+  =============================== */
+  if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+    throw new BadRequestException(
+      `Slot cannot be marked no-show from ${slot.status}`,
+    );
+  }
+
+  /* ===============================
+     🚫 PREVENT DUPLICATE REQUEST
+  =============================== */
+  const existingRequest = await this.noShowRequestModel.findOne({
+    bookingId: orderId,
+    slotId,
+    status: 'PENDING',
+  });
+
+  if (existingRequest) {
+    return {
+      success: true,
+      message: 'No-show request already pending',
+    };
+  }
+
+  /* ===============================
+     ✅ UPDATE SLOT
+  =============================== */
+  slot.status = 'NOSHOW_REQUESTED';
+
+  slot.actionMeta = {
+    actedBy: role,
+    reasonType: body.reasonType,
+    comment: body.comment,
+    attachment: body.attachmentUrl,
+    actedAt: new Date(),
+  };
+
+  await order.save();
+
+  /* ===============================
+     ✅ CREATE APPROVAL ENTRY
+  =============================== */
+  await this.noShowRequestModel.create({
+    bookingId: orderId, // ✅ FIXED
+    slotId,
+    requestedBy: role,
+    requestedByUserId: userId,
+    status: 'PENDING',
+
+    // ✅ FIXED mapping
+    reason: body.reasonType || body.comment || 'No reason provided',
+
+    comment: body.comment,
+    attachment: body.attachmentUrl,
+  });
+
+  /* ===============================
+     🔔 SEND NOTIFICATIONS
+  =============================== */
+
+  // 👉 Learner
+  if (learner?.email) {
+    try {
+      await this.notificationService.sendNoShowNotification({
+        receiverEmail: learner.email,
+        receiverName: learner.firstName,
+        receiverPhone: learner.mobileNumber,
+        actedBy: role,
+        slotDate: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        reasonType: body.reasonType,
+        comment: body.comment,
+        status: 'REQUESTED', // ✅ important
+      });
+    } catch (error) {
+      console.error('Learner email failed:', error);
+    }
+  }
+
+  // 👉 Instructor
+  if (instructorUser?.email) {
+    try {
+      await this.notificationService.sendNoShowNotification({
+        receiverEmail: instructorUser.email,
+        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+        receiverPhone: instructorUser.mobileNumber,
+        actedBy: role,
+        slotDate: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        reasonType: body.reasonType,
+        comment: body.comment,
+        status: 'REQUESTED', // ✅ important
+      });
+    } catch (error) {
+      console.error('Instructor email failed:', error);
+    }
+  }
+
+  return {
+    success: true,
+    message: 'No-show request submitted for admin approval',
+  };
+}
 
   async completeSlot(
     orderId: string,
