@@ -109,7 +109,7 @@ export class OrderService {
 
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
-    
+
 
     @InjectModel(Learner.name)
     private readonly learnerModel: Model<LearnerDocument>,
@@ -231,7 +231,7 @@ export class OrderService {
     dto: CreatePrivateOrderDto,
   ) {
     let learner;
-  
+
     /* =====================================================
        1️⃣ Resolve learner
     ===================================================== */
@@ -240,7 +240,7 @@ export class OrderService {
         instructorId,
         dto.privateLearnerId,
       );
-  
+
       if (!learner) {
         throw new BadRequestException('Private learner not found');
       }
@@ -248,7 +248,7 @@ export class OrderService {
       if (!dto.newLearner) {
         throw new BadRequestException('New learner details required');
       }
-  
+
       learner = await this.privateLearnerService.create(instructorId, {
         firstName: dto.newLearner.firstName,
         lastName: dto.newLearner.lastName,
@@ -260,18 +260,18 @@ export class OrderService {
         preferredVehicleType: dto.newLearner.vehicleType,
       });
     }
-  
+
     /* =====================================================
        2️⃣ Load instructor profile
     ===================================================== */
     const instructorProfile = await this.instructorProfileModel.findOne({
       userId: new Types.ObjectId(instructorId),
     });
-  
+
     if (!instructorProfile) {
       throw new BadRequestException('Instructor profile not found');
     }
-  
+
     /* =====================================================
        3️⃣ Helper: normalize time
     ===================================================== */
@@ -279,51 +279,51 @@ export class OrderService {
       if (!time) {
         throw new BadRequestException('Invalid time');
       }
-  
+
       time = time.trim();
-  
+
       // 24-hour format: 09:00
       if (!time.includes('AM') && !time.includes('PM')) {
-        const [hours=0, minutes=0] = time.split(':').map(Number);
-  
+        const [hours = 0, minutes = 0] = time.split(':').map(Number);
+
         if (isNaN(hours) || isNaN(minutes)) {
           throw new BadRequestException(`Invalid time format: ${time}`);
         }
-  
+
         return hours * 60 + minutes;
       }
-  
+
       // 12-hour format: 09:00 AM
       const [timePart, modifier] = time.split(' ');
-  
+
       if (!timePart || !modifier) {
         throw new BadRequestException(`Invalid time format: ${time}`);
       }
-  
-      let [hours=0, minutes=0] = timePart.split(':').map(Number);
-  
+
+      let [hours = 0, minutes = 0] = timePart.split(':').map(Number);
+
       if (isNaN(hours) || isNaN(minutes)) {
         throw new BadRequestException(`Invalid time format: ${time}`);
       }
-  
+
       if (modifier === 'PM' && hours !== 12) hours += 12;
       if (modifier === 'AM' && hours === 12) hours = 0;
-  
+
       return hours * 60 + minutes;
     };
-  
+
     const normalizeTime = (time: string): string => {
       const mins = toMinutes(time);
-  
+
       const h = Math.floor(mins / 60)
         .toString()
         .padStart(2, '0');
-  
+
       const m = (mins % 60).toString().padStart(2, '0');
-  
+
       return `${h}:${m}`;
     };
-  
+
     /* =====================================================
        4️⃣ Prepare lesson slots + pricing
     ===================================================== */
@@ -333,7 +333,7 @@ export class OrderService {
         learner.preferredVehicleType,
         false,
       );
-  
+
       return {
         ...slot,
         startTime: normalizeTime(slot.startTime),
@@ -341,33 +341,33 @@ export class OrderService {
         price: hourlyPrice * slot.bookingPeriod,
       };
     });
-  
+
     const slotsToBook: NormalizedSlot[] = lessonSlots.map(slot => ({
       date: slot.date,
       startTime: slot.startTime,
       endTime: slot.endTime,
       type: 'LESSON',
     }));
-  
+
     /* =====================================================
        5️⃣ Validate slot conflicts
     ===================================================== */
     for (const slot of slotsToBook) {
       await this.validateSlotConflict(instructorProfile._id, slot);
     }
-  
+
     /* =====================================================
        6️⃣ Test package pricing
     ===================================================== */
     let testPackage;
-  
+
     if (dto.testPackage) {
       const testPrice = this.resolvePrivatePrice(
         instructorProfile,
         learner.preferredVehicleType,
         true,
       );
-  
+
       testPackage = {
         ...dto.testPackage,
         startTime: normalizeTime(dto.testPackage.startTime),
@@ -375,14 +375,14 @@ export class OrderService {
         price: testPrice,
       };
     }
-  
+
     /* =====================================================
        7️⃣ Total amount
     ===================================================== */
     const totalAmount =
       lessonSlots.reduce((sum, s) => sum + s.price, 0) +
       (testPackage?.price || 0);
-  
+
     /* =====================================================
        8️⃣ Create private order first
     ===================================================== */
@@ -395,11 +395,11 @@ export class OrderService {
       totalAmount,
       status: 'PENDING_PAYMENT',
     });
-  
+
     if (!orderData?._id) {
       throw new BadRequestException('Failed to create private order');
     }
-  
+
     /* =====================================================
        9️⃣ Attach booking to instructor availability
            SAME FLOW AS createOrder
@@ -409,10 +409,10 @@ export class OrderService {
       const sortedSlots = [...slotsToBook].sort((a, b) => {
         return toMinutes(a.startTime) - toMinutes(b.startTime);
       });
-  
+
       for (const slot of sortedSlots) {
         await this.validateSlotConflict(instructorProfile._id, slot);
-  
+
         this.attachBookingByRange(
           instructorProfile,
           {
@@ -424,10 +424,10 @@ export class OrderService {
           orderData._id,
         );
       }
-  
+
       // save instructor profile once
       await instructorProfile.save();
-  
+
       /* =====================================================
          🔟 Confirm order
       ===================================================== */
@@ -435,7 +435,7 @@ export class OrderService {
       //   { _id: orderData._id },
       //   { status: 'CONFIRMED' },
       // );
-  
+
       return orderData;
     } catch (error) {
       /* =====================================================
@@ -444,7 +444,7 @@ export class OrderService {
       await this.privateOrderModel.deleteOne({
         _id: orderData._id,
       });
-  
+
       throw error;
     }
   }
@@ -534,36 +534,36 @@ export class OrderService {
 
   private toAmPm(time: string): string {
     if (!time) return time;
-  
+
     const [hoursStr, minutesStr] = time.split(':');
     let hours = Number(hoursStr);
     const minutes = minutesStr ?? '00';
-  
+
     if (isNaN(hours)) return time;
-  
+
     const suffix = hours >= 12 ? 'PM' : 'AM';
-  
+
     hours = hours % 12;
     if (hours === 0) hours = 12;
-  
+
     return `${hours.toString().padStart(2, '0')}:${minutes} ${suffix}`;
   }
   private formatPrivateOrder(order: any) {
     return {
       ...order,
-  
+
       lessonSlots: order.lessonSlots?.map((slot: any) => ({
         ...slot,
         startTime: this.toAmPm(slot.startTime),
         endTime: this.toAmPm(slot.endTime),
       })),
-  
+
       testPackage: order.testPackage
         ? {
-            ...order.testPackage,
-            startTime: this.toAmPm(order.testPackage.startTime),
-            endTime: this.toAmPm(order.testPackage.endTime),
-          }
+          ...order.testPackage,
+          startTime: this.toAmPm(order.testPackage.startTime),
+          endTime: this.toAmPm(order.testPackage.endTime),
+        }
         : null,
     };
   }
@@ -710,7 +710,7 @@ export class OrderService {
 
 
 
- 
+
 
   async cancelSlot(
     orderId: string,
@@ -719,27 +719,27 @@ export class OrderService {
     role: string, // ✅ use enum instead of string
   ) {
     const order = await this.orderModel.findById(orderId);
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     const slot = order.bookedSlots.id(slotId);
-  
+
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
     const instructorProfile = await this.instructorProfileModel
-  .findById(order.instructorId)
-  .select('userId')
-  .lean();
+      .findById(order.instructorId)
+      .select('userId')
+      .lean();
 
-const instructorUser = instructorProfile
-  ? await this.userModel
-      .findById(instructorProfile.userId)
-      .select('email firstName lastName mobileNumber')
-      .lean()
-  : null;
+    const instructorUser = instructorProfile
+      ? await this.userModel
+        .findById(instructorProfile.userId)
+        .select('email firstName lastName mobileNumber')
+        .lean()
+      : null;
 
 
     // ✅ Ownership check (SECURITY)
@@ -749,50 +749,50 @@ const instructorUser = instructorProfile
     ) {
       throw new ForbiddenException('Unauthorized');
     }
-  
+
     // ✅ Prevent double cancel
     if (slot.status === 'CANCELLED') {
       throw new BadRequestException('Slot already cancelled');
     }
-  
+
     // ✅ Allowed states
     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
       throw new BadRequestException('Slot not cancellable');
     }
-  
+
     // ✅ Calculate before mutation
     const within24h = this.isWithin24Hours(
       slot.date,
       slot.startTime,
     );
-  
+
     let refund = 0;
-  
+
     if (!within24h) {
       const hours = this.calculateSlotHours(
         slot.startTime,
         slot.endTime,
       );
-  
+
       refund = hours * order.pricePerHour;
     }
-  
+
     // ✅ Update slot status
     slot.status = 'CANCELLED';
-  
+
     slot.notification = {
       learner: true,
       instructor: true,
     };
-  
+
     slot.actionMeta = {
       actedBy: role,
       actedAt: new Date(),
       reasonType: within24h ? 'LATE_CANCEL' : 'EARLY_CANCEL',
     };
-  
+
     await order.save();
-  
+
     /**
      * ✅ Free instructor slot (non-destructive)
      */
@@ -815,30 +815,30 @@ const instructorUser = instructorProfile
         ]
       }
     );
-  
+
     if (result.modifiedCount === 0) {
       console.error('Slot not freed properly', {
         instructorId: order.instructorId,
         slot,
       });
     }
-  
+
     /**
      * ✅ Wallet refund
      */
-const learner = await this.learnerModel.findById(order.learnerId);
-// const instructorUser = await this.userModel.findById(order.instructorId);
+    const learner = await this.learnerModel.findById(order.learnerId);
+    // const instructorUser = await this.userModel.findById(order.instructorId);
 
     if (refund > 0) {
-      
+
       if (!learner) {
         throw new NotFoundException('Learner not found');
       }
-  
+
       learner.walletBalance += refund;
-  
+
       await learner.save();
-  
+
       await this.walletModel.create({
         learnerId: order.learnerId,
         userId: order.learnerId,
@@ -851,44 +851,44 @@ const learner = await this.learnerModel.findById(order.learnerId);
         referenceEntityId: order._id
       });
     }
-  
+
     /* ===============================
    🔔 SEND NOTIFICATIONS
 ================================= */
 
-const notificationPayload = {
-  actedBy: role,
-  slotDate: slot.date,
-  startTime: slot.startTime,
-  endTime: slot.endTime,
-  reasonType: slot.actionMeta.reasonType,
-  comment: '',
-};
+    const notificationPayload = {
+      actedBy: role,
+      slotDate: slot.date,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      reasonType: slot.actionMeta.reasonType,
+      comment: '',
+    };
 
-// 👉 Wait for notifications properly
-const results = await Promise.allSettled([
-  // 👉 Learner
-  learner?.email
-    ? this.notificationService.sendSlotCancelledNotification({
-        receiverEmail: learner.email,
-        receiverName: learner.firstName,
-        receiverPhone: learner.mobileNumber,
-        ...notificationPayload,
-      })
-    : Promise.resolve(),
+    // 👉 Wait for notifications properly
+    const results = await Promise.allSettled([
+      // 👉 Learner
+      learner?.email
+        ? this.notificationService.sendSlotCancelledNotification({
+          receiverEmail: learner.email,
+          receiverName: learner.firstName,
+          receiverPhone: learner.mobileNumber,
+          ...notificationPayload,
+        })
+        : Promise.resolve(),
 
-  // 👉 Instructor
-  instructorUser?.email
-    ? this.notificationService.sendSlotCancelledNotification({
-        receiverEmail: instructorUser.email,
-        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-        receiverPhone: instructorUser.mobileNumber,
-        ...notificationPayload,
-      })
-    : Promise.resolve(),
-]);
+      // 👉 Instructor
+      instructorUser?.email
+        ? this.notificationService.sendSlotCancelledNotification({
+          receiverEmail: instructorUser.email,
+          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+          receiverPhone: instructorUser.mobileNumber,
+          ...notificationPayload,
+        })
+        : Promise.resolve(),
+    ]);
 
-console.log('Notification Results:', results);
+    console.log('Notification Results:', results);
 
     return {
       success: true,
@@ -1069,268 +1069,268 @@ console.log('Notification Results:', results);
   //   };
   // }
 
-//   async requestNoShowSlot(
-//     orderId: string,
-//     slotId: string,
-//     userId: string,
-//     role: 'LEARNER' | 'INSTRUCTOR',
-//     body: ActionMetaRequestDto,
-//   ) {
-//     // const order: any = await this.orderModel.findById(orderId);
-//     const order: any = await this.orderModel
-//       .findById(orderId)
-//       .populate({
-//         path: 'instructorId',
-//         populate: {
-//           path: 'userId',
-//           select: 'firstName lastName email mobileNumber',
-//         },
-//       })
-//       .populate({
-//         path: 'learnerId',
-//         select: 'firstName lastName email mobileNumber',
-//       });
+  //   async requestNoShowSlot(
+  //     orderId: string,
+  //     slotId: string,
+  //     userId: string,
+  //     role: 'LEARNER' | 'INSTRUCTOR',
+  //     body: ActionMetaRequestDto,
+  //   ) {
+  //     // const order: any = await this.orderModel.findById(orderId);
+  //     const order: any = await this.orderModel
+  //       .findById(orderId)
+  //       .populate({
+  //         path: 'instructorId',
+  //         populate: {
+  //           path: 'userId',
+  //           select: 'firstName lastName email mobileNumber',
+  //         },
+  //       })
+  //       .populate({
+  //         path: 'learnerId',
+  //         select: 'firstName lastName email mobileNumber',
+  //       });
 
-//     if (!order) throw new NotFoundException('Order not found');
+  //     if (!order) throw new NotFoundException('Order not found');
 
-//     const learner = order.learnerId;
-//     const instructorUser = order.instructorId?.userId;
+  //     const learner = order.learnerId;
+  //     const instructorUser = order.instructorId?.userId;
 
-  
-//     const slot = order.bookedSlots.id(slotId);
-//     if (!slot) throw new NotFoundException('Slot not found');
-  
-//     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
-//       throw new BadRequestException(
-//         `Slot cannot be marked no-show from ${slot.status}`,
-//       );
-//     }
-  
-//     // ✅ CHANGE HERE
-//     slot.status = 'NOSHOW_REQUESTED';
-  
-//     slot.actionMeta = {
-//       actedBy: role,
-//       reasonType: body.reasonType,
-//       comment: body.comment,
-//       attachment: body.attachmentUrl,
-//       actedAt: new Date(),
-//     };
-  
-//     await order.save();
-  
-//     // ✅ Create approval entry
-//     await this.noShowRequestModel.create({
-//       bookingId: orderId, // ✅ FIXED
-//       slotId,
-//       requestedBy: role,
-//       requestedByUserId: userId,
-//       status: 'PENDING',
-    
-//       // ✅ FIXED: map properly
-//       reason: body.reasonType || body.comment || 'No reason provided',
-    
-//       comment: body.comment,
-//       attachment: body.attachmentUrl,
-//     });
-//   /* ===============================
-//    🔔 SEND NOTIFICATIONS (REQUEST STAGE)
-// =============================== */
 
-// // 👉 Learner
-// if (learner?.email) {
-//   try {
-//     await this.notificationService.sendNoShowNotification({
-//       receiverEmail: learner.email,
-//       receiverName: learner.firstName,
-//       receiverPhone: learner.mobileNumber,
-//       actedBy: role,
-//       slotDate: slot.date,
-//       startTime: slot.startTime,
-//       endTime: slot.endTime,
-//       reasonType: body.reasonType,
-//       comment: body.comment,
+  //     const slot = order.bookedSlots.id(slotId);
+  //     if (!slot) throw new NotFoundException('Slot not found');
 
-//       // ✅ NEW FLAG
-//       status: 'REQUESTED',
-//     });
-//   } catch (error) {
-//     console.error('Learner email failed:', error);
-//   }
-// }
+  //     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+  //       throw new BadRequestException(
+  //         `Slot cannot be marked no-show from ${slot.status}`,
+  //       );
+  //     }
 
-// // 👉 Instructor
-// if (instructorUser?.email) {
-//   try {
-//     await this.notificationService.sendNoShowNotification({
-//       receiverEmail: instructorUser.email,
-//       receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-//       receiverPhone: instructorUser.mobileNumber,
-//       actedBy: role,
-//       slotDate: slot.date,
-//       startTime: slot.startTime,
-//       endTime: slot.endTime,
-//       reasonType: body.reasonType,
-//       comment: body.comment,
+  //     // ✅ CHANGE HERE
+  //     slot.status = 'NOSHOW_REQUESTED';
 
-//       // ✅ NEW FLAG
-//       status: 'REQUESTED',
-//     });
-//   } catch (error) {
-//     console.error('Instructor email failed:', error);
-//   }
-// }
+  //     slot.actionMeta = {
+  //       actedBy: role,
+  //       reasonType: body.reasonType,
+  //       comment: body.comment,
+  //       attachment: body.attachmentUrl,
+  //       actedAt: new Date(),
+  //     };
 
-//     return {
-//       success: true,
-//       message: 'No-show request submitted for admin approval',
-//     };
-//   }
-async requestNoShowSlot(
-  orderId: string,
-  slotId: string,
-  userId: string,
-  role: 'LEARNER' | 'INSTRUCTOR',
-  body: ActionMetaRequestDto,
-) {
-  const order: any = await this.orderModel
-    .findById(orderId)
-    .populate({
-      path: 'instructorId',
-      populate: {
-        path: 'userId',
+  //     await order.save();
+
+  //     // ✅ Create approval entry
+  //     await this.noShowRequestModel.create({
+  //       bookingId: orderId, // ✅ FIXED
+  //       slotId,
+  //       requestedBy: role,
+  //       requestedByUserId: userId,
+  //       status: 'PENDING',
+
+  //       // ✅ FIXED: map properly
+  //       reason: body.reasonType || body.comment || 'No reason provided',
+
+  //       comment: body.comment,
+  //       attachment: body.attachmentUrl,
+  //     });
+  //   /* ===============================
+  //    🔔 SEND NOTIFICATIONS (REQUEST STAGE)
+  // =============================== */
+
+  // // 👉 Learner
+  // if (learner?.email) {
+  //   try {
+  //     await this.notificationService.sendNoShowNotification({
+  //       receiverEmail: learner.email,
+  //       receiverName: learner.firstName,
+  //       receiverPhone: learner.mobileNumber,
+  //       actedBy: role,
+  //       slotDate: slot.date,
+  //       startTime: slot.startTime,
+  //       endTime: slot.endTime,
+  //       reasonType: body.reasonType,
+  //       comment: body.comment,
+
+  //       // ✅ NEW FLAG
+  //       status: 'REQUESTED',
+  //     });
+  //   } catch (error) {
+  //     console.error('Learner email failed:', error);
+  //   }
+  // }
+
+  // // 👉 Instructor
+  // if (instructorUser?.email) {
+  //   try {
+  //     await this.notificationService.sendNoShowNotification({
+  //       receiverEmail: instructorUser.email,
+  //       receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+  //       receiverPhone: instructorUser.mobileNumber,
+  //       actedBy: role,
+  //       slotDate: slot.date,
+  //       startTime: slot.startTime,
+  //       endTime: slot.endTime,
+  //       reasonType: body.reasonType,
+  //       comment: body.comment,
+
+  //       // ✅ NEW FLAG
+  //       status: 'REQUESTED',
+  //     });
+  //   } catch (error) {
+  //     console.error('Instructor email failed:', error);
+  //   }
+  // }
+
+  //     return {
+  //       success: true,
+  //       message: 'No-show request submitted for admin approval',
+  //     };
+  //   }
+  async requestNoShowSlot(
+    orderId: string,
+    slotId: string,
+    userId: string,
+    role: 'LEARNER' | 'INSTRUCTOR',
+    body: ActionMetaRequestDto,
+  ) {
+    const order: any = await this.orderModel
+      .findById(orderId)
+      .populate({
+        path: 'instructorId',
+        populate: {
+          path: 'userId',
+          select: 'firstName lastName email mobileNumber',
+        },
+      })
+      .populate({
+        path: 'learnerId',
         select: 'firstName lastName email mobileNumber',
-      },
-    })
-    .populate({
-      path: 'learnerId',
-      select: 'firstName lastName email mobileNumber',
+      });
+
+    if (!order) throw new NotFoundException('Order not found');
+
+    const learner = order.learnerId;
+    const instructorUser = order.instructorId?.userId;
+
+    const slot = order.bookedSlots.id(slotId);
+    if (!slot) throw new NotFoundException('Slot not found');
+
+    /* ===============================
+       ✅ IDEMPOTENT CHECK (IMPORTANT)
+    =============================== */
+    if (slot.status === 'NOSHOW_REQUESTED') {
+      return {
+        success: true,
+        message: 'No-show already requested and pending approval',
+      };
+    }
+
+    /* ===============================
+       ✅ VALID STATUS CHECK
+    =============================== */
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+      throw new BadRequestException(
+        `Slot cannot be marked no-show from ${slot.status}`,
+      );
+    }
+
+    /* ===============================
+       🚫 PREVENT DUPLICATE REQUEST
+    =============================== */
+    const existingRequest = await this.noShowRequestModel.findOne({
+      bookingId: orderId,
+      slotId,
+      status: 'PENDING',
     });
 
-  if (!order) throw new NotFoundException('Order not found');
+    if (existingRequest) {
+      return {
+        success: true,
+        message: 'No-show request already pending',
+      };
+    }
 
-  const learner = order.learnerId;
-  const instructorUser = order.instructorId?.userId;
+    /* ===============================
+       ✅ UPDATE SLOT
+    =============================== */
+    slot.status = 'NOSHOW_REQUESTED';
 
-  const slot = order.bookedSlots.id(slotId);
-  if (!slot) throw new NotFoundException('Slot not found');
+    slot.actionMeta = {
+      actedBy: role,
+      reasonType: body.reasonType,
+      comment: body.comment,
+      attachment: body.attachmentUrl,
+      actedAt: new Date(),
+    };
 
-  /* ===============================
-     ✅ IDEMPOTENT CHECK (IMPORTANT)
-  =============================== */
-  if (slot.status === 'NOSHOW_REQUESTED') {
+    await order.save();
+
+    /* ===============================
+       ✅ CREATE APPROVAL ENTRY
+    =============================== */
+
+
+
+    await this.noShowRequestModel.create({
+      bookingId: new Types.ObjectId(orderId), // ✅ FIX
+      slotId: new Types.ObjectId(slotId),     // ✅ FIX
+      requestedBy: role,
+      requestedByUserId: new Types.ObjectId(userId),
+      status: 'PENDING',
+      reason: body.reasonType || body.comment || 'No reason provided',
+      comment: body.comment,
+      attachment: body.attachmentUrl,
+    });
+
+    /* ===============================
+       🔔 SEND NOTIFICATIONS
+    =============================== */
+
+    // 👉 Learner
+    if (learner?.email) {
+      try {
+        await this.notificationService.sendNoShowNotification({
+          receiverEmail: learner.email,
+          receiverName: learner.firstName,
+          receiverPhone: learner.mobileNumber,
+          actedBy: role,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          reasonType: body.reasonType,
+          comment: body.comment,
+          status: 'REQUESTED', // ✅ important
+        });
+      } catch (error) {
+        console.error('Learner email failed:', error);
+      }
+    }
+
+    // 👉 Instructor
+    if (instructorUser?.email) {
+      try {
+        await this.notificationService.sendNoShowNotification({
+          receiverEmail: instructorUser.email,
+          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+          receiverPhone: instructorUser.mobileNumber,
+          actedBy: role,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          reasonType: body.reasonType,
+          comment: body.comment,
+          status: 'REQUESTED', // ✅ important
+        });
+      } catch (error) {
+        console.error('Instructor email failed:', error);
+      }
+    }
+
     return {
       success: true,
-      message: 'No-show already requested and pending approval',
+      message: 'No-show request submitted for admin approval',
     };
   }
-
-  /* ===============================
-     ✅ VALID STATUS CHECK
-  =============================== */
-  if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
-    throw new BadRequestException(
-      `Slot cannot be marked no-show from ${slot.status}`,
-    );
-  }
-
-  /* ===============================
-     🚫 PREVENT DUPLICATE REQUEST
-  =============================== */
-  const existingRequest = await this.noShowRequestModel.findOne({
-    bookingId: orderId,
-    slotId,
-    status: 'PENDING',
-  });
-
-  if (existingRequest) {
-    return {
-      success: true,
-      message: 'No-show request already pending',
-    };
-  }
-
-  /* ===============================
-     ✅ UPDATE SLOT
-  =============================== */
-  slot.status = 'NOSHOW_REQUESTED';
-
-  slot.actionMeta = {
-    actedBy: role,
-    reasonType: body.reasonType,
-    comment: body.comment,
-    attachment: body.attachmentUrl,
-    actedAt: new Date(),
-  };
-
-  await order.save();
-
-  /* ===============================
-     ✅ CREATE APPROVAL ENTRY
-  =============================== */
-  await this.noShowRequestModel.create({
-    bookingId: orderId, // ✅ FIXED
-    slotId,
-    requestedBy: role,
-    requestedByUserId: userId,
-    status: 'PENDING',
-
-    // ✅ FIXED mapping
-    reason: body.reasonType || body.comment || 'No reason provided',
-
-    comment: body.comment,
-    attachment: body.attachmentUrl,
-  });
-
-  /* ===============================
-     🔔 SEND NOTIFICATIONS
-  =============================== */
-
-  // 👉 Learner
-  if (learner?.email) {
-    try {
-      await this.notificationService.sendNoShowNotification({
-        receiverEmail: learner.email,
-        receiverName: learner.firstName,
-        receiverPhone: learner.mobileNumber,
-        actedBy: role,
-        slotDate: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        reasonType: body.reasonType,
-        comment: body.comment,
-        status: 'REQUESTED', // ✅ important
-      });
-    } catch (error) {
-      console.error('Learner email failed:', error);
-    }
-  }
-
-  // 👉 Instructor
-  if (instructorUser?.email) {
-    try {
-      await this.notificationService.sendNoShowNotification({
-        receiverEmail: instructorUser.email,
-        receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-        receiverPhone: instructorUser.mobileNumber,
-        actedBy: role,
-        slotDate: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        reasonType: body.reasonType,
-        comment: body.comment,
-        status: 'REQUESTED', // ✅ important
-      });
-    } catch (error) {
-      console.error('Instructor email failed:', error);
-    }
-  }
-
-  return {
-    success: true,
-    message: 'No-show request submitted for admin approval',
-  };
-}
 
   async completeSlot(
     orderId: string,
@@ -1950,15 +1950,15 @@ async requestNoShowSlot(
           ) {
             s.isBooked = false;
             s.orderId = null;
-            s.isTempBlocked= false;
-            s.bookingId= null;
+            s.isTempBlocked = false;
+            s.bookingId = null;
           }
         }
       }
     }
   }
 
-  
+
 
   async requestSlotReschedule(
     orderId: string,
@@ -2040,7 +2040,7 @@ async requestNoShowSlot(
       date: slot.date,
       startTime: slot.startTime,
       endTime: slot.endTime,
-      
+
     };
 
     const newSlot = {
@@ -2687,7 +2687,7 @@ async requestNoShowSlot(
   }
 
 
-  
+
 
   private overlaps(
     aStart: number,
@@ -2948,22 +2948,22 @@ async requestNoShowSlot(
   ) {
     const GAP = 30;
     const MIN_SLOT = 60;
-  
+
     const duration = reqEnd - reqStart;
-  
+
     // ✅ Allowed durations
     if (![60, 120, 150].includes(duration)) {
       throw new BadRequestException(
         'Only 1h, 2h or 2.5h bookings allowed',
       );
     }
-  
+
     /* -----------------------------------------
        ✅ AFTER GAP VALIDATION (FINAL FIX)
     ----------------------------------------- */
-  
+
     const remainingAfter = sEnd - reqEnd;
-  
+
     // ❗ Allow exact 30 min gap OR no space
     if (
       remainingAfter > GAP && // 🔥 strictly greater
@@ -2973,13 +2973,13 @@ async requestNoShowSlot(
         'Not enough space after booking for valid next slot',
       );
     }
-  
+
     /* -----------------------------------------
        ✅ BEFORE GAP VALIDATION (FINAL FIX)
     ----------------------------------------- */
-  
+
     const remainingBefore = reqStart - sStart;
-  
+
     if (
       remainingBefore > GAP && // 🔥 strictly greater
       remainingBefore < GAP + MIN_SLOT
