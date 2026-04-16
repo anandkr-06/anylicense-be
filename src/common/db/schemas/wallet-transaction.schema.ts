@@ -65,6 +65,11 @@ export class WalletTransaction {
   @Prop({required: false,default:false})
   isRefund?: boolean;
 
+  @Prop({required: false,default:0})
+  refundedAmount?: number;
+  @Prop({required: false,default:false})
+  isRefundRequested?: boolean;
+
   @Prop({ enum: WalletTxnStatus, default: WalletTxnStatus.COMPLETED })
   status!: WalletTxnStatus;
 

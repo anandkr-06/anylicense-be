@@ -30,6 +30,7 @@ import { PayoutService } from '@app/payouts/payout.service';
 import { StripeService } from '@app/payouts/stripe.service';
 import { Payout, PayoutSchema } from '@common/db/schemas/payout.schema';
 import { NotificationModule } from 'modules/notifications/notification.module';
+import { NoShowRequest, NoShowRequestSchema } from '@common/db/schemas/no-show-request.schema';
 
 
 
@@ -57,7 +58,7 @@ import { NotificationModule } from 'modules/notifications/notification.module';
 
       { name: WalletTransaction.name, schema: WalletTransactionSchema },
       { name: Payout.name, schema: PayoutSchema },
-    
+      { name: NoShowRequest.name, schema: NoShowRequestSchema },
     ]),
     AddressModule,
     DbModule,

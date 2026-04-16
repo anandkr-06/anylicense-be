@@ -10,7 +10,8 @@ import {
   BadRequestException,
   RawBody,
   Headers,
-  Query
+  Query,
+  ForbiddenException
 } from '@nestjs/common';
 import { OrderService } from '../services/order.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
@@ -125,12 +126,20 @@ export class OrdersController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: ActionMetaRequestDto,
   ) {
-    return this.ordersService.noShowSlot(
+    if (!user.role) {
+      throw new ForbiddenException('Role not found in token');
+    }
+  
+    if (dto.actedBy !== 'LEARNER' && dto.actedBy !== 'INSTRUCTOR') {
+      throw new ForbiddenException('Only learner or instructor can mark no-show');
+    }
+  
+    return this.ordersService.requestNoShowSlot(
       orderId,
       slotId,
       user.sub,
-      'INSTRUCTOR', // 'LEARNER' | 'INSTRUCTOR'
-      dto
+      dto.actedBy,
+      dto,
     );
   }
 
