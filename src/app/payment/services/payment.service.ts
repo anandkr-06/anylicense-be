@@ -667,6 +667,7 @@ export class StripeService {
           status: 1,
           stripePaymentIntentId: 1,
           createdAt: 1,
+          isRefund:1,
   
           // ✅ Order Data
           order: {
