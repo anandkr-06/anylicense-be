@@ -3017,10 +3017,10 @@ const instructorEarning = grossAmount - platformCommission - discountCommission;
       remainingAfter > GAP && // 🔥 strictly greater
       remainingAfter < GAP + MIN_SLOT
     ) {
-      // throw new BadRequestException(
-      //   'Not enough space after booking for valid next slot',
-      // );
-      return 'Not enough space after booking for valid next slot'
+      throw new BadRequestException(
+        'Not enough space after booking for valid next slot',
+      );
+      //return 'Not enough space after booking for valid next slot'
     }
 
     /* -----------------------------------------
@@ -3033,10 +3033,10 @@ const instructorEarning = grossAmount - platformCommission - discountCommission;
       remainingBefore > GAP && // 🔥 strictly greater
       remainingBefore < GAP + MIN_SLOT
     ) {
-      // throw new BadRequestException(
-      //   'Not enough space before booking for valid slot',
-      // );
-      return 'Not enough space before booking for valid slot'
+      throw new BadRequestException(
+        'Not enough space before booking for valid slot',
+      );
+      // return 'Not enough space before booking for valid slot'
     }
   }
 
