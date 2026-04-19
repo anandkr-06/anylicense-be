@@ -533,6 +533,7 @@ export class StripeService {
     } else {
       originalTxn = await this.walletModel.findOne({
         learnerId: learnerObjectId,
+        stripePaymentIntentId,
         type: 'CREDIT',
         source,
       });
@@ -594,7 +595,7 @@ export class StripeService {
       source: 'STRIPE_REFUND',
       referenceEntityId: originalTxn._id, // 🔥 CRITICAL FIX
       stripePaymentIntentId:
-        source === 'STRIPE' ? originalTxn.stripePaymentIntentId : null,
+        source ? originalTxn.stripePaymentIntentId : null,
       status: 'PENDING',
     });
   
