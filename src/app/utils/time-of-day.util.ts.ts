@@ -9,3 +9,25 @@ export function  isSlotInTimeOfDay(
 
   return normalized === 'am' ? hour < 12 : hour >= 12;
 }
+
+type Transaction = {
+  amount: number;
+  discountPercent: number;
+};
+
+export function getDiscountSummary(transactions: Transaction[]) {
+  const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+  const totalDiscount = transactions.reduce(
+    (sum, t) => sum + (t.amount * t.discountPercent) / 100,
+    0
+  );
+
+  return {
+    totalAmount,
+    totalDiscount,
+    effectiveDiscount: totalAmount
+      ? (totalDiscount / totalAmount) * 100
+      : 0,
+  };
+}
