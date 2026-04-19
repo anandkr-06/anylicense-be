@@ -580,10 +580,19 @@ export class StripeService {
     }
   
        // ✅ Mark original txn
-    await this.walletModel.updateOne(
-      { _id: originalTxn._id },
-      { $set: { isRefund: true } },
-    );
+       const result = await this.walletModel.updateOne(
+        {
+          learnerId: learnerObjectId,
+          stripePaymentIntentId: originalTxn.stripePaymentIntentId,
+          type: 'CREDIT',
+          source: originalTxn.source,
+        },
+        {
+          $set: { isRefund: true },
+        }
+      );
+      
+      console.log("Update result:", result);
 
     const newBalance = learner.walletBalance;
   
