@@ -1453,7 +1453,7 @@ const transactions: Transaction[] = instructorOrderDataDicount.map((item) => {
       : 0,
   };
 });
-
+console.log("Transaction data:",transactions);
 const percentageDiscount = getDiscountSummary(transactions);
   console.log("percentageDiscount",percentageDiscount.effectiveDiscount);
 const discountCommission = Number(
