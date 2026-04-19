@@ -579,6 +579,12 @@ export class StripeService {
       throw new BadRequestException('Insufficient wallet balance');
     }
   
+       // ✅ Mark original txn
+    await this.walletModel.updateOne(
+      { _id: originalTxn._id },
+      { $set: { isRefund: true } },
+    );
+
     const newBalance = learner.walletBalance;
   
     // ✅ Create txn
