@@ -26,7 +26,7 @@ import { Slot, SlotDocument } from '@common/db/schemas/slot.schema';
 import { RescheduleRequestDto } from '../dto/reschedule-request.dto';
 
 import { ActionMetaRequestDto } from '../dto/action-meta.dto';
-import { FeedbackOwnerType, OrderStatus } from '@constant/enum';
+import { FeedbackOwnerType, OrderStatus, reasonInstructorMap, reasonLearnerMap } from '@constant/enum';
 import { calculateSlotDurationInHours, normalizeTime } from '@constant/order-actions';
 import { CreatePrivateOrderDto } from '../dto/create-private-order.dto';
 import { PrivateLearnerService } from '../services/private-order.service';
@@ -1270,7 +1270,7 @@ export class OrderService {
        ✅ CREATE APPROVAL ENTRY
     =============================== */
 
-
+    const reasonLabel = role==='LEARNER'?reasonLearnerMap.get(body.reasonType) || "":reasonInstructorMap.get(body.reasonType) || "";
 
     await this.noShowRequestModel.create({
       bookingId: new Types.ObjectId(orderId), // ✅ FIX
@@ -1278,7 +1278,7 @@ export class OrderService {
       requestedBy: role,
       requestedByUserId: new Types.ObjectId(userId),
       status: 'PENDING',
-      reason: body.reasonType || body.comment || 'No reason provided',
+      reason: reasonLabel || body.comment || 'No reason provided',
       comment: body.comment,
       attachment: body.attachmentUrl,
     });
@@ -1298,7 +1298,7 @@ export class OrderService {
           slotDate: slot.date,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          reasonType: body.reasonType,
+          reasonType: reasonLabel,
           comment: body.comment,
           status: 'REQUESTED', // ✅ important
         });
@@ -1318,7 +1318,7 @@ export class OrderService {
           slotDate: slot.date,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          reasonType: body.reasonType,
+          reasonType: reasonLabel,
           comment: body.comment,
           status: 'REQUESTED', // ✅ important
         });
