@@ -545,11 +545,11 @@ export class StripeService {
     const refundedAmount = originalTxn.refundedAmount || 0;
     const remainingAmount = originalTxn.amount - refundedAmount;
   
-    if (amount > remainingAmount) {
-      throw new BadRequestException(
-        `Refund exceeds remaining amount (${remainingAmount})`,
-      );
-    }
+    // if (amount > remainingAmount) {
+    //   throw new BadRequestException(
+    //     `Refund exceeds remaining amount (${remainingAmount})`,
+    //   );
+    // }
   
     // ✅ Prevent duplicate pending
     const existingPending = await this.walletModel.findOne({
