@@ -33,6 +33,10 @@ export class InstructorTransaction {
   @Prop({ default: 0 })
   platformCommission!: number;
 
+  @Prop({ default: 0 })
+  discountCommission!: number;
+  
+
   @Prop({ required: true })
   instructorEarning!: number;
 

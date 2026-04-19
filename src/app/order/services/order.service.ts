@@ -47,6 +47,7 @@ import { PopulatedOrder } from '@constant/helper';
 import { Cron } from '@nestjs/schedule';
 import { User, UserDocument } from '@common/db/schemas/user.schema';
 import { NoShowDecision, NoShowRequest, NoShowRequestDocument } from '@common/db/schemas/no-show-request.schema';
+import { getDiscountSummary } from '@app/utils/time-of-day.util.ts';
 
 interface InstructorHour {
   startTime: string;
@@ -1415,7 +1416,53 @@ export class OrderService {
     }
 
     const platformCommission = grossAmount * 0.17;
-    const instructorEarning = grossAmount - platformCommission;
+
+/**
+ * Added discount comission
+ */
+
+type OrderDoc = {
+  stripeAmount: number;
+  discount: number;        // discount amount (NOT %)
+  platformCharge: number;
+};
+
+type Transaction = {
+  amount: number;
+  discountPercent: number;
+};
+
+const instructorOrderDataDicount: OrderDoc[] =
+  await this.orderModel.find(
+    { instructorId: order.instructorId, paymentStatus: 'PAID' },
+    {
+      stripeAmount: 1,
+      discount: 1,
+      platformCharge: 1,
+    }
+  ).lean();
+
+const transactions: Transaction[] = instructorOrderDataDicount.map((item) => {
+  const amount =
+    item.stripeAmount + item.discount - item.platformCharge;
+
+  return {
+    amount,
+    discountPercent: amount
+      ? (item.discount / amount) * 100
+      : 0,
+  };
+});
+
+const percentageDiscount = getDiscountSummary(transactions);
+  console.log("percentageDiscount",percentageDiscount.effectiveDiscount);
+const discountCommission = Number(
+  (grossAmount * (percentageDiscount.effectiveDiscount / 100)).toFixed(2)
+);
+const instructorEarning = grossAmount - platformCommission - discountCommission;
+
+//End
+    
 
     const txn = await this.instructorTransactionModel.create({
       orderId: order._id,
@@ -1427,6 +1474,7 @@ export class OrderService {
       pricePerHour,
       grossAmount,
       platformCommission,
+      discountCommission,
       instructorEarning,
     });
 
@@ -2969,9 +3017,10 @@ export class OrderService {
       remainingAfter > GAP && // 🔥 strictly greater
       remainingAfter < GAP + MIN_SLOT
     ) {
-      throw new BadRequestException(
-        'Not enough space after booking for valid next slot',
-      );
+      // throw new BadRequestException(
+      //   'Not enough space after booking for valid next slot',
+      // );
+      return 'Not enough space after booking for valid next slot'
     }
 
     /* -----------------------------------------
@@ -2984,9 +3033,10 @@ export class OrderService {
       remainingBefore > GAP && // 🔥 strictly greater
       remainingBefore < GAP + MIN_SLOT
     ) {
-      throw new BadRequestException(
-        'Not enough space before booking for valid slot',
-      );
+      // throw new BadRequestException(
+      //   'Not enough space before booking for valid slot',
+      // );
+      return 'Not enough space before booking for valid slot'
     }
   }
 

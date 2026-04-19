@@ -406,6 +406,7 @@ async getTransactions(
           pricePerHour: 1,
           grossAmount: 1,
           platformCommission: 1,
+          discountCommission:1,
           instructorEarning: 1,
           payoutStatus: 1,
           createdAt: 1,
