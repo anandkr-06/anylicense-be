@@ -398,6 +398,104 @@ export class StripeService {
   //   };
   // }
 
+  // async requestWithdrawToCard(
+  //   learnerId: string,
+  //   amount: number,
+  //   stripePaymentIntentId: string,
+  //   source: string,
+  // ) {
+  //   if (amount <= 0) {
+  //     throw new BadRequestException('Invalid withdrawal amount');
+  //   }
+  
+  //   if (source !== 'STRIPE') {
+  //     throw new BadRequestException('Invalid refund source');
+  //   }
+  
+  //   const learnerObjectId = new Types.ObjectId(learnerId);
+  
+  //   // ✅ Get original CREDIT txn
+  //   const originalTxn = await this.walletModel.findOne({
+  //     learnerId: learnerObjectId,
+  //     stripePaymentIntentId,
+  //     type: 'CREDIT',
+  //   });
+  
+  //   if (!originalTxn) {
+  //     throw new BadRequestException('No valid refundable transaction found');
+  //   }
+  
+  //   const refundedAmount = originalTxn.refundedAmount || 0;
+  //   const remainingAmount = originalTxn.amount - refundedAmount;
+  
+  //   if (amount > remainingAmount) {
+  //     throw new BadRequestException(
+  //       `Refund exceeds remaining amount (${remainingAmount})`,
+  //     );
+  //   }
+  
+  //   // ✅ Prevent duplicate PENDING requests for same intent
+  //   const existingPending = await this.walletModel.findOne({
+  //     learnerId: learnerObjectId,
+  //     stripePaymentIntentId,
+  //     source: 'STRIPE_REFUND',
+  //     status: 'PENDING',
+  //   });
+  
+  //   if (existingPending) {
+  //     throw new BadRequestException('Refund already pending for this payment');
+  //   }
+  
+  //   // ✅ Atomic wallet deduction (prevents race conditions)
+  //   const learner = await this.learnerModel.findOneAndUpdate(
+  //     {
+  //       _id: learnerObjectId,
+  //       walletBalance: { $gte: amount },
+  //     },
+  //     {
+  //       $inc: { walletBalance: -amount },
+  //     },
+  //     { new: true },
+  //   );
+  
+  //   if (!learner) {
+  //     throw new BadRequestException('Insufficient wallet balance');
+  //   }
+  
+  //   // ✅ Get latest txn for balanceAfter
+  //   const lastTxn = await this.walletModel
+  //     .findOne({ learnerId: learnerObjectId })
+  //     .sort({ createdAt: -1 });
+  
+  //   const newBalance = (lastTxn?.balanceAfter || 0) - amount;
+  
+  //   // ✅ Create HOLD txn
+  //   const withdrawalTxn = await this.walletModel.create({
+  //     learnerId: learnerObjectId,
+  //     userId: learnerObjectId,
+  //     role: 'learner',
+  //     type: 'DEBIT',
+  //     amount,
+  //     balanceAfter: newBalance,
+  //     description: 'Refund Requested (Pending Approval)',
+  //     source: 'STRIPE_REFUND',
+  //     stripePaymentIntentId,
+  //     status: 'PENDING',
+  //   });
+  
+  //   // ✅ Mark request (NOT final refund)
+  //   await this.walletModel.updateOne(
+  //     { _id: originalTxn._id },
+  //     { $set: { isRefundRequested: true } },
+  //   );
+  
+  //   return {
+  //     message: 'Refund request submitted for admin approval',
+  //     requestId: withdrawalTxn._id,
+  //     balanceAfter: newBalance,
+  //     remainingRefundable: remainingAmount - amount,
+  //   };
+  // }
   async requestWithdrawToCard(
     learnerId: string,
     amount: number,
@@ -408,18 +506,37 @@ export class StripeService {
       throw new BadRequestException('Invalid withdrawal amount');
     }
   
-    if (source !== 'STRIPE') {
-      throw new BadRequestException('Invalid refund source');
+    const ALLOWED_SOURCES = ['ORDER', 'GIFT_VOUCHER', 'STRIPE'];
+  
+    if (!ALLOWED_SOURCES.includes(source)) {
+      throw new BadRequestException(
+        'Refund allowed only for ORDER, GIFT_VOUCHER, STRIPE',
+      );
     }
   
     const learnerObjectId = new Types.ObjectId(learnerId);
   
-    // ✅ Get original CREDIT txn
-    const originalTxn = await this.walletModel.findOne({
-      learnerId: learnerObjectId,
-      stripePaymentIntentId,
-      type: 'CREDIT',
-    });
+    // ✅ Get original txn
+    let originalTxn;
+  
+    if (source === 'STRIPE') {
+      if (!stripePaymentIntentId) {
+        throw new BadRequestException('Missing stripePaymentIntentId');
+      }
+  
+      originalTxn = await this.walletModel.findOne({
+        learnerId: learnerObjectId,
+        stripePaymentIntentId,
+        type: 'CREDIT',
+        source: 'STRIPE',
+      });
+    } else {
+      originalTxn = await this.walletModel.findOne({
+        learnerId: learnerObjectId,
+        type: 'CREDIT',
+        source,
+      });
+    }
   
     if (!originalTxn) {
       throw new BadRequestException('No valid refundable transaction found');
@@ -434,19 +551,19 @@ export class StripeService {
       );
     }
   
-    // ✅ Prevent duplicate PENDING requests for same intent
+    // ✅ Prevent duplicate pending
     const existingPending = await this.walletModel.findOne({
       learnerId: learnerObjectId,
-      stripePaymentIntentId,
+      stripePaymentIntentId: originalTxn.stripePaymentIntentId,
       source: 'STRIPE_REFUND',
       status: 'PENDING',
     });
   
     if (existingPending) {
-      throw new BadRequestException('Refund already pending for this payment');
+      throw new BadRequestException('Refund already pending');
     }
   
-    // ✅ Atomic wallet deduction (prevents race conditions)
+    // ✅ Deduct wallet
     const learner = await this.learnerModel.findOneAndUpdate(
       {
         _id: learnerObjectId,
@@ -462,14 +579,9 @@ export class StripeService {
       throw new BadRequestException('Insufficient wallet balance');
     }
   
-    // ✅ Get latest txn for balanceAfter
-    const lastTxn = await this.walletModel
-      .findOne({ learnerId: learnerObjectId })
-      .sort({ createdAt: -1 });
+    const newBalance = learner.walletBalance;
   
-    const newBalance = (lastTxn?.balanceAfter || 0) - amount;
-  
-    // ✅ Create HOLD txn
+    // ✅ Create txn
     const withdrawalTxn = await this.walletModel.create({
       learnerId: learnerObjectId,
       userId: learnerObjectId,
@@ -477,17 +589,11 @@ export class StripeService {
       type: 'DEBIT',
       amount,
       balanceAfter: newBalance,
-      description: 'Refund Requested (Pending Approval)',
+      description: `Refund requested for ${source} (Pending Approval)`,
       source: 'STRIPE_REFUND',
-      stripePaymentIntentId,
+      stripePaymentIntentId: originalTxn.stripePaymentIntentId,
       status: 'PENDING',
     });
-  
-    // ✅ Mark request (NOT final refund)
-    await this.walletModel.updateOne(
-      { _id: originalTxn._id },
-      { $set: { isRefundRequested: true } },
-    );
   
     return {
       message: 'Refund request submitted for admin approval',

@@ -1102,7 +1102,8 @@ async getAvailableSlots(
   timeOfDay?: 'AM' | 'PM',
 ) {
   const now = new Date();
-  const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  // const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const next24Hours = new Date(now.getTime() + 1 * 60 * 60 * 1000);
 
   const instructor = await this.instructorProfileModel
     .findOne({ userId: new Types.ObjectId(instructorId) })
