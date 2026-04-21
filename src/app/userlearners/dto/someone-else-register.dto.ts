@@ -73,4 +73,8 @@ export class SomeOneLeanerRegisterDto {
   @ValidateNested()
   @Type(() => PurchaserDto)
   purchaser!: PurchaserDto;
+
+  @IsNotEmpty()
+  @IsString()
+  captchaToken!: string;
 }

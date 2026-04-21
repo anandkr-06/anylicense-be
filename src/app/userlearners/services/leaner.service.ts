@@ -26,6 +26,7 @@ import { Request } from 'express';
 import { Referral } from '@common/db/schemas/referral.schema';
 import { GiftVoucherService } from '@app/gift-vouchers/services/gift-voucher-service';
 import { UserRole } from '@constant/users';
+import { verifyCaptcha } from 'utils/google-captcha';
 @Injectable()
 export class LearnerService {
   constructor(
@@ -171,68 +172,146 @@ export class LearnerService {
   }
 
 
-  async registerSelf(
-    payload: SelfLeanerRegisterDto,
-    req: string,
-  ) {
+  async registerSelf(payload: SelfLeanerRegisterDto, req: string) {
+    return this.createLearner(payload, req);
+  }
+  
+  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req: string) {
     return this.createLearner(payload, req);
   }
 
 
-  async registerSomeOne(payload: SomeOneLeanerRegisterDto, req: string,) {
-    return this.createLearner(payload, req);
-  }
 
-  private async createLearner(
-    payload: any,
-    referralCode?: string,
-  ) {
-    const hashedPassword = await bcrypt.hash(payload.password, 10);
-    payload.password = hashedPassword;
+  // private async createLearner(
+  //   payload: any,
+  //   referralCode?: string,
+  // ) {
+  //   const hashedPassword = await bcrypt.hash(payload.password, 10);
+  //   payload.password = hashedPassword;
+  //   try {
+  //     const learnerData = {
+  //       firstName: payload.firstName,
+  //       lastName: payload.lastName,
+  //       email: payload.email,
+  //       password: hashedPassword,
+  //       mobileNumber: payload.mobileNumber,
+  //       dob: payload.dob,
+  //       isTncApproved: payload.isTncApproved,
+  //       isNotificationSent: payload.isNotificationSent,
+  //       pickUpAddress: payload.pickUpAddress,
+  //       suburb: payload.suburb,
+  //       state: payload.state,
+  //       whichBestDescribeYou: payload.whichBestDescribeYou,
+      
+  //       // ✅ Only attach if exists
+  //       ...(payload.purchaser && { purchaser: payload.purchaser }),
+  //     };
+      
+  //     const learner = await this.learnerModel.create(learnerData);
+  //     // const learner = await this.learnerModel.create(payload);
+
+  //     /* -----------------------------------
+  //    🎁 AUTO GIFT VOUCHER REDEEM
+  // ----------------------------------- */
+  //     await this.giftVoucherService.tryRedeemForLearner(learner);
+
+  //     if (
+  //       referralCode &&
+  //       Types.ObjectId.isValid(referralCode)
+  //     ) {
+  //       const referrer = await this.learnerModel.findById(
+  //         new Types.ObjectId(referralCode),
+  //       );
+
+  //       if (
+  //         referrer &&
+  //         referrer._id.toString() !== learner._id.toString()
+  //       ) {
+  //         await this.learnerModel.updateOne(
+  //           { _id: learner._id },
+  //           { referredBy: referrer._id },
+  //         );
+
+  //         await this.referralModel.create({
+  //           referrerId: referrer._id,
+  //           refereeId: learner._id,
+  //           status: 'REGISTERED',
+  //         });
+  //       }
+  //     }
+
+  //     return {
+  //       accessToken: this.jwtService.sign({
+  //         sub: learner._id,
+  //         email: learner.email,
+  //       }),
+  //       success: true,
+  //       message: 'Learner created successfully',
+  //       learner: {
+  //         id: learner._id,
+  //         firstName: learner.firstName,
+  //         email: learner.email,
+  //         mobileNumber: learner.mobileNumber,
+  //       },
+  //     };
+  //   } catch (error: any) {
+  //     if (error?.code === 11000) {
+  //       if (error?.keyPattern?.email) {
+  //         throw new ConflictException('Email already registered');
+  //       }
+
+  //       if (error?.keyPattern?.mobileNumber) {
+  //         throw new ConflictException('Mobile number already registered');
+  //       }
+
+  //       throw new ConflictException('User already exists');
+  //     }
+
+  //     throw new InternalServerErrorException(error?.message);
+  //   }
+
+  // }
+  private async createLearner(payload: any, referralCode?: string) {
+    const { captchaToken, password, ...rest } = payload;
+  
+    // ✅ CAPTCHA validation
+    const captchaRes = await verifyCaptcha(captchaToken);
+  
+    if (!captchaRes.success) {
+      throw new BadRequestException('Captcha verification failed');
+    }
+  
+    if (captchaRes.score !== undefined && captchaRes.score < 0.5) {
+      throw new BadRequestException('Suspicious activity detected');
+    }
+  
+    // ✅ Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
     try {
       const learnerData = {
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        email: payload.email,
+        ...rest,
         password: hashedPassword,
-        mobileNumber: payload.mobileNumber,
-        dob: payload.dob,
-        isTncApproved: payload.isTncApproved,
-        isNotificationSent: payload.isNotificationSent,
-        pickUpAddress: payload.pickUpAddress,
-        suburb: payload.suburb,
-        state: payload.state,
-        whichBestDescribeYou: payload.whichBestDescribeYou,
-      
+  
         // ✅ Only attach if exists
-        ...(payload.purchaser && { purchaser: payload.purchaser }),
+        ...(rest.purchaser && { purchaser: rest.purchaser }),
       };
-      
+  
       const learner = await this.learnerModel.create(learnerData);
-      // const learner = await this.learnerModel.create(payload);
-
-      /* -----------------------------------
-     🎁 AUTO GIFT VOUCHER REDEEM
-  ----------------------------------- */
+  
+      // 🎁 Auto voucher
       await this.giftVoucherService.tryRedeemForLearner(learner);
-
-      if (
-        referralCode &&
-        Types.ObjectId.isValid(referralCode)
-      ) {
-        const referrer = await this.learnerModel.findById(
-          new Types.ObjectId(referralCode),
-        );
-
-        if (
-          referrer &&
-          referrer._id.toString() !== learner._id.toString()
-        ) {
+  
+      // 🎯 Referral logic
+      if (referralCode && Types.ObjectId.isValid(referralCode)) {
+        const referrer = await this.learnerModel.findById(referralCode);
+  
+        if (referrer && referrer._id.toString() !== learner._id.toString()) {
           await this.learnerModel.updateOne(
             { _id: learner._id },
             { referredBy: referrer._id },
           );
-
+  
           await this.referralModel.create({
             referrerId: referrer._id,
             refereeId: learner._id,
@@ -240,7 +319,7 @@ export class LearnerService {
           });
         }
       }
-
+  
       return {
         accessToken: this.jwtService.sign({
           sub: learner._id,
@@ -260,17 +339,16 @@ export class LearnerService {
         if (error?.keyPattern?.email) {
           throw new ConflictException('Email already registered');
         }
-
+  
         if (error?.keyPattern?.mobileNumber) {
           throw new ConflictException('Mobile number already registered');
         }
-
+  
         throw new ConflictException('User already exists');
       }
-
+  
       throw new InternalServerErrorException(error?.message);
     }
-
   }
 
 

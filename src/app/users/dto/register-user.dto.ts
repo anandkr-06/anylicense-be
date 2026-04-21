@@ -67,6 +67,10 @@ export class RegisterUserDto {
   @IsBoolean()
   public isActive!: boolean;
 
+  @IsNotEmpty()
+  @IsString()
+  captchaToken!: string;
+  
   // @IsOptional()
   // @ValidateNested()
   // @Type(() => CreateAddressDto)
