@@ -26,6 +26,7 @@ import { PinoLogger } from 'nestjs-pino';
 import { GetLeadsQueryDto } from '../dto/get-leads-query.dto';
 import { Lead } from '../schema/lead.schema';
 import { first } from 'rxjs';
+import { verifyCaptcha } from 'utils/google-captcha';
 
 
 export class CourseService {
@@ -45,48 +46,62 @@ export class CourseService {
   ) { }
 
   async signup(dto: CourseSignupDto) {
-    const exists = await this.courseProviderModel.findOne({
-      $or: [{ email: dto.email }, { phone: dto.phone }],
-    });
+    const { email, password, captchaToken, phone, ...rest } = dto;
   
-    if (exists) {
-      throw new BadRequestException('Email or mobile already registered');
+    const normalizedEmail = email.toLowerCase().trim();
+  
+    // ✅ Step 1: Verify captcha
+    const captchaRes = await verifyCaptcha(captchaToken);
+  
+    if (!captchaRes.success) {
+      throw new BadRequestException('Captcha verification failed');
     }
   
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    if (captchaRes.score !== undefined && captchaRes.score < 0.5) {
+      throw new BadRequestException('Suspicious activity detected');
+    }
   
-    const payload = await this.courseProviderModel.create({
-      ...dto,
-      password: hashedPassword,
-    });
+    // ✅ Step 2: Check existing user
+    const existingUser = await this.courseProviderModel
+      .findOne({
+        $or: [{ email: normalizedEmail }, { phone }],
+      })
+      .lean();
   
-    let emailSent = false;
+    if (existingUser) {
+      throw new BadRequestException('User already exists');
+    }
   
-    // try {
-    //   this.notificationService.sendCourseSignUp(payload);
-    
-    //   emailSent = true;
-    // } catch (error) {
-    //   this.smtpErrorHandler.handle(error, {
-    //     providerId: payload._id,
-    //     source: 'course-provider-signup',
-    //   })
-    // }
-
-    
-      this.notificationService
-    .sendCourseSignUp(payload)
-    .catch(error =>
-      this.smtpErrorHandler.handle(error, {
-        providerId: payload._id,
-        source: 'course/course-booking',
-      }),
-    );
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    let payload;
+    try {
+      payload = await this.courseProviderModel.create({
+        ...rest,
+        email: normalizedEmail,
+        phone,
+        password: hashedPassword,
+      });
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new BadRequestException('User already exists');
+      }
+      throw err;
+    }
+  
+    // ✅ Step 3: Send email (non-blocking)
+    this.notificationService
+      .sendCourseSignUp(payload)
+      .catch(error =>
+        this.smtpErrorHandler.handle(error, {
+          providerId: payload._id,
+          source: 'course/course-booking',
+        }),
+      );
   
     return {
       success: true,
       message: 'Course provider registered successfully',
-      emailSent, // optional
     };
   }
   

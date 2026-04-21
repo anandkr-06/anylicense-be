@@ -16,22 +16,31 @@ class ProviderLocation {
 
 @Schema({ timestamps: true })
 export class CourseProvider extends Document {
-  @Prop({ required: true })
+  @Prop({ required: true, trim: true })
   instituteName!: string;
 
-  @Prop()
+  @Prop({ trim: true })
   ownerName?: string;
 
-  @Prop({ unique: true, sparse: true })
+  @Prop({
+    unique: true,
+    sparse: true,
+    lowercase: true,
+    trim: true,
+  })
   email?: string;
 
-  @Prop({ unique: true, sparse: true })
+  @Prop({
+    unique: true,
+    sparse: true,
+    trim: true,
+  })
   phone?: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, minlength: 6 })
   password!: string;
 
-  @Prop()
+  @Prop({ trim: true })
   gstNumber?: string;
 
   @Prop()
@@ -43,22 +52,14 @@ export class CourseProvider extends Document {
   @Prop({ default: true })
   isActive!: boolean;
 
-  // ✅ UPDATED LOCATION
-  @Prop({
-    type: ProviderLocation,
-    default: () => ({
-      suburb: '',
-      state: '',
-      postCode: '',
-    }),
-  })
-  location!: ProviderLocation;
+  @Prop({ type: ProviderLocation })
+  location?: ProviderLocation;
 
-  @Prop({ default: true })
-  isAgreedToTermsAndConditions?: boolean;
+  @Prop({ default: false })
+  isAgreedToTermsAndConditions!: boolean;
 
-  @Prop({ default: true })
-  isAgreedToCommunicationAndOffers?: boolean;
+  @Prop({ default: false })
+  isAgreedToCommunicationAndOffers!: boolean;
 }
 
 export const CourseProviderSchema =
