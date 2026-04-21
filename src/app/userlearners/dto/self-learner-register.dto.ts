@@ -50,4 +50,7 @@ export class SelfLeanerRegisterDto {
   @IsString()
   whichBestDescribeYou!: string;
 
+  @IsNotEmpty()
+  @IsString()
+  captchaToken!: string;
 }

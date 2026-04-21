@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class LocationDto {
   @IsOptional()
@@ -28,5 +28,9 @@ export class CreateLeadDto {
 
   @IsOptional()
   location?: LocationDto;
+
+  @IsNotEmpty()
+  @IsString()
+  captchaToken!: string;
 }
 

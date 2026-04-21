@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Course } from '../schema/course.schema';
@@ -9,6 +9,7 @@ import { NotificationService } from 'modules/notifications/notification.service'
 import { SmtpErrorHandlerService } from '@common/smtp/smtp-error-handler.service';
 import { PinoLogger } from 'nestjs-pino';
 import { courseType } from '@constant/enum';
+import { verifyCaptcha } from 'utils/google-captcha';
 
 @Injectable()
 export class PublicCourseService {
@@ -128,74 +129,167 @@ export class PublicCourseService {
     };
   }
 
-  async createLead(dto: CreateLeadDto) {
-    const course = await this.courseModel
-  .findOne({
-    _id: new Types.ObjectId(dto.courseId),
-    isDeleted: false,
-  })
-  .select('providerId') // only select what exists in Course
-  .populate({
-    path: 'providerId',
-    select: 'instituteName email', // fields from CourseProvider
-  })
-  .lean();
+  // async createLead(dto: CreateLeadDto) {
+  //   const course = await this.courseModel
+  // .findOne({
+  //   _id: new Types.ObjectId(dto.courseId),
+  //   isDeleted: false,
+  // })
+  // .select('providerId') // only select what exists in Course
+  // .populate({
+  //   path: 'providerId',
+  //   select: 'instituteName email', // fields from CourseProvider
+  // })
+  // .lean();
 
-      this.logger.info('Lead course.'+JSON.stringify(course));
+  //     this.logger.info('Lead course.'+JSON.stringify(course));
+  //   if (!course) {
+  //     throw new NotFoundException('Course not found');
+  //   }
+
+  //   // 2️⃣ Fetch provider website
+  //   const courseData = await this.courseModel
+  //     .findById(dto.courseId)
+  //     .select('url')
+  //     .lean();
+
+  //   const redirectUrl = courseData?.url ?? null;
+
+  //   // 3️⃣ Check duplicate lead
+  //   const leadExists = await this.courseLeadModel.exists({
+  //     email: dto.email,
+  //     courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+  //   });
+
+  //   if (!leadExists) {
+  //     const payload = await this.courseLeadModel.create({
+  //       firstName: dto.firstName,
+  //       email: dto.email,
+  //       lastName: dto.lastName,
+  //       phone: dto.phone,
+  //       userType: dto.userType,
+  //       courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+  //       source: dto.source,
+  //       location: dto.location,
+  //       isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
+  //       isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
+
+  //     });
+  //     this.logger.info('customer payload details:'+JSON.stringify(payload));
+  //     this.notificationService
+  //     .sendCourseLeadCustomer(payload)
+  //     .catch(error =>
+  //       this.smtpErrorHandler.handle(error, {
+  //         providerId: payload._id,
+  //         source: 'lead-customer',
+  //       }),
+  //     );
+      
+  //     this.logger.info('Provider.'+JSON.stringify(course.providerId));
+  //     this.notificationService
+  //     .sendCourseLeadProvider(payload, course.providerId)
+  //     .catch(error =>
+  //       this.smtpErrorHandler.handle(error, {
+  //         providerId: payload._id,
+  //         source: 'lead-provider',
+  //       }),
+  //     );
+  //   }
+
+  //   // 4️⃣ Unified response
+  //   return {
+  //     success: true,
+  //     message: 'Lead submitted successfully',
+  //     redirectUrl,
+  //   };
+  // }
+  async createLead(dto: CreateLeadDto) {
+    const { captchaToken, ...rest } = dto;
+  
+    // ✅ Step 1: CAPTCHA validation FIRST
+    const captchaRes = await verifyCaptcha(captchaToken);
+  
+    if (!captchaRes.success) {
+      throw new BadRequestException('Captcha verification failed');
+    }
+  
+    if (captchaRes.score !== undefined && captchaRes.score < 0.5) {
+      throw new BadRequestException('Suspicious activity detected');
+    }
+  
+    // ✅ Step 2: Fetch course + provider
+    const course = await this.courseModel
+      .findOne({
+        _id: new Types.ObjectId(rest.courseId),
+        isDeleted: false,
+      })
+      .select('providerId')
+      .populate({
+        path: 'providerId',
+        select: 'instituteName email',
+      })
+      .lean();
+  
+    this.logger.info('Lead course.' + JSON.stringify(course));
+  
     if (!course) {
       throw new NotFoundException('Course not found');
     }
-
-    // 2️⃣ Fetch provider website
+  
+    // ✅ Step 3: Fetch redirect URL
     const courseData = await this.courseModel
-      .findById(dto.courseId)
+      .findById(rest.courseId)
       .select('url')
       .lean();
-
+  
     const redirectUrl = courseData?.url ?? null;
-
-    // 3️⃣ Check duplicate lead
+  
+    // ✅ Step 4: Check duplicate lead
     const leadExists = await this.courseLeadModel.exists({
-      email: dto.email,
-      courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+      email: rest.email,
+      courseId: new Types.ObjectId(rest.courseId),
     });
-
+  
     if (!leadExists) {
       const payload = await this.courseLeadModel.create({
-        firstName: dto.firstName,
-        email: dto.email,
-        lastName: dto.lastName,
-        phone: dto.phone,
-        userType: dto.userType,
-        courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
-        source: dto.source,
-        location: dto.location,
-        isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
-        isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
-
+        firstName: rest.firstName,
+        email: rest.email,
+        lastName: rest.lastName,
+        phone: rest.phone,
+        userType: rest.userType,
+        courseId: new Types.ObjectId(rest.courseId),
+        source: rest.source,
+        location: rest.location,
+        isAgreedToTermsAndConditions: rest.isAgreedToTermsAndConditions,
+        isAgreedToCommunicationAndOffers: rest.isAgreedToCommunicationAndOffers,
       });
-      this.logger.info('customer payload details:'+JSON.stringify(payload));
-      this.notificationService
-      .sendCourseLeadCustomer(payload)
-      .catch(error =>
-        this.smtpErrorHandler.handle(error, {
-          providerId: payload._id,
-          source: 'lead-customer',
-        }),
+  
+      this.logger.info(
+        'customer payload details:' + JSON.stringify(payload),
       );
-      
-      this.logger.info('Provider.'+JSON.stringify(course.providerId));
+  
+      // ✅ Customer email
       this.notificationService
-      .sendCourseLeadProvider(payload, course.providerId)
-      .catch(error =>
-        this.smtpErrorHandler.handle(error, {
-          providerId: payload._id,
-          source: 'lead-provider',
-        }),
-      );
+        .sendCourseLeadCustomer(payload)
+        .catch(error =>
+          this.smtpErrorHandler.handle(error, {
+            providerId: payload._id,
+            source: 'lead-customer',
+          }),
+        );
+  
+      // ✅ Provider email
+      this.notificationService
+        .sendCourseLeadProvider(payload, course.providerId)
+        .catch(error =>
+          this.smtpErrorHandler.handle(error, {
+            providerId: payload._id,
+            source: 'lead-provider',
+          }),
+        );
     }
-
-    // 4️⃣ Unified response
+  
+    // ✅ Step 5: Response
     return {
       success: true,
       message: 'Lead submitted successfully',

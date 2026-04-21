@@ -23,6 +23,7 @@ import { NotFoundException } from "@nestjs/common";
 import { PinoLogger } from 'nestjs-pino';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { createRandomString } from '@lib/methods';
+import { verifyCaptcha } from 'utils/google-captcha';
 
 
 @Injectable()
@@ -38,31 +39,112 @@ export class UserService {
   ) { this.logger.setContext(User.name); }
 
 
+  // public async register(dto: RegisterUserDto) {
+  //   try {
+  //     if (!dto.transmissionType) {
+  //       throw new BadRequestException('transmissionType is required');
+  //     }
+  //     const randomString = createRandomString(10);
+  //     const hashedPassword = await hashPassword(randomString);
+  //     const user = await this.userDbService.createUser({
+  //       firstName: dto.firstName,
+  //       lastName: dto.lastName,
+  //       email: dto.email,
+  //       mobileNumber: dto.mobileNumber,
+  //       gender: dto.gender,
+  //       dob: dto.dob,
+  //       description: dto.description,
+  //       postCode: dto.postCode,
+  //       isTncApproved: dto.isTncApproved,
+  //       isNotificationSent: dto.isNotificationSent,
+  //       isActive: true, // until verification
+  //       state: dto.state,
+  //       transmissionType: dto.transmissionType,
+  //       password: hashedPassword,
+  //     });
+  
+  //     const vehicles = this.buildDefaultVehicles(dto.transmissionType);
+  
+  //     await this.instructorProfileModel.create({
+  //       userId: user._id,
+  //       isVerified: false,
+  //       vehicles,
+  //     });
+  
+  //     this.notificationService.sendInstructorWelcomeEmail({
+  //       recipientEmail: user.email,
+  //       instructorName: user.firstName,
+  //       password:randomString,
+  //     }).catch(err =>
+  //       this.logger.error(err, 'Welcome email failed'),
+  //     );
+      
+  
+  //     this.logger.info(`Instructor registered: ${user.email}`);
+  
+  //     // ✅ IMPORTANT
+  //     return successResponse(user);
+     
+  //   } catch (error: any) {
+  //     this.logger.error({ error }, 'User registration failed');
+  
+  //     if (error?.code === 11000) {
+  //       if (error?.keyPattern?.email) {
+  //         throw new ConflictException('Email already registered');
+  //       }
+  //       if (error?.keyPattern?.mobileNumber) {
+  //         throw new ConflictException('Mobile number already registered');
+  //       }
+  //       throw new ConflictException('User already exists');
+  //     }
+  
+  //     throw new InternalServerErrorException(error?.message);
+  //   }
+  // }
   public async register(dto: RegisterUserDto) {
+    const { captchaToken, ...rest } = dto;
+  
     try {
-      if (!dto.transmissionType) {
+      // ✅ Step 1: CAPTCHA validation FIRST
+      const captchaRes = await verifyCaptcha(captchaToken);
+  
+      if (!captchaRes.success) {
+        throw new BadRequestException('Captcha verification failed');
+      }
+  
+      if (captchaRes.score !== undefined && captchaRes.score < 0.5) {
+        throw new BadRequestException('Suspicious activity detected');
+      }
+  
+      // ✅ Step 2: Business validation
+      if (!rest.transmissionType) {
         throw new BadRequestException('transmissionType is required');
       }
+  
+      // ✅ Step 3: Generate password
       const randomString = createRandomString(10);
       const hashedPassword = await hashPassword(randomString);
+  
+      // ✅ Step 4: Create user
       const user = await this.userDbService.createUser({
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        email: dto.email,
-        mobileNumber: dto.mobileNumber,
-        gender: dto.gender,
-        dob: dto.dob,
-        description: dto.description,
-        postCode: dto.postCode,
-        isTncApproved: dto.isTncApproved,
-        isNotificationSent: dto.isNotificationSent,
-        isActive: true, // until verification
-        state: dto.state,
-        transmissionType: dto.transmissionType,
+        firstName: rest.firstName,
+        lastName: rest.lastName,
+        email: rest.email,
+        mobileNumber: rest.mobileNumber,
+        gender: rest.gender,
+        dob: rest.dob,
+        description: rest.description,
+        postCode: rest.postCode,
+        isTncApproved: rest.isTncApproved,
+        isNotificationSent: rest.isNotificationSent,
+        isActive: true,
+        state: rest.state,
+        transmissionType: rest.transmissionType,
         password: hashedPassword,
       });
   
-      const vehicles = this.buildDefaultVehicles(dto.transmissionType);
+      // ✅ Step 5: Instructor profile
+      const vehicles = this.buildDefaultVehicles(rest.transmissionType);
   
       await this.instructorProfileModel.create({
         userId: user._id,
@@ -70,20 +152,21 @@ export class UserService {
         vehicles,
       });
   
-      this.notificationService.sendInstructorWelcomeEmail({
-        recipientEmail: user.email,
-        instructorName: user.firstName,
-        password:randomString,
-      }).catch(err =>
-        this.logger.error(err, 'Welcome email failed'),
-      );
-      
+      // ✅ Step 6: Send email (non-blocking)
+      this.notificationService
+        .sendInstructorWelcomeEmail({
+          recipientEmail: user.email,
+          instructorName: user.firstName,
+          password: randomString,
+        })
+        .catch(err =>
+          this.logger.error(err, 'Welcome email failed'),
+        );
   
       this.logger.info(`Instructor registered: ${user.email}`);
   
-      // ✅ IMPORTANT
       return successResponse(user);
-     
+  
     } catch (error: any) {
       this.logger.error({ error }, 'User registration failed');
   
