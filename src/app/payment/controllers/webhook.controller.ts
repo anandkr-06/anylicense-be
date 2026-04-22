@@ -20,7 +20,7 @@ import { Learner, LearnerDocument } from '@common/db/schemas/learner.schema';
 
 import { WalletService } from '@app/wallet/services/wallet.service';
 import { WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
-import { StripeIntentMetadata, StripeCardMeta } from '@common/stripe/stripe.types';
+import { StripeIntentMetadata, StripeCardMeta, ExtraWalletMetaFIFO } from '@common/stripe/stripe.types';
 import { Public } from '@common/decorators/public.decorator';
 import { ReferralService } from '../services/referral.service';
 import { PrivateOrderDocument } from '@common/db/schemas/private-order.schema';
@@ -574,22 +574,22 @@ export class StripeWebhookController {
           });
 
           /* ✅ ATTACH IN ORDER (SAFE) */
-for (const slot of sortedSlots) {
-  try {
-    await this.validateSlotConflict(order, slot);
+          for (const slot of sortedSlots) {
+            try {
+              await this.validateSlotConflict(order, slot);
 
-    this.attachBookingByRange(
-      instructor,
-      slot,
-      order._id,
-    );
-  } catch (err) {
-    console.warn('⚠️ SLOT SKIPPED:', {
-      slot,
-      error: err instanceof Error ? err.message : err,
-    });
-  }
-}
+              this.attachBookingByRange(
+                instructor,
+                slot,
+                order._id,
+              );
+            } catch (err) {
+              console.warn('⚠️ SLOT SKIPPED:', {
+                slot,
+                error: err instanceof Error ? err.message : err,
+              });
+            }
+          }
 
           await instructor.save();
         }
@@ -598,6 +598,14 @@ for (const slot of sortedSlots) {
       /* ===============================
          3️⃣ WALLET CREDIT
       =============================== */
+
+      const extraMeta: ExtraWalletMetaFIFO = {
+        totalHours: order.totalHours,
+        remainingHours: order.remainingHours,
+        consumedHours: 0,
+        discountRate: order.discountPercent / 100,
+      };
+
       const lessonWalletAmount =
         (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
 
@@ -614,6 +622,7 @@ for (const slot of sortedSlots) {
           intent.id,
           cardMeta,
           order.orderTypeFullName,
+          extraMeta
         );
 
         order.walletCredited = lessonWalletAmount;

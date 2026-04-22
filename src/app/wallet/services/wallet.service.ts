@@ -12,7 +12,7 @@ import { NotificationService } from 'modules/notifications/notification.service'
 import { WalletTxnStatus, WalletTxnType } from '@common/db/schemas/wallet-transaction.schema';
 import { WalletTransaction, WalletTxnSource } from '@common/db/schemas/wallet-transaction.schema';
 import Stripe from 'stripe';
-import { StripeCardMeta } from '@common/stripe/stripe.types';
+import { ExtraWalletMetaFIFO, StripeCardMeta } from '@common/stripe/stripe.types';
 
 @Injectable()
 export class WalletService {
@@ -74,6 +74,7 @@ export class WalletService {
     idempotencyKey: string,
     cardMeta?: StripeCardMeta,
     description?:string,
+    extraMeta?:ExtraWalletMetaFIFO
   )
    {
     if (amount <= 0) return;
@@ -104,6 +105,10 @@ export class WalletService {
       cardExpYear: cardMeta?.expYear,
       stripePaymentIntentId: cardMeta?.paymentIntentId,
       stripeChargeId: cardMeta?.chargeId,
+      "totalHours": extraMeta?.totalHours,
+      "remainingHours": extraMeta?.remainingHours,
+      "consumedHours": extraMeta?.consumedHours,
+      "discountRate": extraMeta?.discountRate,
     });
   
     // ✅ Update wallet balance

@@ -25,4 +25,11 @@ export type StripeIntentMetadata = {
     paymentIntentId: string;
     chargeId?: string;
   };
+
+  export type ExtraWalletMetaFIFO = {
+    totalHours?: number;
+    remainingHours?: number;
+    consumedHours?: number;
+    discountRate?: number;
+  };
   
