@@ -44,6 +44,9 @@ export class Order {
   @Prop({ default: 0 })
   platformCharge!: number;
 
+  @Prop({ default: 0 })
+  discountPercent!: number;
+
   @Prop({ default: '' })
   coupons!: string;
 

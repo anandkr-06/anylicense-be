@@ -19,6 +19,7 @@ export enum WalletTxnSource {
   FAST_CASH = 'FAST_CASH',
   LESSON_COMPLETED = 'LESSON_COMPLETED',
   NOSHOW = 'NOSHOW',
+  REFUND_REVERSAL='REFUND_REVERSAL',
 }
 
 
@@ -26,6 +27,8 @@ export enum WalletTxnStatus {
   COMPLETED = 'COMPLETED',
   REVERSED = 'REVERSED',
   PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
+  FAILED = 'FAILED',
 }
 
 @Schema({ collection: 'wallet_transactions', timestamps: true })
@@ -95,6 +98,27 @@ export class WalletTransaction {
  
    @Prop({required: false})
    stripeChargeId?: string;
+
+   @Prop({required: false})
+   stripeRefundId?: string;
+
+   @Prop({required:false})
+   refundAmount!: number;
+
+     // 🎯 Credit Pack Tracking (for FIFO logic)
+  @Prop({ required: false, default: 0 })
+  totalHours?: number;        // total hours/lessons purchased in this credit pack
+
+  @Prop({ required: false, default: 0 })
+  remainingHours?: number;    // hours still available to consume
+
+  @Prop({ required: false, default: 0 })
+  consumedHours?: number;     // hours already used
+
+  @Prop({ required: false, default: 0 })
+  discountRate?: number;      // e.g. 0.05 for 5% pack, 0.10 for 10% pack
+
+  
 }
 
 export type WalletTransactionDocument = WalletTransaction & Document & { _id: Types.ObjectId };

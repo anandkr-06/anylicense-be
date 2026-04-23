@@ -2470,6 +2470,7 @@ const instructorEarning = grossAmount - platformCommission - discountCommission;
       status: isFullyPaidByWallet ? 'CONFIRMED' : 'PENDING_PAYMENT',
 
       orderTypeFullName,
+      discountPercent,
     });
 
     /* =====================================================
