@@ -1333,200 +1333,200 @@ export class OrderService {
     };
   }
 
-  async completeSlot(
-    orderId: string,
-    slotId: string,
-    userId: string,
-  ) {
-    const order: any = await this.orderModel
-      .findById(orderId)
-      .populate({
-        path: 'instructorId',
-        populate: {
-          path: 'userId',
-          select: 'firstName lastName email mobileNumber',
-        },
-      })
-      .populate({
-        path: 'learnerId',
-        select: 'firstName lastName email mobileNumber',
-      });
+//   async completeSlot(
+//     orderId: string,
+//     slotId: string,
+//     userId: string,
+//   ) {
+//     const order: any = await this.orderModel
+//       .findById(orderId)
+//       .populate({
+//         path: 'instructorId',
+//         populate: {
+//           path: 'userId',
+//           select: 'firstName lastName email mobileNumber',
+//         },
+//       })
+//       .populate({
+//         path: 'learnerId',
+//         select: 'firstName lastName email mobileNumber',
+//       });
 
-    if (!order) throw new NotFoundException('Order not found');
+//     if (!order) throw new NotFoundException('Order not found');
 
-    const learner = order.learnerId;
-    const instructorUser = order.instructorId?.userId;
+//     const learner = order.learnerId;
+//     const instructorUser = order.instructorId?.userId;
 
-    const slot = order.bookedSlots.find(
-      (s: any) => String(s._id) === slotId,
-    );
+//     const slot = order.bookedSlots.find(
+//       (s: any) => String(s._id) === slotId,
+//     );
 
-    if (!slot) throw new NotFoundException('Slot not found');
+//     if (!slot) throw new NotFoundException('Slot not found');
 
-    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
-      throw new BadRequestException(
-        `Slot cannot be completed from ${slot.status}`,
-      );
-    }
+//     if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+//       throw new BadRequestException(
+//         `Slot cannot be completed from ${slot.status}`,
+//       );
+//     }
 
-    const start = normalizeTime(slot.startTime);
-    const end = normalizeTime(slot.endTime);
+//     const start = normalizeTime(slot.startTime);
+//     const end = normalizeTime(slot.endTime);
 
-    const hours = calculateSlotDurationInHours(start, end);
+//     const hours = calculateSlotDurationInHours(start, end);
 
-    /* ✅ Update slot */
-    slot.status = 'COMPLETED';
-    slot.notification = {
-      learner: true,
-      instructor: true,
-    };
+//     /* ✅ Update slot */
+//     slot.status = 'COMPLETED';
+//     slot.notification = {
+//       learner: true,
+//       instructor: true,
+//     };
 
-    /* ✅ Update order */
-    order.usedHours += hours;
+//     /* ✅ Update order */
+//     order.usedHours += hours;
 
-    order.remainingHours = Math.max(
-      0,
-      order.totalHours - order.usedHours,
-    );
+//     order.remainingHours = Math.max(
+//       0,
+//       order.totalHours - order.usedHours,
+//     );
 
-    if (order.remainingHours === 0) {
-      order.scheduleStatus = 'FULLY_SCHEDULED';
-    }
+//     if (order.remainingHours === 0) {
+//       order.scheduleStatus = 'FULLY_SCHEDULED';
+//     }
 
-    await order.save();
+//     await order.save();
 
-    /* ✅ Instructor hours */
-    await this.instructorProfileModel.updateOne(
-      { _id: new Types.ObjectId(order.instructorId._id) },
-      { $inc: { totalHours: hours } },
-    );
+//     /* ✅ Instructor hours */
+//     await this.instructorProfileModel.updateOne(
+//       { _id: new Types.ObjectId(order.instructorId._id) },
+//       { $inc: { totalHours: hours } },
+//     );
 
-    /* 💰 Earnings calculation */
-    let grossAmount = 0;
-    let pricePerHour = 0;
+//     /* 💰 Earnings calculation */
+//     let grossAmount = 0;
+//     let pricePerHour = 0;
 
-    if (slot.type === 'LESSON') {
-      grossAmount = hours * order.pricePerHour;
-      pricePerHour = order.pricePerHour;
-    }
+//     if (slot.type === 'LESSON') {
+//       grossAmount = hours * order.pricePerHour;
+//       pricePerHour = order.pricePerHour;
+//     }
 
-    if (slot.type === 'TEST') {
-      grossAmount = order.testPrice;
-      pricePerHour = order.testPrice;
-    }
+//     if (slot.type === 'TEST') {
+//       grossAmount = order.testPrice;
+//       pricePerHour = order.testPrice;
+//     }
 
-    const platformCommission = grossAmount * 0.17;
+//     const platformCommission = grossAmount * 0.17;
 
-/**
- * Added discount comission
- */
+// /**
+//  * Added discount comission
+//  */
 
-type OrderDoc = {
-  stripeAmount: number;
-  discount: number;        // discount amount (NOT %)
-  platformCharge: number;
-};
+// type OrderDoc = {
+//   stripeAmount: number;
+//   discount: number;        // discount amount (NOT %)
+//   platformCharge: number;
+// };
 
-type Transaction = {
-  amount: number;
-  discountPercent: number;
-};
+// type Transaction = {
+//   amount: number;
+//   discountPercent: number;
+// };
 
-const instructorOrderDataDicount: OrderDoc[] =
-  await this.orderModel.find(
-    { instructorId: order.instructorId, paymentStatus: 'PAID' },
-    {
-      stripeAmount: 1,
-      discount: 1,
-      platformCharge: 1,
-    }
-  ).lean();
+// const instructorOrderDataDicount: OrderDoc[] =
+//   await this.orderModel.find(
+//     { instructorId: order.instructorId, paymentStatus: 'PAID' },
+//     {
+//       stripeAmount: 1,
+//       discount: 1,
+//       platformCharge: 1,
+//     }
+//   ).lean();
 
-const transactions: Transaction[] = instructorOrderDataDicount.map((item) => {
-  const amount =
-    item.stripeAmount + item.discount - item.platformCharge;
+// const transactions: Transaction[] = instructorOrderDataDicount.map((item) => {
+//   const amount =
+//     item.stripeAmount + item.discount - item.platformCharge;
 
-  return {
-    amount,
-    discountPercent: amount
-      ? (item.discount / amount) * 100
-      : 0,
-  };
-});
-console.log("Transaction data:",transactions);
-const percentageDiscount = getDiscountSummary(transactions);
-  console.log("percentageDiscount",percentageDiscount.effectiveDiscount);
-const discountCommission = Number(
-  (grossAmount * (percentageDiscount.effectiveDiscount / 100)).toFixed(2)
-);
-const instructorEarning = grossAmount - platformCommission - discountCommission;
+//   return {
+//     amount,
+//     discountPercent: amount
+//       ? (item.discount / amount) * 100
+//       : 0,
+//   };
+// });
+// console.log("Transaction data:",transactions);
+// const percentageDiscount = getDiscountSummary(transactions);
+//   console.log("percentageDiscount",percentageDiscount.effectiveDiscount);
+// const discountCommission = Number(
+//   (grossAmount * (percentageDiscount.effectiveDiscount / 100)).toFixed(2)
+// );
+// const instructorEarning = grossAmount - platformCommission - discountCommission;
 
-//End
+// //End
     
 
-    const txn = await this.instructorTransactionModel.create({
-      orderId: order._id,
-      slotId: slot._id,
-      learnerId: order.learnerId._id,
-      instructorId: order.instructorId._id,
-      type: slot.type,
-      hours,
-      pricePerHour,
-      grossAmount,
-      platformCommission,
-      discountCommission,
-      instructorEarning,
-    });
+//     const txn = await this.instructorTransactionModel.create({
+//       orderId: order._id,
+//       slotId: slot._id,
+//       learnerId: order.learnerId._id,
+//       instructorId: order.instructorId._id,
+//       type: slot.type,
+//       hours,
+//       pricePerHour,
+//       grossAmount,
+//       platformCommission,
+//       discountCommission,
+//       instructorEarning,
+//     });
 
-    await this.payoutService.creditInstructorWallet(txn._id, 'LESSON_COMPLETED');
+//     await this.payoutService.creditInstructorWallet(txn._id, 'LESSON_COMPLETED');
 
-    /* ===============================
-       🔔 SEND NOTIFICATIONS
-    =============================== */
+//     /* ===============================
+//        🔔 SEND NOTIFICATIONS
+//     =============================== */
 
-    // 👉 Learner
-    if (learner?.email) {
-      try {
-        await this.notificationService.sendSlotCompletedNotification({
-          receiverEmail: learner.email,
-          receiverName: learner.firstName,
-          receiverPhone: learner.mobileNumber,
-          slotDate: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          type: slot.type,
-          hours,
-        });
-      } catch (error) {
-        console.error('Email failed:', error);
-      }
-    }
+//     // 👉 Learner
+//     if (learner?.email) {
+//       try {
+//         await this.notificationService.sendSlotCompletedNotification({
+//           receiverEmail: learner.email,
+//           receiverName: learner.firstName,
+//           receiverPhone: learner.mobileNumber,
+//           slotDate: slot.date,
+//           startTime: slot.startTime,
+//           endTime: slot.endTime,
+//           type: slot.type,
+//           hours,
+//         });
+//       } catch (error) {
+//         console.error('Email failed:', error);
+//       }
+//     }
 
-    // 👉 Instructor
-    if (instructorUser?.email) {
-      try {
-        await this.notificationService.sendSlotCompletedNotification({
-          receiverEmail: instructorUser.email,
-          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
-          receiverPhone: instructorUser.mobileNumber,
-          slotDate: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          type: slot.type,
-          hours,
-          instructorEarning, // 💰 only for instructor
-        });
-      } catch (error) {
-        console.error('Email failed:', error);
-      }
-    }
+//     // 👉 Instructor
+//     if (instructorUser?.email) {
+//       try {
+//         await this.notificationService.sendSlotCompletedNotification({
+//           receiverEmail: instructorUser.email,
+//           receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+//           receiverPhone: instructorUser.mobileNumber,
+//           slotDate: slot.date,
+//           startTime: slot.startTime,
+//           endTime: slot.endTime,
+//           type: slot.type,
+//           hours,
+//           instructorEarning, // 💰 only for instructor
+//         });
+//       } catch (error) {
+//         console.error('Email failed:', error);
+//       }
+//     }
 
-    return {
-      success: true,
-      message: 'Slot marked as completed',
-      completedHours: hours,
-    };
-  }
+//     return {
+//       success: true,
+//       message: 'Slot marked as completed',
+//       completedHours: hours,
+//     };
+//   }
 
   // async respondSlotReschedule(
   //   orderId: string,
@@ -1838,6 +1838,135 @@ const instructorEarning = grossAmount - platformCommission - discountCommission;
   //     message: `Slot reschedule ${action.toLowerCase()}`,
   //   };
   // }
+
+  async completeSlot(orderId: string, slotId: string, userId: string) {
+    const order: any = await this.orderModel
+      .findById(orderId)
+      .populate({
+        path: 'instructorId',
+        populate: { path: 'userId', select: 'firstName lastName email mobileNumber' },
+      })
+      .populate({ path: 'learnerId', select: 'firstName lastName email mobileNumber' });
+  
+    if (!order) throw new NotFoundException('Order not found');
+  
+    const learner = order.learnerId;
+    const instructorUser = order.instructorId?.userId;
+  
+    const slot = order.bookedSlots.find((s: any) => String(s._id) === slotId);
+    if (!slot) throw new NotFoundException('Slot not found');
+  
+    if (slot.status !== 'BOOKED' && slot.status !== 'RESCHEDULED') {
+      throw new BadRequestException(`Slot cannot be completed from ${slot.status}`);
+    }
+  
+    const start = normalizeTime(slot.startTime);
+    const end = normalizeTime(slot.endTime);
+    const hours = calculateSlotDurationInHours(start, end);
+  
+    // ✅ Update slot
+    slot.status = 'COMPLETED';
+    slot.notification = { learner: true, instructor: true };
+  
+    // ✅ Update order hours
+    order.usedHours += hours;
+    order.remainingHours = Math.max(0, order.totalHours - order.usedHours);
+    if (order.remainingHours === 0) order.scheduleStatus = 'FULLY_SCHEDULED';
+    await order.save();
+  
+    // ✅ Update instructor profile hours
+    await this.instructorProfileModel.updateOne(
+      { _id: new Types.ObjectId(order.instructorId._id) },
+      { $inc: { totalHours: hours } },
+    );
+  
+    // 💰 Earnings calculation
+    let grossAmount = 0;
+    let pricePerHour = 0;
+    if (slot.type === 'LESSON') {
+      grossAmount = hours * order.pricePerHour;
+      pricePerHour = order.pricePerHour;
+    }
+    if (slot.type === 'TEST') {
+      grossAmount = order.testPrice;
+      pricePerHour = order.testPrice;
+    }
+  
+    const platformCommission = grossAmount * 0.17;
+  
+    // ✅ Apply FIFO credit consumption
+    const { discountCommission } = await this.handleCreditConsumption(
+      order.learnerId._id,
+      hours,
+      pricePerHour,
+      'CONSUME',
+    );
+  
+    const instructorEarning = grossAmount - platformCommission - discountCommission;
+  
+    // 💳 Create instructor transaction (report history)
+    const txn = await this.instructorTransactionModel.create({
+      orderId: order._id,
+      slotId: slot._id,
+      learnerId: order.learnerId._id,
+      instructorId: order.instructorId._id,
+      type: slot.type,
+      hours,
+      pricePerHour,
+      grossAmount,
+      platformCommission,
+      discountCommission,
+      instructorEarning,
+      payoutStatus: 'PAID',
+      payoutDate: new Date(),
+    });
+  
+    // 💰 Credit instructor wallet + ledger
+    await this.payoutService.creditInstructorWallet(txn._id, 'LESSON_COMPLETED');
+  
+    // 🔔 Notifications
+    if (learner?.email) {
+      try {
+        await this.notificationService.sendSlotCompletedNotification({
+          receiverEmail: learner.email,
+          receiverName: learner.firstName,
+          receiverPhone: learner.mobileNumber,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          type: slot.type,
+          hours,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
+    }
+  
+    if (instructorUser?.email) {
+      try {
+        await this.notificationService.sendSlotCompletedNotification({
+          receiverEmail: instructorUser.email,
+          receiverName: `${instructorUser.firstName} ${instructorUser.lastName}`,
+          receiverPhone: instructorUser.mobileNumber,
+          slotDate: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          type: slot.type,
+          hours,
+          instructorEarning,
+        });
+      } catch (error) {
+        console.error('Email failed:', error);
+      }
+    }
+  
+    return {
+      success: true,
+      message: 'Slot marked as completed',
+      completedHours: hours,
+    };
+  }
+  
 
   async respondSlotReschedule(
     orderId: string,
@@ -3413,40 +3542,73 @@ const instructorEarning = grossAmount - platformCommission - discountCommission;
     };
   }
 
+ /**
+   * Unified FIFO Credit Consumption Utility
+   * Handles both payout and refund flows consistently.
+   *
+   * @param learnerId - The learner whose credits are being consumed/restored
+   * @param hours - Number of lesson hours (or test units) to process
+   * @param pricePerHour - Lesson price per hour (or test price)
+   * @param mode - 'CONSUME' for instructor payout, 'RESTORE' for learner refund
+   * @returns { totalAmount, discountCommission, creditsUsed }
+   */
+ async handleCreditConsumption(
+  learnerId: string,
+  hours: number,
+  pricePerHour: number,
+  mode: 'CONSUME' | 'RESTORE',
+) {
+  const credits = await this.walletModel.find({
+    learnerId,
+    type: 'CREDIT',
+  }).sort({ createdAt: 1 }); // FIFO
 
-  // private async validateSlotConflict(
-  //   instructorId: Types.ObjectId,
-  //   slot: NormalizedSlot,
-  // ): Promise<void> {
+  let hoursRemaining = hours;
+  let totalAmount = 0;
+  let discountCommission = 0;
+  const creditsUsed: any[] = [];
 
-  //   const existingOrders = await this.orderModel.find({
-  //     instructorId,
-  //     paymentStatus: 'PAID',
-  //     status: 'CONFIRMED',
-  //     'bookedSlots.date': slot.date,
-  //   });
+  for (const credit of credits) {
+    if (hoursRemaining <= 0) break;
 
-  //   const reqStart = this.toMinutes(slot.startTime);
-  //   const reqEnd = this.toMinutes(slot.endTime);
+    const availableHours =
+      (mode === 'CONSUME' ? credit.remainingHours : credit.consumedHours) ?? 0;
 
-  //   for (const order of existingOrders) {
+    if (availableHours <= 0) continue;
 
-  //     for (const existingSlot of order.bookedSlots) {
+    const appliedHours = Math.min(hoursRemaining, availableHours);
+    hoursRemaining -= appliedHours;
 
-  //       if (existingSlot.date !== slot.date) continue;
+    const discountRate = credit.discountRate || 0;
+    const grossValue = appliedHours * pricePerHour;
+    const discountedValue = grossValue * (1 - discountRate);
 
-  //       const existingStart = this.toMinutes(existingSlot.startTime);
-  //       const existingEnd = this.toMinutes(existingSlot.endTime);
+    if (mode === 'CONSUME') {
+      discountCommission += grossValue * discountRate;
 
-  //       // ✅ Overlap formula
-  //       if (reqStart < existingEnd && reqEnd > existingStart && existingSlot.status !== 'CANCELLED') {
-  //         throw new BadRequestException(
-  //           `Slot ${slot.startTime}-${slot.endTime} overlaps with existing booking ${existingSlot.startTime}-${existingSlot.endTime}`,
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
+      credit.remainingHours! -= appliedHours;
+      credit.consumedHours! += appliedHours;
+    } else {
+      totalAmount += discountedValue;
+      credit.remainingHours! -= appliedHours;
+      credit.consumedHours! += appliedHours;
+    }
+
+    await credit.save();
+
+    creditsUsed.push({
+      creditId: credit._id,
+      appliedHours,
+      discountRate,
+    });
+  }
+
+  return {
+    totalAmount,
+    discountCommission,
+    creditsUsed,
+  };
+}
 
   private async validateSlotConflict(
     instructorId: Types.ObjectId,
