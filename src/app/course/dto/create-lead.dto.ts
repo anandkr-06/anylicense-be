@@ -34,3 +34,19 @@ export class CreateLeadDto {
   captchaToken!: string;
 }
 
+export class CreateLeadWithoutCaptchaDto {
+  firstName!: string;
+  lastName!: string;
+  email!: string;
+  phone!: string;
+  userType!: 'First-Time Learner' | 'Refresher Lessons' | 'Overseas Licence Holder';
+  courseId!: string;
+  source!: 'COURSE_EXPLORE';
+
+  isAgreedToTermsAndConditions?: boolean;
+  isAgreedToCommunicationAndOffers?: boolean;
+
+  @IsOptional()
+  location?: LocationDto;
+}
+
