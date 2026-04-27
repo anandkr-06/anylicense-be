@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Course } from '../schema/course.schema';
-import { CreateLeadDto } from '../dto/create-lead.dto';
+import { CreateLeadDto, CreateLeadWithoutCaptchaDto } from '../dto/create-lead.dto';
 import { Lead } from '../schema/lead.schema';
 import { CourseProvider } from '../schema/course-provider.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
@@ -129,80 +129,80 @@ export class PublicCourseService {
     };
   }
 
-  // async createLead(dto: CreateLeadDto) {
-  //   const course = await this.courseModel
-  // .findOne({
-  //   _id: new Types.ObjectId(dto.courseId),
-  //   isDeleted: false,
-  // })
-  // .select('providerId') // only select what exists in Course
-  // .populate({
-  //   path: 'providerId',
-  //   select: 'instituteName email', // fields from CourseProvider
-  // })
-  // .lean();
+  async exploreLead(dto: CreateLeadWithoutCaptchaDto) {
+    const course = await this.courseModel
+  .findOne({
+    _id: new Types.ObjectId(dto.courseId),
+    isDeleted: false,
+  })
+  .select('providerId') // only select what exists in Course
+  .populate({
+    path: 'providerId',
+    select: 'instituteName email', // fields from CourseProvider
+  })
+  .lean();
 
-  //     this.logger.info('Lead course.'+JSON.stringify(course));
-  //   if (!course) {
-  //     throw new NotFoundException('Course not found');
-  //   }
+      this.logger.info('Lead course.'+JSON.stringify(course));
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
 
-  //   // 2️⃣ Fetch provider website
-  //   const courseData = await this.courseModel
-  //     .findById(dto.courseId)
-  //     .select('url')
-  //     .lean();
+    // 2️⃣ Fetch provider website
+    const courseData = await this.courseModel
+      .findById(dto.courseId)
+      .select('url')
+      .lean();
 
-  //   const redirectUrl = courseData?.url ?? null;
+    const redirectUrl = courseData?.url ?? null;
 
-  //   // 3️⃣ Check duplicate lead
-  //   const leadExists = await this.courseLeadModel.exists({
-  //     email: dto.email,
-  //     courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
-  //   });
+    // 3️⃣ Check duplicate lead
+    const leadExists = await this.courseLeadModel.exists({
+      email: dto.email,
+      courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+    });
 
-  //   if (!leadExists) {
-  //     const payload = await this.courseLeadModel.create({
-  //       firstName: dto.firstName,
-  //       email: dto.email,
-  //       lastName: dto.lastName,
-  //       phone: dto.phone,
-  //       userType: dto.userType,
-  //       courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
-  //       source: dto.source,
-  //       location: dto.location,
-  //       isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
-  //       isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
+    if (!leadExists) {
+      const payload = await this.courseLeadModel.create({
+        firstName: dto.firstName,
+        email: dto.email,
+        lastName: dto.lastName,
+        phone: dto.phone,
+        userType: dto.userType,
+        courseId: new Types.ObjectId(dto.courseId), // ✅ FIX
+        source: dto.source,
+        location: dto.location,
+        isAgreedToTermsAndConditions: dto.isAgreedToTermsAndConditions,
+        isAgreedToCommunicationAndOffers: dto.isAgreedToCommunicationAndOffers,
 
-  //     });
-  //     this.logger.info('customer payload details:'+JSON.stringify(payload));
-  //     this.notificationService
-  //     .sendCourseLeadCustomer(payload)
-  //     .catch(error =>
-  //       this.smtpErrorHandler.handle(error, {
-  //         providerId: payload._id,
-  //         source: 'lead-customer',
-  //       }),
-  //     );
+      });
+      this.logger.info('customer payload details:'+JSON.stringify(payload));
+      this.notificationService
+      .sendCourseLeadCustomer(payload)
+      .catch(error =>
+        this.smtpErrorHandler.handle(error, {
+          providerId: payload._id,
+          source: 'lead-customer',
+        }),
+      );
       
-  //     this.logger.info('Provider.'+JSON.stringify(course.providerId));
-  //     this.notificationService
-  //     .sendCourseLeadProvider(payload, course.providerId)
-  //     .catch(error =>
-  //       this.smtpErrorHandler.handle(error, {
-  //         providerId: payload._id,
-  //         source: 'lead-provider',
-  //       }),
-  //     );
-  //   }
+      this.logger.info('Provider.'+JSON.stringify(course.providerId));
+      this.notificationService
+      .sendCourseLeadProvider(payload, course.providerId)
+      .catch(error =>
+        this.smtpErrorHandler.handle(error, {
+          providerId: payload._id,
+          source: 'lead-provider',
+        }),
+      );
+    }
 
-  //   // 4️⃣ Unified response
-  //   return {
-  //     success: true,
-  //     message: 'Lead submitted successfully',
-  //     redirectUrl,
-  //   };
-  // }
+    // 4️⃣ Unified response
+    return {
+      success: true,
+      message: 'Lead submitted successfully',
+      redirectUrl,
+    };
+  }
   async createLead(dto: CreateLeadDto) {
     const { captchaToken, ...rest } = dto;
   

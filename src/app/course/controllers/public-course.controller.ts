@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PublicCourseService } from '../services/public-course.service';
 import { Public } from '@common/decorators/public.decorator';
-import { CreateLeadDto } from '../dto/create-lead.dto';
+import { CreateLeadDto, CreateLeadWithoutCaptchaDto } from '../dto/create-lead.dto';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { JwtPayload } from '@interfaces/user.interface';
 
@@ -20,6 +20,12 @@ export class PublicCourseController {
   @Post('leads')
   signup(@Body() dto: CreateLeadDto) {
     return this.service.createLead(dto);
+  }
+
+  @Public()
+  @Post('explorelead')
+  exploreLead(@Body() dto: CreateLeadWithoutCaptchaDto) {
+    return this.service.exploreLead(dto);
   }
 
   @Public()
