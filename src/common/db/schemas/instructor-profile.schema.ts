@@ -163,6 +163,7 @@ const defaultFinancialDetails = {
 
 //availbility
 @Schema({ _id: false })
+
 export class TimeSlot {
   @Prop({ required: true })
   startTime!: string;
@@ -254,6 +255,9 @@ export class FinancialDetails {
 // @Schema({ timestamps: true })
 @Schema({ collection: 'instructorprofiles', timestamps: true })
 export class InstructorProfile {
+
+  @Prop({ type: String, default: 'Australia/Sydney' })
+timezone!: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', unique: true })
   userId!: Types.ObjectId;
