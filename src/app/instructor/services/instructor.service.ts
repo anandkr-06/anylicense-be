@@ -559,450 +559,14 @@ export class InstructorService {
     return new Date().toISOString().slice(0, 10);
   }
 
-  // async getAvailableSlots(
-  //   instructorId: string,
-  //   duration: 1 | 2 | 2.5,
-  //   timeOfDay?: 'AM' | 'PM',
-  // ) {
-  //   const now = new Date();
-  //   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  
-  //   const instructor = await this.instructorProfileModel
-  //     .findOne({ userId: new Types.ObjectId(instructorId) })
-  //     .lean<InstructorProfile>();
-  
-  //   if (!instructor) {
-  //     throw new NotFoundException('Instructor not found');
-  //   }
-  
-  //   const durationMinutes = duration * 60;
-  //   const result = [];
-  
-  //   // 🔹 Get ALL future bookings (not limited to 24h)
-  //   const bookedSessions = await this.orderModel
-  //     .find({
-  //       instructorId,
-  //       status: { $in: ['CONFIRMED', 'PAID'] },
-  //       startDateTime: { $gte: now },
-  //     })
-  //     .select('date startTime endTime')
-  //     .lean<BookedSlot[]>();
-  
-  //   const bookedMap = new Map<string, { start: string; end: string }[]>();
-  
-  //   for (const b of bookedSessions) {
-  //     if (!bookedMap.has(b.date)) bookedMap.set(b.date, []);
-  //     bookedMap.get(b.date)!.push({ start: b.startTime, end: b.endTime });
-  //   }
-  
-  //   for (const week of instructor.availability?.weeks || []) {
-  //     for (const day of week.days) {
-  //       const dayStart = new Date(`${day.date}T00:00:00`);
-  //       if (dayStart <= next24Hours) continue; // ⬅️ skip entire day if within 24h
-  
-  //       const bookedForDay = bookedMap.get(day.date) ?? [];
-  //       const slotMap = new Map<string, AvailableSlot>();
-  
-  //       for (const avail of day.slots) {
-  //         const splitSlots = splitSlotByDuration(
-  //           avail.startTime,
-  //           avail.endTime,
-  //           durationMinutes,
-  //         );
-  
-  //         for (const s of splitSlots) {
-  //           const sStart = normalizeTime(s.startTime);
-  //           const sEnd = normalizeTime(s.endTime);
-  
-  //           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
-  
-  //           // ✅ ONLY after 24 hours
-  //           if (slotStartDateTime <= next24Hours) continue;
-  
-  //           if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
-  //           if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
-  
-  //           const key = `${sStart}-${sEnd}`;
-  
-  //           if (!slotMap.has(key)) {
-  //             const booking = bookedForDay.find(b =>
-  //               isOverlapping(
-  //                 sStart,
-  //                 sEnd,
-  //                 normalizeTime(b.start),
-  //                 normalizeTime(b.end),
-  //               ),
-  //             );
-  
-  //             slotMap.set(key, {
-  //               startTime: toAmPm(sStart),
-  //               endTime: toAmPm(sEnd),
-  //               duration,
-  //               isBooked: !!booking,
-  //             });
-  //           }
-  //         }
-  //       }
-  
-  //       const slotsForDay = Array.from(slotMap.values());
-  
-  //       if (slotsForDay.length) {
-  //         result.push({ date: day.date, slots: slotsForDay });
-  //       }
-  //     }
-  //   }
-  
-  //   return result;
-  // }
-//   async getAvailableSlots(
-//     instructorId: string,
-//     duration: 1 | 2 | 2.5,
-//     timeOfDay?: 'AM' | 'PM',
-//   ) {
-//     const now = new Date();
-//     const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  
-//     const instructor = await this.instructorProfileModel
-//   .findOne({ userId: new Types.ObjectId(instructorId) })
-//   .lean<InstructorProfile & { _id: Types.ObjectId }>();
-  
-//     if (!instructor) {
-//       throw new NotFoundException('Instructor not found');
-//     }
-
-//     console.log("instructor", instructor);
-  
-//     const durationMinutes = duration * 60;
-//     const result = [];
-  
-//     // ✅ Get booked sessions
-//     const bookedSessions = await this.orderModel
-//       .find({
-//         instructorId: instructor._id,
-//         // status: { $in: ['CONFIRMED', 'PAID'] },
-//         startDateTime: { $gte: now },
-//       })
-//       .select('date startTime endTime')
-//       .lean<BookedSlot[]>();
-
-//       const orders = await this.orderModel
-//   .find({
-//     instructorId: instructor._id,
-//     status: 'CONFIRMED',
-//   })
-//   .select('bookedSlots')
-//   .lean();
-
-//       console.log("BOOKED SESSIONS:", bookedSessions);
-
-
-//     // ✅ Map bookings by date
-//     const bookedMap = new Map<string, { start: string; end: string }[]>();
-  
-//     // for (const b of bookedSessions) {
-//     //   if (!bookedMap.has(b.date)) {
-//     //     bookedMap.set(b.date, []);
-//     //   }
-  
-//     //   bookedMap.get(b.date)!.push({
-//     //     start: normalizeTime(b.startTime),
-//     //     end: normalizeTime(b.endTime),
-//     //   });
-//     // }
-
-//     for (const b of bookedSessions) {
-
-//       const dateKey = new Date(b.date).toISOString().slice(0,10);
-    
-//       if (!bookedMap.has(dateKey)) {
-//         bookedMap.set(dateKey, []);
-//       }
-    
-//       bookedMap.get(dateKey)!.push({
-//         start: normalizeTime(b.startTime),
-//         end: normalizeTime(b.endTime),
-//       });
-//     }
-  
-//     // ✅ Iterate instructor availability
-//     for (const week of instructor.availability?.weeks || []) {
-//       for (const day of week.days) {
-//         const bookedForDay = bookedMap.get(day.date) ?? [];
-//         const slotMap = new Map<string, AvailableSlot>();
-  
-//         for (const avail of day.slots) {
-//           const splitSlots = splitSlotByDuration(
-//             avail.startTime,
-//             avail.endTime,
-//             durationMinutes,
-//           );
-  
-//           for (const s of splitSlots) {
-//             const sStart = normalizeTime(s.startTime);
-//             const sEnd = normalizeTime(s.endTime);
-  
-//             const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
-  
-
-//             console.log("CHECK SLOT:", sStart, sEnd);
-// console.log("BOOKED FOR DAY:", bookedForDay);
-
-//             // ✅ Skip slots within 24 hours
-//             if (slotStartDateTime <= next24Hours) continue;
-  
-//             // ✅ AM / PM filter
-//             if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
-//             if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
-  
-//             const key = `${day.date}-${sStart}-${sEnd}`;
-  
-//             if (!slotMap.has(key)) {
-  
-//               const booking = bookedForDay.find(b =>
-//                 isOverlapping(sStart, sEnd, b.start, b.end)
-//               );
-//               console.log("FOUND BOOKING:", booking);
-
-//               slotMap.set(key, {
-//                 startTime: toAmPm(sStart),
-//                 endTime: toAmPm(sEnd),
-//                 duration,
-//                 isBooked: !!booking,
-//               });
-//             }
-//           }
-//         }
-  
-//         const slotsForDay = Array.from(slotMap.values());
-  
-//         if (slotsForDay.length) {
-//           result.push({
-//             date: day.date,
-//             slots: slotsForDay,
-//           });
-//         }
-//       }
-//     }
-  
-//     return result;
-//   }
-
-
-
-// async getAvailableSlots(
-//   instructorId: string,
-//   duration: 1 | 2 | 2.5,
-//   timeOfDay?: 'AM' | 'PM',
-// ) {
-
-//   const now = new Date();
-//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-//   const instructor = await this.instructorProfileModel
-//     .findOne({ userId: new Types.ObjectId(instructorId) })
-//     .lean<InstructorProfile & { _id: Types.ObjectId }>();
-
-//   if (!instructor) {
-//     throw new NotFoundException('Instructor not found');
-//   }
-
-//   const durationMinutes = duration * 60;
-//   const result = [];
-
-//   /**
-//    * ✅ Iterate instructor availability
-//    */
-//   for (const week of instructor.availability?.weeks || []) {
-//   for (const day of week.days) {
-
-//     const slotMap = new Map<string, AvailableSlot>();
-
-//     const bookedSlots = day.slots.filter(s => s.isBooked);
-//     const freeSlots = day.slots.filter(s => !s.isBooked);
-
-//     for (const free of freeSlots) {
-
-//       let intervals = [{
-//         start: normalizeTime(free.startTime),
-//         end: normalizeTime(free.endTime)
-//       }];
-
-//       // subtract booked slots
-//       for (const booked of bookedSlots) {
-
-//         const bStart = normalizeTime(booked.startTime);
-//         const bEnd = normalizeTime(booked.endTime);
-
-//         intervals = intervals.flatMap(i => {
-
-//           if (!isOverlapping(i.start, i.end, bStart, bEnd)) {
-//             return [i];
-//           }
-
-//           const parts = [];
-
-//           if (i.start < bStart) {
-//             parts.push({ start: i.start, end: bStart });
-//           }
-
-//           if (i.end > bEnd) {
-//             parts.push({ start: bEnd, end: i.end });
-//           }
-
-//           return parts;
-//         });
-//       }
-
-//       // now split remaining intervals
-//       for (const interval of intervals) {
-
-//         const splitSlots = splitSlotByDuration(
-//           interval.start,
-//           interval.end,
-//           durationMinutes
-//         );
-
-//         for (const s of splitSlots) {
-
-//           const sStart = normalizeTime(s.startTime);
-//           const sEnd = normalizeTime(s.endTime);
-
-//           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
-
-//           if (slotStartDateTime <= next24Hours) continue;
-
-//           if (timeOfDay === 'AM' && slotStartDateTime.getHours() >= 12) continue;
-//           if (timeOfDay === 'PM' && slotStartDateTime.getHours() < 12) continue;
-
-//           const key = `${day.date}-${sStart}-${sEnd}`;
-
-//           if (!slotMap.has(key)) {
-//             slotMap.set(key, {
-//               startTime: toAmPm(sStart),
-//               endTime: toAmPm(sEnd),
-//               duration,
-//               isBooked: false
-//             });
-//           }
-//         }
-//       }
-//     }
-
-//     // Add booked slots separately
-//     for (const booked of bookedSlots) {
-
-//       const key = `${day.date}-${booked.startTime}-${booked.endTime}`;
-
-//       slotMap.set(key, {
-//         startTime: toAmPm(booked.startTime),
-//         endTime: toAmPm(booked.endTime),
-//         duration,
-//         isBooked: true
-//       });
-//     }
-
-//     const slotsForDay = Array.from(slotMap.values());
-
-//     if (slotsForDay.length) {
-//       result.push({
-//         date: day.date,
-//         slots: slotsForDay
-//       });
-//     }
-//   }
-// }
-
-//   return result;
-// }
-
 // async getAvailableSlots(
 //   instructorId: string,
 //   duration: 1 | 2 | 2.5,
 //   timeOfDay?: 'AM' | 'PM',
 // ) {
 //   const now = new Date();
-//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-//   const instructor = await this.instructorProfileModel
-//     .findOne({ userId: new Types.ObjectId(instructorId) })
-//     .lean<InstructorProfile & { _id: Types.ObjectId }>();
-
-//   if (!instructor) {
-//     throw new NotFoundException('Instructor not found');
-//   }
-
-//   const durationMinutes = duration * 60;
-//   const result = [];
-
-//   for (const week of instructor.availability?.weeks || []) {
-//     for (const day of week.days) {
-  
-//       const slotMap = new Map<string, AvailableSlot>();
-  
-//       for (const slot of day.slots) {
-  
-//         // const isBooked = slot.isBooked;
-//         const isBooked = !!slot.isBooked;
-  
-//         const splitSlots = splitSlotByDuration(
-//           normalizeTime(slot.startTime),
-//           normalizeTime(slot.endTime),
-//           durationMinutes
-//         );
-  
-//         for (const s of splitSlots) {
-  
-//           const sStart = normalizeTime(s.startTime);
-//           const sEnd = normalizeTime(s.endTime);
-  
-//           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
-  
-//           /** ✅ 24 hour rule */
-//           if (slotStartDateTime <= next24Hours) continue;
-  
-//           /** ✅ AM/PM filter (FIXED) */
-//           const hour = slotStartDateTime.getHours();
-  
-//           if (timeOfDay === 'AM' && hour >= 12) continue;
-//           if (timeOfDay === 'PM' && hour < 12) continue;
-  
-//           const key = `${day.date}-${sStart}-${sEnd}`;
-  
-//           if (!slotMap.has(key)) {
-//             slotMap.set(key, {
-//               startTime: toAmPm(sStart),
-//               endTime: toAmPm(sEnd),
-//               duration,
-//               isBooked
-//             });
-//           }
-//         }
-//       }
-  
-//       const slotsForDay = Array.from(slotMap.values())
-//         .sort((a, b) => new Date(`1970-01-01T${normalizeTime(a.startTime)}:00`).getTime()
-//           - new Date(`1970-01-01T${normalizeTime(b.startTime)}:00`).getTime()
-//         );
-  
-//       if (slotsForDay.length) {
-//         result.push({
-//           date: day.date,
-//           slots: slotsForDay
-//         });
-//       }
-//     }
-//   }
-
-//   return result;
-// }
-
-// async getAvailableSlots(
-//   instructorId: string,
-//   duration: 1 | 2 | 2.5,
-//   timeOfDay?: 'AM' | 'PM',
-// ) {
-//   const now = new Date();
-//   const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+//   // const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+//   const next24Hours = new Date(now.getTime() + 1 * 60 * 60 * 1000);
 
 //   const instructor = await this.instructorProfileModel
 //     .findOne({ userId: new Types.ObjectId(instructorId) })
@@ -1020,18 +584,19 @@ export class InstructorService {
 
 //       const slotMap = new Map<string, any>();
 
-//       /** ✅ ONLY FREE SLOTS */
-//       const freeSlots = day.slots.filter(s => !s.isBooked);
+//       /** ✅ ONLY TRUE FREE SLOTS */
+//       const freeSlots = day.slots.filter(
+//         s => !s.isBooked && !s.isTempBlocked
+//       );
 
-//       /** ✅ BOOKED SLOTS FOR BLOCKING */
-//       const bookedSlots = day.slots
-//         .filter(s => s.isBooked)
+//       /** ✅ BLOCKED SLOTS (BOOKED + TEMP) */
+//       const blockedSlots = day.slots
+//         .filter(s => s.isBooked || s.isTempBlocked)
 //         .map(s => ({
 //           start: normalizeTime(s.startTime),
 //           end: normalizeTime(s.endTime),
 //         }));
 
-//       /** ✅ GENERATE FROM FREE ONLY */
 //       for (const free of freeSlots) {
 
 //         const splitSlots = splitSlotByDuration(
@@ -1047,7 +612,7 @@ export class InstructorService {
 
 //           const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
 
-//           /** ✅ 24-hour rule */
+//           /** ✅ 24h rule */
 //           if (slotStartDateTime <= next24Hours) continue;
 
 //           /** ✅ AM/PM filter */
@@ -1057,13 +622,21 @@ export class InstructorService {
 //             if (timeOfDay === 'PM' && hour < 12) continue;
 //           }
 
-//           /** ✅ BLOCK overlapping booked slots */
-//           const isOverlappingBooked = bookedSlots.some(b =>
+//           /** ❌ BLOCK overlap with booked OR temp */
+//           const isBlocked = blockedSlots.some(b =>
 //             isOverlapping(sStart, sEnd, b.start, b.end)
 //           );
 
-//           /** ❌ skip invalid slots */
-//           if (isOverlappingBooked) continue;
+//           if (isBlocked) continue;
+
+//           /** ❌ ENFORCE 30 MIN BUFFER FROM BLOCKED SLOTS */
+//           const violatesGap = blockedSlots.some(b => {
+//             const gapBefore = Math.abs(this.toMinutes(sStart) - this.toMinutes(b.end));
+//             const gapAfter = Math.abs(this.toMinutes(sEnd) - this.toMinutes(b.start));
+//             return gapBefore < 30 || gapAfter < 30;
+//           });
+
+//           if (violatesGap) continue;
 
 //           const key = `${day.date}-${sStart}-${sEnd}`;
 
@@ -1073,13 +646,12 @@ export class InstructorService {
 //               endTime: toAmPm(sEnd),
 //               rawStart: sStart,
 //               duration,
-//               isBooked: false // ✅ only available slots returned
+//               isBooked: false,
 //             });
 //           }
 //         }
 //       }
 
-//       /** ✅ SORT */
 //       const slotsForDay = Array.from(slotMap.values())
 //         .sort((a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart))
 //         .map(({ rawStart, ...rest }) => rest);
@@ -1087,7 +659,7 @@ export class InstructorService {
 //       if (slotsForDay.length) {
 //         result.push({
 //           date: day.date,
-//           slots: slotsForDay
+//           slots: slotsForDay,
 //         });
 //       }
 //     }
@@ -1102,8 +674,9 @@ async getAvailableSlots(
   timeOfDay?: 'AM' | 'PM',
 ) {
   const now = new Date();
-  // const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const next24Hours = new Date(now.getTime() + 1 * 60 * 60 * 1000);
+
+  const bufferMinutes = 60;
+  const minAllowedTime = new Date(now.getTime() + bufferMinutes * 60 * 1000);
 
   const instructor = await this.instructorProfileModel
     .findOne({ userId: new Types.ObjectId(instructorId) })
@@ -1116,17 +689,26 @@ async getAvailableSlots(
   const durationMinutes = duration * 60;
   const result = [];
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   for (const week of instructor.availability?.weeks || []) {
     for (const day of week.days) {
 
+      /** ✅ Normalize day */
+      const dayDate = new Date(day.date + 'T00:00:00'); // IST safe
+      if (dayDate < today) continue;
+
+      const isToday = dayDate.getTime() === today.getTime();
+
       const slotMap = new Map<string, any>();
 
-      /** ✅ ONLY TRUE FREE SLOTS */
+      /** FREE */
       const freeSlots = day.slots.filter(
         s => !s.isBooked && !s.isTempBlocked
       );
 
-      /** ✅ BLOCKED SLOTS (BOOKED + TEMP) */
+      /** BLOCKED */
       const blockedSlots = day.slots
         .filter(s => s.isBooked || s.isTempBlocked)
         .map(s => ({
@@ -1147,32 +729,44 @@ async getAvailableSlots(
           const sStart = normalizeTime(s.startTime);
           const sEnd = normalizeTime(s.endTime);
 
-          const slotStartDateTime = new Date(`${day.date}T${sStart}:00`);
+          /** ✅ IST-safe slot datetime */
+          const [hours = 0, minutes = 0] = sStart.split(':').map(Number);
 
-          /** ✅ 24h rule */
-          if (slotStartDateTime <= next24Hours) continue;
+          const slotStartDateTime = new Date(day.date + 'T00:00:00');
+          slotStartDateTime.setHours(hours, minutes, 0, 0);
 
-          /** ✅ AM/PM filter */
+          /** ✅ FILTER LOGIC */
+          if (isToday) {
+            // Apply buffer ONLY for today
+            if (slotStartDateTime <= minAllowedTime) continue;
+          } else {
+            // Future days → allow all future slots
+            if (slotStartDateTime <= now) continue;
+          }
+
+          /** AM/PM */
           if (timeOfDay) {
             const hour = slotStartDateTime.getHours();
             if (timeOfDay === 'AM' && hour >= 12) continue;
             if (timeOfDay === 'PM' && hour < 12) continue;
           }
 
-          /** ❌ BLOCK overlap with booked OR temp */
+          /** ❌ overlap */
           const isBlocked = blockedSlots.some(b =>
             isOverlapping(sStart, sEnd, b.start, b.end)
           );
-
           if (isBlocked) continue;
 
-          /** ❌ ENFORCE 30 MIN BUFFER FROM BLOCKED SLOTS */
+          /** ❌ 30 min gap */
           const violatesGap = blockedSlots.some(b => {
-            const gapBefore = Math.abs(this.toMinutes(sStart) - this.toMinutes(b.end));
-            const gapAfter = Math.abs(this.toMinutes(sEnd) - this.toMinutes(b.start));
+            const gapBefore = Math.abs(
+              this.toMinutes(sStart) - this.toMinutes(b.end)
+            );
+            const gapAfter = Math.abs(
+              this.toMinutes(sEnd) - this.toMinutes(b.start)
+            );
             return gapBefore < 30 || gapAfter < 30;
           });
-
           if (violatesGap) continue;
 
           const key = `${day.date}-${sStart}-${sEnd}`;
@@ -1190,7 +784,9 @@ async getAvailableSlots(
       }
 
       const slotsForDay = Array.from(slotMap.values())
-        .sort((a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart))
+        .sort(
+          (a, b) => this.toMinutes(a.rawStart) - this.toMinutes(b.rawStart)
+        )
         .map(({ rawStart, ...rest }) => rest);
 
       if (slotsForDay.length) {
@@ -1204,6 +800,7 @@ async getAvailableSlots(
 
   return result;
 }
+
 
 private toMinutes(time: string): number {
   const [h=0, m=0] = time.split(':').map(Number);
