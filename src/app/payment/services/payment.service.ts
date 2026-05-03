@@ -11,7 +11,7 @@ import Stripe from 'stripe';
 import { Order, OrderDocument } from '@common/db/schemas/order.schema';
 import { Payment, PaymentDocument, PaymentPurpose } from '@common/db/schemas/payment.schema';
 import { GiftVoucherDocument } from '@app/gift-vouchers/schema/gift-voucher-schema';
-import { WalletTransaction, WalletTransactionDocument } from '@common/db/schemas/wallet-transaction.schema';
+import { WalletTransaction, WalletTransactionDocument, WalletTxnSource, WalletTxnStatus } from '@common/db/schemas/wallet-transaction.schema';
 import { LearnerDocument } from '@common/db/schemas/learner.schema';
 
 export type StripeIntentMetadata = {
@@ -685,6 +685,9 @@ export class StripeService {
   //     data: transactions,
   //   };
   // }
+
+
+  
   async creditedAccounts(learnerId: string) {
   if (!learnerId) {
     throw new BadRequestException('Invalid learnerId !');
@@ -694,15 +697,23 @@ export class StripeService {
 
   const transactions = await this.walletModel.aggregate([
     {
-      $match: {
-        learnerId: learnerObjectId,
-        type: 'CREDIT',
-        status: 'COMPLETED',
-        isRefund: false,
-        isRefundRequested: false,
-        source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
-      },
-    },
+  $match: {
+    $or: [
+      { learnerId: learnerObjectId },
+      { userId: learnerObjectId }
+    ],
+    type: 'CREDIT',
+    status: WalletTxnStatus.COMPLETED,
+    isRefund: false,
+    isRefundRequested: false,
+    source: { $in: [
+      WalletTxnSource.ORDER,
+      WalletTxnSource.STRIPE,
+      WalletTxnSource.GIFT_VOUCHER,
+      WalletTxnSource.ORDER_REMAINING
+    ] },
+  },
+},
 
     {
       $lookup: {
