@@ -353,9 +353,10 @@ export class LearnerService {
 
 
   async login(identifier: string, password: string) {
+    const normalizedIdentifier = identifier.toLowerCase();
     const learner = await this.learnerModel.findOne({
       $or: [
-        { email: identifier },
+        { email: normalizedIdentifier },
         { mobileNumber: identifier },
       ],
       isActive: true,

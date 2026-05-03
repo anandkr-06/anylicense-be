@@ -613,76 +613,153 @@ export class StripeService {
     };
   }
 
+  // async creditedAccounts(learnerId: string) {
+  //   if (!learnerId) {
+  //     throw new BadRequestException('Invalid learnerId !');
+  //   }
+  
+  //   const learnerObjectId = new Types.ObjectId(learnerId);
+  
+  //   const transactions = await this.walletModel.aggregate([
+  //     {
+  //       $match: {
+  //         learnerId: learnerObjectId,
+  //         type: 'CREDIT',
+  //         status: 'COMPLETED',
+  //         isRefund: false,
+  //         isRefundRequested:false,
+  //         source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
+  //       },
+  //     },
+  
+  //     // ✅ Join with orders collection
+  //     {
+  //       $lookup: {
+  //         from: 'orders', // ⚠️ make sure collection name is correct
+  //         localField: 'referenceEntityId',
+  //         foreignField: '_id',
+  //         as: 'orderDetails',
+  //       },
+  //     },
+  
+  //     // ✅ Convert array → object (optional)
+  //     {
+  //       $unwind: {
+  //         path: '$orderDetails',
+  //         preserveNullAndEmptyArrays: true, // important for non-order sources
+  //       },
+  //     },
+  
+  //     {
+  //       $sort: { createdAt: -1 },
+  //     },
+  
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         source: 1,
+  //         amount: 1,
+  //         balanceAfter: 1,
+  //         status: 1,
+  //         stripePaymentIntentId: 1,
+  //         createdAt: 1,
+  //         isRefund:1,
+  
+  //         // ✅ Order Data
+  //         order: {
+  //           _id: '$orderDetails._id',
+  //           orderId: '$orderDetails.orderId',
+  //           totalAmount: '$orderDetails.totalAmount',
+  //           pricePerHour: '$orderDetails.pricePerHour',
+  //           status: '$orderDetails.status',
+  //           purchaseAmount: '$orderDetails.purchaseAmount',
+  //           discount: '$orderDetails.discount',
+  //           platformCharge: '$orderDetails.platformCharge',
+  //         },
+  //       },
+  //     },
+  //   ]);
+  
+  //   return {
+  //     count: transactions.length,
+  //     data: transactions,
+  //   };
+  // }
   async creditedAccounts(learnerId: string) {
-    if (!learnerId) {
-      throw new BadRequestException('Invalid learnerId !');
-    }
-  
-    const learnerObjectId = new Types.ObjectId(learnerId);
-  
-    const transactions = await this.walletModel.aggregate([
-      {
-        $match: {
-          learnerId: learnerObjectId,
-          type: 'CREDIT',
-          status: 'COMPLETED',
-          isRefund: false,
-          isRefundRequested:false,
-          source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
-        },
-      },
-  
-      // ✅ Join with orders collection
-      {
-        $lookup: {
-          from: 'orders', // ⚠️ make sure collection name is correct
-          localField: 'referenceEntityId',
-          foreignField: '_id',
-          as: 'orderDetails',
-        },
-      },
-  
-      // ✅ Convert array → object (optional)
-      {
-        $unwind: {
-          path: '$orderDetails',
-          preserveNullAndEmptyArrays: true, // important for non-order sources
-        },
-      },
-  
-      {
-        $sort: { createdAt: -1 },
-      },
-  
-      {
-        $project: {
-          _id: 0,
-          source: 1,
-          amount: 1,
-          balanceAfter: 1,
-          status: 1,
-          stripePaymentIntentId: 1,
-          createdAt: 1,
-          isRefund:1,
-  
-          // ✅ Order Data
-          order: {
-            _id: '$orderDetails._id',
-            orderId: '$orderDetails.orderId',
-            totalAmount: '$orderDetails.totalAmount',
-            pricePerHour: '$orderDetails.pricePerHour',
-            status: '$orderDetails.status',
-            purchaseAmount: '$orderDetails.purchaseAmount',
-            discount: '$orderDetails.discount',
-            platformCharge: '$orderDetails.platformCharge',
-          },
-        },
-      },
-    ]);
-  
-    return {
-      count: transactions.length,
-      data: transactions,
-    };
+  if (!learnerId) {
+    throw new BadRequestException('Invalid learnerId !');
   }
+
+  const learnerObjectId = new Types.ObjectId(learnerId);
+
+  const transactions = await this.walletModel.aggregate([
+    {
+      $match: {
+        learnerId: learnerObjectId,
+        type: 'CREDIT',
+        status: 'COMPLETED',
+        isRefund: false,
+        isRefundRequested: false,
+        source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
+      },
+    },
+
+    {
+      $lookup: {
+        from: 'orders',
+        localField: 'referenceEntityId',
+        foreignField: '_id',
+        as: 'orderDetails',
+      },
+    },
+    { $unwind: { path: '$orderDetails', preserveNullAndEmptyArrays: true } },
+
+    // ✅ FIFO order
+    { $sort: { createdAt: 1 } },
+
+    {
+      $project: {
+        source: 1,
+        amount: 1,
+        balanceAfter: 1,
+        status: 1,
+        stripePaymentIntentId: 1,
+        createdAt: 1,
+        isRefund: 1,
+
+        // FIFO credit fields
+        totalHours: 1,
+        remainingHours: 1,
+        consumedHours: 1,
+        discountRate: 1,
+
+        // ✅ Derived remaining value
+        remainingValue: {
+          $multiply: [
+            { $ifNull: ['$remainingHours', 0] },
+            { $ifNull: ['$orderDetails.pricePerHour', 0] },
+            { $subtract: [1, { $ifNull: ['$discountRate', 0] }] },
+          ],
+        },
+
+        order: {
+          _id: '$orderDetails._id',
+          orderId: '$orderDetails.orderId',
+          totalAmount: '$orderDetails.totalAmount',
+          pricePerHour: '$orderDetails.pricePerHour',
+          status: '$orderDetails.status',
+          purchaseAmount: '$orderDetails.purchaseAmount',
+          discount: '$orderDetails.discount',
+          platformCharge: '$orderDetails.platformCharge',
+        },
+      },
+    },
+  ]);
+
+  return {
+    count: transactions.length,
+    data: transactions,
+  };
+}
+
 }
