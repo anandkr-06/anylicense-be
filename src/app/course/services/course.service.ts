@@ -109,10 +109,10 @@ export class CourseService {
 
   async login(dto: CourseLoginDto) {
     const { identifier, password } = dto;
-  
+  const normalizedIdentifier = identifier.toLowerCase();
     const provider = await this.courseProviderModel.findOne({
       $or: [
-        { email: identifier },
+        { email: normalizedIdentifier },
         { mobile: identifier },
       ],
       isActive: true,

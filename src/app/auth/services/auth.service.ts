@@ -53,43 +53,45 @@ export class AuthService {
   // }
 
   async login(identifier: string, password: string) {
-      const instructor = await this.userModel.findOne({
-        $or: [
-          { email: identifier },
-          { mobileNumber: identifier },
-        ],
-        isActive: true,
-      });
-  
-      if (!instructor) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
+  const normalizedIdentifier = identifier.toLowerCase();
 
-      const isPasswordValid = await bcrypt.compare(
-        password,
-        instructor.password,
-      );
-  
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-  
-      const payload = {
-        sub: instructor._id,
-        email: instructor.email,
-        role:UserRole.INSTRUCTOR,
-      };
-  
-      return {
-        accessToken: this.jwtService.sign(payload),
-        instructor: {
-          id: instructor._id,
-          firstName: instructor.firstName,
-          email: instructor.email,
-          mobileNumber: instructor.mobileNumber,
-        },
-      };
-    } 
+  const instructor = await this.userModel.findOne({
+    $or: [
+      { email: normalizedIdentifier },   // email always lowercase
+      { mobileNumber: identifier },      // keep mobile as-is
+    ],
+    isActive: true,
+  });
+
+  if (!instructor) {
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    instructor.password,
+  );
+
+  if (!isPasswordValid) {
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  const payload = {
+    sub: instructor._id,
+    email: instructor.email,
+    role: UserRole.INSTRUCTOR,
+  };
+
+  return {
+    accessToken: this.jwtService.sign(payload),
+    instructor: {
+      id: instructor._id,
+      firstName: instructor.firstName,
+      email: instructor.email,
+      mobileNumber: instructor.mobileNumber,
+    },
+  };
+}
   // async login(identifier: string, password: string) {
   //   const isEmail = identifier.includes('@');
   
