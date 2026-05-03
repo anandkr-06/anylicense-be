@@ -687,11 +687,15 @@ export class StripeService {
   // }
 
  async creditedAccounts(learnerId: string) {
+  
   if (!learnerId) {
     throw new BadRequestException('Invalid learnerId !');
   }
 
   const learnerObjectId = new Types.ObjectId(learnerId);
+
+  const debug = await this.walletModel.find({ learnerId: learnerObjectId });
+console.log(debug.map(d => ({ source: d.source, status: d.status, isRefund: d.isRefund })));
 
   const transactions = await this.walletModel.aggregate([
     {
