@@ -719,6 +719,7 @@ export class StripeService {
 
     {
       $project: {
+        // Core wallet fields
         source: 1,
         amount: 1,
         balanceAfter: 1,
@@ -727,13 +728,13 @@ export class StripeService {
         createdAt: 1,
         isRefund: 1,
 
-        // FIFO credit fields
+        // FIFO credit pack fields
         totalHours: 1,
         remainingHours: 1,
         consumedHours: 1,
         discountRate: 1,
 
-        // ✅ Derived remaining value
+        // Derived remaining value
         remainingValue: {
           $multiply: [
             { $ifNull: ['$remainingHours', 0] },
@@ -742,6 +743,7 @@ export class StripeService {
           ],
         },
 
+        // Order details
         order: {
           _id: '$orderDetails._id',
           orderId: '$orderDetails.orderId',
@@ -761,5 +763,6 @@ export class StripeService {
     data: transactions,
   };
 }
+
 
 }
