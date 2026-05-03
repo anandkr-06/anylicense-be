@@ -321,20 +321,20 @@ export class StripeService {
   //   if (amount <= 0) {
   //     throw new BadRequestException('Invalid withdrawal amount');
   //   }
-  
+
   //   const learnerObjectId = new Types.ObjectId(learnerId);
-  
+
   //   // ✅ Get latest wallet balance
   //   const lastTxn = await this.walletModel
   //     .findOne({ learnerId: learnerObjectId })
   //     .sort({ createdAt: -1 });
-  
+
   //   const currentBalance = lastTxn?.balanceAfter || 0;
-  
+
   //   if (currentBalance < amount) {
   //     throw new BadRequestException('Insufficient wallet balance');
   //   }
-  
+
   //   // ✅ Get original transaction
   //   const originalTxn = await this.walletModel.findOne({
   //     learnerId: learnerObjectId,
@@ -342,15 +342,15 @@ export class StripeService {
   //     type: 'CREDIT',
   //     isRefund: false,
   //   });
-  
+
   //   if (!originalTxn) {
   //     throw new BadRequestException('No valid refundable transaction found');
   //   }
-  
+
   //   if (amount > originalTxn.amount) {
   //     throw new BadRequestException('Refund exceeds original amount');
   //   }
-  
+
   //   // ✅ Prevent duplicate requests
   //   const existingRequest = await this.walletModel.findOne({
   //     learnerId: learnerObjectId,
@@ -358,14 +358,14 @@ export class StripeService {
   //     source: 'STRIPE_REFUND',
   //     status: 'PENDING',
   //   });
-  
+
   //   if (existingRequest) {
   //     throw new BadRequestException('Refund already requested');
   //   }
-  
+
   //   // ✅ Deduct (hold)
   //   const newBalance = currentBalance - amount;
-  
+
   //   const withdrawalTxn = await this.walletModel.create({
   //     learnerId: learnerObjectId,
   //     userId: learnerObjectId,
@@ -378,19 +378,19 @@ export class StripeService {
   //     stripePaymentIntentId,
   //     status: 'PENDING',
   //   });
-  
+
   //   // ✅ Update wallet
   //   await this.learnerModel.updateOne(
   //     { _id: learnerObjectId },
   //     { $inc: { walletBalance: -amount } },
   //   );
-  
+
   //   // ✅ Mark original txn
   //   await this.walletModel.updateOne(
   //     { _id: originalTxn._id },
   //     { $set: { isRefund: true } },
   //   );
-  
+
   //   return {
   //     message: 'Refund request submitted for admin approval',
   //     requestId: withdrawalTxn._id,
@@ -407,33 +407,33 @@ export class StripeService {
   //   if (amount <= 0) {
   //     throw new BadRequestException('Invalid withdrawal amount');
   //   }
-  
+
   //   if (source !== 'STRIPE') {
   //     throw new BadRequestException('Invalid refund source');
   //   }
-  
+
   //   const learnerObjectId = new Types.ObjectId(learnerId);
-  
+
   //   // ✅ Get original CREDIT txn
   //   const originalTxn = await this.walletModel.findOne({
   //     learnerId: learnerObjectId,
   //     stripePaymentIntentId,
   //     type: 'CREDIT',
   //   });
-  
+
   //   if (!originalTxn) {
   //     throw new BadRequestException('No valid refundable transaction found');
   //   }
-  
+
   //   const refundedAmount = originalTxn.refundedAmount || 0;
   //   const remainingAmount = originalTxn.amount - refundedAmount;
-  
+
   //   if (amount > remainingAmount) {
   //     throw new BadRequestException(
   //       `Refund exceeds remaining amount (${remainingAmount})`,
   //     );
   //   }
-  
+
   //   // ✅ Prevent duplicate PENDING requests for same intent
   //   const existingPending = await this.walletModel.findOne({
   //     learnerId: learnerObjectId,
@@ -441,11 +441,11 @@ export class StripeService {
   //     source: 'STRIPE_REFUND',
   //     status: 'PENDING',
   //   });
-  
+
   //   if (existingPending) {
   //     throw new BadRequestException('Refund already pending for this payment');
   //   }
-  
+
   //   // ✅ Atomic wallet deduction (prevents race conditions)
   //   const learner = await this.learnerModel.findOneAndUpdate(
   //     {
@@ -457,18 +457,18 @@ export class StripeService {
   //     },
   //     { new: true },
   //   );
-  
+
   //   if (!learner) {
   //     throw new BadRequestException('Insufficient wallet balance');
   //   }
-  
+
   //   // ✅ Get latest txn for balanceAfter
   //   const lastTxn = await this.walletModel
   //     .findOne({ learnerId: learnerObjectId })
   //     .sort({ createdAt: -1 });
-  
+
   //   const newBalance = (lastTxn?.balanceAfter || 0) - amount;
-  
+
   //   // ✅ Create HOLD txn
   //   const withdrawalTxn = await this.walletModel.create({
   //     learnerId: learnerObjectId,
@@ -482,13 +482,13 @@ export class StripeService {
   //     stripePaymentIntentId,
   //     status: 'PENDING',
   //   });
-  
+
   //   // ✅ Mark request (NOT final refund)
   //   await this.walletModel.updateOne(
   //     { _id: originalTxn._id },
   //     { $set: { isRefundRequested: true } },
   //   );
-  
+
   //   return {
   //     message: 'Refund request submitted for admin approval',
   //     requestId: withdrawalTxn._id,
@@ -505,25 +505,25 @@ export class StripeService {
     if (amount <= 0) {
       throw new BadRequestException('Invalid withdrawal amount');
     }
-  
+
     const ALLOWED_SOURCES = ['ORDER', 'GIFT_VOUCHER', 'STRIPE'];
-  
+
     if (!ALLOWED_SOURCES.includes(source)) {
       throw new BadRequestException(
         'Refund allowed only for ORDER, GIFT_VOUCHER, STRIPE',
       );
     }
-  
+
     const learnerObjectId = new Types.ObjectId(learnerId);
-  
+
     // ✅ Get original txn
     let originalTxn;
-  
+
     if (source === 'STRIPE') {
       if (!stripePaymentIntentId) {
         throw new BadRequestException('Missing stripePaymentIntentId');
       }
-  
+
       originalTxn = await this.walletModel.findOne({
         learnerId: learnerObjectId,
         stripePaymentIntentId,
@@ -538,21 +538,21 @@ export class StripeService {
         source,
       });
     }
-  
+
     if (!originalTxn) {
       throw new BadRequestException('No valid refundable transaction found');
     }
-  
+
     // ✅ Refund validation
     const refundedAmount = originalTxn.refundedAmount || 0;
     const remainingAmount = originalTxn.amount - refundedAmount;
-  
+
     // if (amount > remainingAmount) {
     //   throw new BadRequestException(
     //     `Refund exceeds remaining amount (${remainingAmount})`,
     //   );
     // }
-  
+
     // ✅ Prevent duplicate pending
     const existingPending = await this.walletModel.findOne({
       learnerId: learnerObjectId,
@@ -560,11 +560,11 @@ export class StripeService {
       source: 'STRIPE_REFUND',
       status: 'PENDING',
     });
-  
+
     if (existingPending) {
       throw new BadRequestException('Refund already pending for this transaction');
     }
-  
+
     // ✅ Deduct wallet (atomic)
     const learner = await this.learnerModel.findOneAndUpdate(
       {
@@ -576,13 +576,13 @@ export class StripeService {
       },
       { new: true },
     );
-  
+
     if (!learner) {
       throw new BadRequestException('Insufficient wallet balance');
     }
-  
+
     const newBalance = learner.walletBalance;
-  
+
     // ✅ Create refund request txn
     const withdrawalTxn = await this.walletModel.create({
       learnerId: learnerObjectId,
@@ -598,13 +598,13 @@ export class StripeService {
         source ? originalTxn.stripePaymentIntentId : null,
       status: 'PENDING',
     });
-  
+
     // ✅ Mark request (NOT final refund)
     await this.walletModel.updateOne(
       { _id: originalTxn._id },
       { $set: { isRefundRequested: true } }, // 🔥 FIXED
     );
-  
+
     return {
       message: 'Refund request submitted for admin approval',
       requestId: withdrawalTxn._id,
@@ -617,9 +617,9 @@ export class StripeService {
   //   if (!learnerId) {
   //     throw new BadRequestException('Invalid learnerId !');
   //   }
-  
+
   //   const learnerObjectId = new Types.ObjectId(learnerId);
-  
+
   //   const transactions = await this.walletModel.aggregate([
   //     {
   //       $match: {
@@ -631,7 +631,7 @@ export class StripeService {
   //         source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
   //       },
   //     },
-  
+
   //     // ✅ Join with orders collection
   //     {
   //       $lookup: {
@@ -641,7 +641,7 @@ export class StripeService {
   //         as: 'orderDetails',
   //       },
   //     },
-  
+
   //     // ✅ Convert array → object (optional)
   //     {
   //       $unwind: {
@@ -649,11 +649,11 @@ export class StripeService {
   //         preserveNullAndEmptyArrays: true, // important for non-order sources
   //       },
   //     },
-  
+
   //     {
   //       $sort: { createdAt: -1 },
   //     },
-  
+
   //     {
   //       $project: {
   //         _id: 0,
@@ -664,7 +664,7 @@ export class StripeService {
   //         stripePaymentIntentId: 1,
   //         createdAt: 1,
   //         isRefund:1,
-  
+
   //         // ✅ Order Data
   //         order: {
   //           _id: '$orderDetails._id',
@@ -679,101 +679,97 @@ export class StripeService {
   //       },
   //     },
   //   ]);
-  
+
   //   return {
   //     count: transactions.length,
   //     data: transactions,
   //   };
   // }
 
-
-  
   async creditedAccounts(learnerId: string) {
-  if (!learnerId) {
-    throw new BadRequestException('Invalid learnerId !');
+    if (!learnerId) {
+      throw new BadRequestException('Invalid learnerId !');
+    }
+
+    const learnerObjectId = new Types.ObjectId(learnerId);
+
+    const transactions = await this.walletModel.aggregate([
+      {
+        $match: {
+          learnerId: learnerObjectId,
+          type: 'CREDIT',
+          status: 'COMPLETED',
+          isRefund: false,
+          isRefundRequested: false,
+          source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'referenceEntityId',
+          foreignField: '_id',
+          as: 'orderDetails',
+        },
+      },
+      { $unwind: { path: '$orderDetails', preserveNullAndEmptyArrays: true } },
+
+      // FIFO oldest first
+      { $sort: { createdAt: 1 } },
+
+      {
+        $project: {
+          source: 1,
+          amount: 1,
+          balanceAfter: 1,
+          status: 1,
+          stripePaymentIntentId: 1,
+          createdAt: 1,
+          isRefund: 1,
+
+          // FIFO credit pack fields
+          totalHours: 1,
+          remainingHours: 1,
+          consumedHours: 1,
+          discountRate: 1,
+
+          // Derived remaining value
+          remainingValue: {
+            $cond: [
+              { $gt: ['$remainingHours', 0] },
+              {
+                $multiply: [
+                  '$remainingHours',
+                  { $ifNull: ['$orderDetails.pricePerHour', 0] },
+                  { $subtract: [1, { $ifNull: ['$discountRate', 0] }] },
+                ],
+              },
+              0,
+            ],
+          },
+
+          order: {
+            _id: '$orderDetails._id',
+            orderId: '$orderDetails.orderId',
+            totalAmount: '$orderDetails.totalAmount',
+            pricePerHour: '$orderDetails.pricePerHour',
+            status: '$orderDetails.status',
+            purchaseAmount: '$orderDetails.purchaseAmount',
+            discount: '$orderDetails.discount',
+            platformCharge: '$orderDetails.platformCharge',
+          },
+        },
+      },
+    ]);
+
+    return {
+      count: transactions.length,
+      data: transactions,
+    };
   }
 
-  const learnerObjectId = new Types.ObjectId(learnerId);
 
-  const transactions = await this.walletModel.aggregate([
-    {
-  $match: {
-    $or: [
-      { learnerId: learnerObjectId },
-      { userId: learnerObjectId }
-    ],
-    type: 'CREDIT',
-    status: WalletTxnStatus.COMPLETED,
-    isRefund: false,
-    isRefundRequested: false,
-    source: { $in: [
-      WalletTxnSource.ORDER,
-      WalletTxnSource.STRIPE,
-      WalletTxnSource.GIFT_VOUCHER,
-      WalletTxnSource.ORDER_REMAINING
-    ] },
-  },
-},
-
-    {
-      $lookup: {
-        from: 'orders',
-        localField: 'referenceEntityId',
-        foreignField: '_id',
-        as: 'orderDetails',
-      },
-    },
-    { $unwind: { path: '$orderDetails', preserveNullAndEmptyArrays: true } },
-
-    // ✅ FIFO order
-    { $sort: { createdAt: 1 } },
-
-    {
-      $project: {
-        // Core wallet fields
-        source: 1,
-        amount: 1,
-        balanceAfter: 1,
-        status: 1,
-        stripePaymentIntentId: 1,
-        createdAt: 1,
-        isRefund: 1,
-
-        // FIFO credit pack fields
-        totalHours: 1,
-        remainingHours: 1,
-        consumedHours: 1,
-        discountRate: 1,
-
-        // Derived remaining value
-        remainingValue: {
-          $multiply: [
-            { $ifNull: ['$remainingHours', 0] },
-            { $ifNull: ['$orderDetails.pricePerHour', 0] },
-            { $subtract: [1, { $ifNull: ['$discountRate', 0] }] },
-          ],
-        },
-
-        // Order details
-        order: {
-          _id: '$orderDetails._id',
-          orderId: '$orderDetails.orderId',
-          totalAmount: '$orderDetails.totalAmount',
-          pricePerHour: '$orderDetails.pricePerHour',
-          status: '$orderDetails.status',
-          purchaseAmount: '$orderDetails.purchaseAmount',
-          discount: '$orderDetails.discount',
-          platformCharge: '$orderDetails.platformCharge',
-        },
-      },
-    },
-  ]);
-
-  return {
-    count: transactions.length,
-    data: transactions,
-  };
-}
 
 
 }
