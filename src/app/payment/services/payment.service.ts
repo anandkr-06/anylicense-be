@@ -694,72 +694,34 @@ export class StripeService {
 
   const learnerObjectId = new Types.ObjectId(learnerId);
 
-  const debug = await this.walletModel.find({ learnerId: learnerObjectId });
-console.log(debug.map(d => ({ source: d.source, status: d.status, isRefund: d.isRefund })));
+  
 
   const transactions = await this.walletModel.aggregate([
-    {
-      $match: {
-        learnerId: learnerObjectId,   // ✅ use learnerId
-        type: 'CREDIT',
-        status: 'COMPLETED',
-        isRefund: false,
-        isRefundRequested: false,
-        source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
-      },
+  {
+    $match: {
+      type: 'CREDIT',
+      status: 'COMPLETED',
+      isRefund: false,
+      source: { $in: ['GIFT_VOUCHER', 'ORDER', 'STRIPE'] },
     },
-    {
-      $lookup: {
-        from: 'orders',
-        localField: 'referenceEntityId',
-        foreignField: '_id',
-        as: 'orderDetails',
-      },
+  },
+  { $sort: { createdAt: 1 } },
+  {
+    $project: {
+      source: 1,
+      amount: 1,
+      stripePaymentIntentId: 1,
+      isRefund: 1,
+      createdAt: 1,
+      totalHours: 1,
+      remainingHours: 1,
+      consumedHours: 1,
+      discountRate: 1,
     },
-    { $unwind: { path: '$orderDetails', preserveNullAndEmptyArrays: true } },
-    { $sort: { createdAt: 1 } }, // FIFO oldest first
-    {
-      $project: {
-        source: 1,
-        amount: 1,
-        balanceAfter: 1,
-        status: 1,
-        stripePaymentIntentId: 1,
-        createdAt: 1,
-        isRefund: 1,
-
-        totalHours: 1,
-        remainingHours: 1,
-        consumedHours: 1,
-        discountRate: 1,
-
-        remainingValue: {
-          $cond: [
-            { $gt: ['$remainingHours', 0] },
-            {
-              $multiply: [
-                '$remainingHours',
-                { $ifNull: ['$orderDetails.pricePerHour', 0] },
-                { $subtract: [1, { $ifNull: ['$discountRate', 0] }] },
-              ],
-            },
-            0,
-          ],
-        },
-
-        order: {
-          _id: '$orderDetails._id',
-          orderId: '$orderDetails.orderId',
-          totalAmount: '$orderDetails.totalAmount',
-          pricePerHour: '$orderDetails.pricePerHour',
-          status: '$orderDetails.status',
-          purchaseAmount: '$orderDetails.purchaseAmount',
-          discount: '$orderDetails.discount',
-          platformCharge: '$orderDetails.platformCharge',
-        },
-      },
-    },
-  ]);
+  },
+]);
+console.log('Input learnerId:', learnerId);
+console.log('ObjectId:', new Types.ObjectId(learnerId));
 
   return { count: transactions.length, data: transactions };
 }
