@@ -418,7 +418,7 @@ export class SearchService {
           _id: '$_id',
           instructorId: { $first: '$userId' },
           firstName: { $first: '$user.firstName' },
-          isPublish: '$user.isPublish',
+          isPublish: { $first: '$user.isPublish' },
           lastName: { $first: '$user.lastName' },
           profileImage: { $first: '$user.profileImage' },
           vehiclesImage: { $first: '$user.vehicles' },
