@@ -38,16 +38,16 @@ export class User {
   @Prop({ required: false })
   public dob!: string;
 
-  
+
   @Prop({ enum: UserGender, default: UserGender.MALE })
   public gender?: UserGender;
 
   @Prop({ required: false, trim: true })
-  
+
   public postCode!: string;
 
   @Prop({ required: true, trim: true })
-  
+
   public state!: string;
 
   @Prop({ default: [] })
@@ -71,7 +71,7 @@ export class User {
 
   @Prop({ type: [String], default: [] })
   public proficientLanguages?: string[];
-//Multi Language Support
+  //Multi Language Support
   @Prop({ default: 0 })
   public instructorExperienceYears?: number;
 
@@ -82,16 +82,18 @@ export class User {
   public isMemberOfDrivingAssociation?: boolean;
 
   @Prop({ enum: TransmissionType, default: TransmissionType.MANUAL })
-  transmissionType!:  TransmissionType; 
+  transmissionType!: TransmissionType;
   @Prop({ default: false })
   public isActive!: boolean;
+  @Prop({ default: false })
+  isPublish!: boolean;
 
   @Prop({ default: "" })
   public stripeAccountId?: string;
 
   @Prop({ default: 0 })
-walletBalance!: number;
-  
+  walletBalance!: number;
+
 }
 
 export type UserDocument = User & Document & { _id: Types.ObjectId };
