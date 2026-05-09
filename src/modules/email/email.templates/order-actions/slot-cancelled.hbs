@@ -28,7 +28,8 @@
 <p><strong>Hi {{receiverName}},</strong></p>
 
 <p>
-Your session has been <strong style="color:#e53935;">cancelled</strong>.
+Your session has been 
+<strong style="color:#e53935;">cancelled</strong>.
 </p>
 
 <p>
@@ -39,21 +40,35 @@ Here are the details for your reference:
 <p><strong>⏰ Time:</strong> {{startTime}} - {{endTime}}</p>
 <p><strong>👤 Cancelled By:</strong> {{actedBy}}</p>
 
-<p><strong>⚠️ Reason:</strong> {{reasonType}}</p>
-
 {{#if comment}}
 <p><strong>📝 Note:</strong> {{comment}}</p>
 {{/if}}
 
-<p>
+<!-- ✅ Refund / Policy Messages -->
+
 {{#if isEarlyCancel}}
-You are eligible for a refund as this cancellation was made more than 24 hours in advance.
+<div style="background:#f1f8e9; border-left:4px solid #7cb342; padding:12px; margin:18px 0;">
+  <strong>Refund Update:</strong><br/>
+  This cancellation was made more than 24 hours before the scheduled session.
+  Eligible refund amount (if applicable) has been processed to the learner wallet.
+</div>
 {{/if}}
 
-{{#if isLateCancel}}
-This cancellation was made within 24 hours of the session, so refund policies may apply.
+{{#if isInstructorLateCancel}}
+<div style="background:#fff3e0; border-left:4px solid #fb8c00; padding:12px; margin:18px 0;">
+  <strong>Important Notice:</strong><br/>
+  This booking was cancelled by the instructor within 24 hours of the scheduled session.
+  No refund has been issued to the learner. Please verify with support if required.
+</div>
 {{/if}}
-</p>
+
+{{#if isLearnerLateCancel}}
+<div style="background:#ffebee; border-left:4px solid #e53935; padding:12px; margin:18px 0;">
+  <strong>Refund Policy Notice:</strong><br/>
+  This booking was cancelled by the learner within 24 hours of the scheduled session.
+  As per policy, no refund has been issued.
+</div>
+{{/if}}
 
 <p>
 If you wish to book another session, feel free to visit our platform anytime.

@@ -789,16 +789,23 @@ export class OrderService {
     // =========================================================
     // ✅ UPDATED: Replace old within24h logic (SAFE)
     // =========================================================
+
     const isLateCancel = hoursBefore < 24;
 
     let refund = 0;
 
-    if (!isLateCancel) {
-      const hours = this.calculateSlotHours(
-        slot.startTime,
-        slot.endTime,
-      );
+    const hours = this.calculateSlotHours(
+      slot.startTime,
+      slot.endTime,
+    );
 
+    // ✅ Instructor cancellation → always refund
+    if (role === 'instructor') {
+      refund = hours * order.pricePerHour;
+    }
+
+    // ✅ Learner cancellation → refund only before 24h
+    if (role === 'learner' && !isLateCancel) {
       refund = hours * order.pricePerHour;
     }
 
@@ -813,7 +820,12 @@ export class OrderService {
     slot.actionMeta = {
       actedBy: role,
       actedAt: new Date(),
-      reasonType: isLateCancel ? 'LATE_CANCEL' : 'EARLY_CANCEL',
+      reasonType:
+        role === 'instructor' && isLateCancel
+          ? 'INSTRUCTOR_LATE_CANCEL'
+          : role === 'learner' && isLateCancel
+            ? 'LEARNER_LATE_CANCEL'
+            : 'EARLY_CANCEL',
     };
 
     await order.save();
