@@ -88,8 +88,8 @@ export class User {
   @Prop({ default: false })
   isPublish!: boolean;
 
-  @Prop({ default: "" })
-  public stripeAccountId?: string;
+  @Prop({ default: '' })
+public stripeAccountId!: string;
 
   @Prop({ default: 0 })
   walletBalance!: number;
