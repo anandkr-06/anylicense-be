@@ -589,6 +589,7 @@ export class NotificationService {
 /**
  * cancelled
  */
+
 // async sendSlotCancelledNotification(payload: {
 //   receiverEmail: string;
 //   receiverName: string;
@@ -603,7 +604,7 @@ export class NotificationService {
 //   await this.mailerService.sendMail({
 //     to: payload.receiverEmail,
 //     subject: 'Slot Cancelled',
-//     template: MAILER_TEMPLATES.SLOT_CANCELLED, // 🔥 new template
+//     template: MAILER_TEMPLATES.SLOT_CANCELLED,
 //     context: {
 //       receiverName: payload.receiverName,
 //       slotDate: payload.slotDate,
@@ -612,11 +613,14 @@ export class NotificationService {
 //       actedBy: payload.actedBy,
 //       reasonType: payload.reasonType,
 //       comment: payload.comment || '',
+    
+//       isEarlyCancel: payload.reasonType === 'EARLY_CANCEL',
+//       isLateCancel: payload.reasonType === 'LATE_CANCEL',
+    
 //       website_url: process.env['WEBSITE_URL'],
 //     },
 //   });
 
-//   // ✅ SMS (optional but consistent with your pattern)
 //   if (payload.receiverPhone) {
 //     this.smsService
 //       .send(
@@ -626,6 +630,7 @@ export class NotificationService {
 //       .catch(() => {});
 //   }
 // }
+
 async sendSlotCancelledNotification(payload: {
   receiverEmail: string;
   receiverName: string;
@@ -643,26 +648,51 @@ async sendSlotCancelledNotification(payload: {
     template: MAILER_TEMPLATES.SLOT_CANCELLED,
     context: {
       receiverName: payload.receiverName,
+
       slotDate: payload.slotDate,
       startTime: payload.startTime,
       endTime: payload.endTime,
+
       actedBy: payload.actedBy,
       reasonType: payload.reasonType,
+
       comment: payload.comment || '',
-    
-      isEarlyCancel: payload.reasonType === 'EARLY_CANCEL',
-      isLateCancel: payload.reasonType === 'LATE_CANCEL',
-    
+
+      // ✅ template flags
+      isEarlyCancel:
+        payload.reasonType === 'EARLY_CANCEL',
+
+      isInstructorLateCancel:
+        payload.reasonType === 'INSTRUCTOR_LATE_CANCEL',
+
+      isLearnerLateCancel:
+        payload.reasonType === 'LEARNER_LATE_CANCEL',
+
+      // ✅ backward compatibility
+      isLateCancel:
+        payload.reasonType === 'INSTRUCTOR_LATE_CANCEL' ||
+        payload.reasonType === 'LEARNER_LATE_CANCEL',
+
       website_url: process.env['WEBSITE_URL'],
     },
   });
 
   if (payload.receiverPhone) {
+    let smsMessage = `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`;
+
+    // ✅ optional better SMS messages
+    if (payload.reasonType === 'INSTRUCTOR_LATE_CANCEL') {
+      smsMessage =
+        `Instructor cancelled your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} within 24 hours.`;
+    }
+
+    if (payload.reasonType === 'LEARNER_LATE_CANCEL') {
+      smsMessage =
+        `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} was cancelled within 24 hours.`;
+    }
+
     this.smsService
-      .send(
-        payload.receiverPhone,
-        `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`,
-      )
+      .send(payload.receiverPhone, smsMessage)
       .catch(() => {});
   }
 }

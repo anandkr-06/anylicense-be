@@ -10,49 +10,102 @@ export class StripeService {
     if (!key) throw new Error('STRIPE_SECRET_KEY missing');
 
     this.stripe = new Stripe(key, {
-        apiVersion: '2025-12-15.clover',
+      apiVersion: '2025-12-15.clover',
     });
   }
 
   // 1️⃣ Create Stripe Express Account
-  async createExpressAccount(email: string) {
-    const account = await this.stripe.accounts.create({
-      type: 'express',
-      email: email,
-      capabilities: {
-        transfers: { requested: true },
-      },
-    });
+  // async createExpressAccount(email: string) {
+  //   const account = await this.stripe.accounts.create({
+  //     type: 'express',
+  //     email: email,
+  //     capabilities: {
+  //       transfers: { requested: true },
+  //     },
+  //   });
+
+  //   return account;
+  // }
+  // 1️⃣ Create Stripe Express Account
+  async createExpressAccount(
+    email: string,
+    instructorId: string,
+  ) {
+
+    const account =
+      await this.stripe.accounts.create(
+        {
+          type: 'express',
+
+          email,
+
+          capabilities: {
+            transfers: {
+              requested: true,
+            },
+          },
+
+          metadata: {
+            instructorId,
+            email,
+            platform: 'anylicence',
+          },
+        },
+        {
+          // ✅ Prevent duplicate accounts
+          idempotencyKey:
+            `stripe_express_${instructorId}`,
+        },
+      );
 
     return account;
   }
 
   // 2️⃣ Generate onboarding link
-  async createAccountOnboardingLink(accountId: string) {
-    const accountLink = await this.stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: 'https://dev.anylicence.com/reauth',
-      return_url: 'https://dev.anylicence.com/dashboard',
-      type: 'account_onboarding',
-    });
+  // async createAccountOnboardingLink(accountId: string) {
+  //   const accountLink = await this.stripe.accountLinks.create({
+  //     account: accountId,
+  //     refresh_url: process.env['REFRESH_URL'] || 'https://dev.anylicence.com/reauth',
+  //     return_url: process.env['RETURN_URL'] || 'https://dev.anylicence.com/dashboard',
+  //     type: 'account_onboarding',
+  //   });
 
-    return accountLink;
-  }
+  //   return accountLink;
+  // }
+  // 2️⃣ Generate onboarding link
+async createAccountOnboardingLink(
+  accountId: string,
+) {
+
+  return await this.stripe.accountLinks.create({
+    account: accountId,
+
+    refresh_url:
+      process.env['REFRESH_URL']
+      || 'https://dev.anylicence.com/reauth',
+
+    return_url:
+      process.env['RETURN_URL']
+      || 'https://dev.anylicence.com/dashboard',
+
+    type: 'account_onboarding',
+  });
+}
 
 
 
 
- async getAccountExternals(accountId: string) {
+  async getAccountExternals(accountId: string) {
     const external = await this.stripe.accounts.listExternalAccounts(
-  accountId,
-  { object: 'bank_account' }
-);
+      accountId,
+      { object: 'bank_account' }
+    );
 
-console.log("external.data",external.data);
+    console.log("external.data", external.data);
     return external.data;
   }
 
-  
+
   // 4️⃣ Check Stripe balance
   async getBalance(accountId: string) {
     return this.stripe.balance.retrieve({
@@ -67,7 +120,7 @@ console.log("external.data",external.data);
 
     const idempotencyKey = `fastcash_${instructorId}_${Date.now()}`;
 
-    
+
 
     return this.stripe.transfers.create(
       {
@@ -101,30 +154,30 @@ console.log("external.data",external.data);
   }
 
 
-async getPlatformBalance() {
+  async getPlatformBalance() {
     return this.stripe.balance.retrieve();
   }
 
 
   // 🧪 TEST ONLY - Add funds to Stripe platform balance
-async createTestCharge() {
+  async createTestCharge() {
 
-  const charge = await this.stripe.charges.create({
-    amount: 10000, // $100
-    currency: 'aud',
-    source: 'tok_visa', // Stripe test token
-    description: 'Test charge to add funds to platform balance',
-  });
+    const charge = await this.stripe.charges.create({
+      amount: 10000, // $100
+      currency: 'aud',
+      source: 'tok_visa', // Stripe test token
+      description: 'Test charge to add funds to platform balance',
+    });
 
-  return charge;
-}
+    return charge;
+  }
 
-async addTestBalance() {
-  return this.stripe.topups.create({
-    amount: 10000,
-    currency: 'aud',
-    description: 'Test platform balance topup',
-  });
-}
+  async addTestBalance() {
+    return this.stripe.topups.create({
+      amount: 10000,
+      currency: 'aud',
+      description: 'Test platform balance topup',
+    });
+  }
 
 }
