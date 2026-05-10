@@ -78,12 +78,15 @@ export class NotificationService {
     });
 
 
+// Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = course.mobileNumber.startsWith('0')
+        ? `+61${course.mobileNumber.slice(1)}`
+        : course.mobileNumber;
 
-
-    // await this.smsService.send(
-    //     learner.mobileNumber,
-    //     `Your booking is confirmed on ${order.bookedSlots[0].date}`,
-    //   );
+    await this.smsService.send(
+        formattedPhone,
+        `Thank you for signing up for the course at ${course.instituteName}. We will contact you soon!`,
+      );
   }
   //Lead Customer
   async sendCourseLeadCustomer(course: any) {
@@ -125,9 +128,12 @@ export class NotificationService {
       context: { learner, order },
     });
 
-
+// Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = learner.mobileNumber.startsWith('0')
+        ? `+61${learner.mobileNumber.slice(1)}`
+        : learner.mobileNumber;
     await this.smsService.send(
-      learner.mobileNumber,
+      formattedPhone,
       `Your booking is confirmed on ${order.bookedSlots[0].date}`,
     );
   }
@@ -142,8 +148,12 @@ export class NotificationService {
       { learner, instructor, order },
     );
 
+    // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = learner.mobileNumber.startsWith('0')
+        ? `+61${learner.mobileNumber.slice(1)}`
+        : learner.mobileNumber;
     await this.smsService.send(
-      learner.mobileNumber,
+      formattedPhone,
       `Your booking is confirmed with ${instructor.fullName}`,
     );
   }
@@ -190,9 +200,13 @@ export class NotificationService {
 
     // 📱 SMS (non-blocking)
     if (payload.recipientPhone) {
+      // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.recipientPhone.startsWith('0')
+        ? `+61${payload.recipientPhone.slice(1)}`
+        : payload.recipientPhone;
       this.smsService
         .send(
-          payload.recipientPhone,
+          formattedPhone,
           `🎁 Hi ${payload.recipientName}, you received a gift voucher of ₹${payload.amount} from ${payload.senderName}. Code: ${payload.voucherCode}`,
         )
         .catch(err =>
@@ -276,9 +290,13 @@ export class NotificationService {
 
     // 📱 SMS
     if (payload.senderPhone) {
+      // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.senderPhone.startsWith('0')
+        ? `+61${payload.senderPhone.slice(1)}`
+        : payload.senderPhone;
       this.smsService
         .send(
-          payload.senderPhone,
+          formattedPhone,
           `🎉 Hi ${payload.senderName}, your gift voucher of ₹${payload.amount} has been sent to ${payload.recipientName}. Code: ${payload.voucherCode}`,
         )
         .catch(err =>
@@ -401,8 +419,13 @@ export class NotificationService {
       const smsText = `${mainMessage}
   New Slot: ${payload.newSlot.date} ${payload.newSlot.startTime}-${payload.newSlot.endTime}`;
 
+  // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.receiverPhone.startsWith('0')
+        ? `+61${payload.receiverPhone.slice(1)}`
+        : payload.receiverPhone;
+
       this.smsService
-        .send(payload.receiverPhone, smsText)
+        .send(formattedPhone, smsText)
         .catch(err => console.error('Reschedule SMS failed', err));
     }
   }
@@ -424,22 +447,22 @@ export class NotificationService {
     status?: 'REQUESTED' | 'APPROVED' | 'REJECTED';
   }) {
     let subject = '';
-  let message = '';
+    let message = '';
 
-  if (payload.status === 'REQUESTED') {
-    subject = 'No-Show Request Submitted';
-    message = `A no-show request has been raised by ${payload.actedBy}. It is pending admin approval.`;
-  }
+    if (payload.status === 'REQUESTED') {
+      subject = 'No-Show Request Submitted';
+      message = `A no-show request has been raised by ${payload.actedBy}. It is pending admin approval.`;
+    }
 
-  if (payload.status === 'APPROVED') {
-    subject = 'No-Show Approved';
-    message = `Your no-show request has been approved by admin.`;
-  }
+    if (payload.status === 'APPROVED') {
+      subject = 'No-Show Approved';
+      message = `Your no-show request has been approved by admin.`;
+    }
 
-  if (payload.status === 'REJECTED') {
-    subject = 'No-Show Rejected';
-    message = `Your no-show request has been rejected by admin.`;
-  }
+    if (payload.status === 'REJECTED') {
+      subject = 'No-Show Rejected';
+      message = `Your no-show request has been rejected by admin.`;
+    }
     await this.mailerService.sendMail({
       to: payload.receiverEmail,
       subject: 'Slot Marked as No-Show',
@@ -498,9 +521,14 @@ export class NotificationService {
     });
 
     if (payload.receiverPhone) {
+      // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.receiverPhone.startsWith('0')
+        ? `+61${payload.receiverPhone.slice(1)}`
+        : payload.receiverPhone;
+
       this.smsService
         .send(
-          payload.receiverPhone,
+          formattedPhone,
           `Your slot on ${payload.slotDate} is completed successfully.`,
         )
         .catch(() => { });
@@ -513,10 +541,10 @@ export class NotificationService {
   async sendOrderCreatedEmail(payload: {
     learnerEmail: string;
     learnerName: string;
-  
+
     instructorEmail?: string;
     instructorName?: string;
-  
+
     order: any;
   }) {
     const commonContext = {
@@ -526,12 +554,12 @@ export class NotificationService {
       totalAmount: payload.order.totalAmount,
       paymentStatus: payload.order.paymentStatus,
       slots: payload.order.bookedSlots || [],
-  
+
       dashboard_url: `${process.env['WEBSITE_URL']}/dashboard`,
       website_url: process.env['WEBSITE_URL'],
       website_name: process.env['WEBSITE_NAME'],
     };
-  
+
     /* 👤 Learner email */
     await this.mailerService.sendMail({
       to: payload.learnerEmail,
@@ -539,7 +567,7 @@ export class NotificationService {
       template: MAILER_TEMPLATES.ORDER_CREATED,
       context: commonContext,
     });
-  
+
     /* 👨‍🏫 Instructor email (optional) */
     if (payload.instructorEmail) {
       await this.mailerService.sendMail({
@@ -570,168 +598,173 @@ export class NotificationService {
       template: MAILER_TEMPLATES.FORGOT_PASSWORD,
       context: {
         receiverName: payload.instructorName || 'User',
-  
+
         // ✅ FIXED
         resetLink: payload.resetLink,
-  
+
         // messaging
         mainMessage: 'We received a request to reset your password.',
         ctaMessage: 'Click below to reset your password securely.',
-  
+
         expiryMinutes: 15,
-  
+
         support_email: process.env['SUPPORT_EMAIL'],
         website_url: process.env['WEBSITE_URL'],
       },
     });
   }
 
-/**
- * cancelled
- */
+  /**
+   * cancelled
+   */
 
-// async sendSlotCancelledNotification(payload: {
-//   receiverEmail: string;
-//   receiverName: string;
-//   receiverPhone?: string;
-//   slotDate: string;
-//   startTime: string;
-//   endTime: string;
-//   actedBy: string;
-//   reasonType: string;
-//   comment?: string;
-// }) {
-//   await this.mailerService.sendMail({
-//     to: payload.receiverEmail,
-//     subject: 'Slot Cancelled',
-//     template: MAILER_TEMPLATES.SLOT_CANCELLED,
-//     context: {
-//       receiverName: payload.receiverName,
-//       slotDate: payload.slotDate,
-//       startTime: payload.startTime,
-//       endTime: payload.endTime,
-//       actedBy: payload.actedBy,
-//       reasonType: payload.reasonType,
-//       comment: payload.comment || '',
-    
-//       isEarlyCancel: payload.reasonType === 'EARLY_CANCEL',
-//       isLateCancel: payload.reasonType === 'LATE_CANCEL',
-    
-//       website_url: process.env['WEBSITE_URL'],
-//     },
-//   });
+  // async sendSlotCancelledNotification(payload: {
+  //   receiverEmail: string;
+  //   receiverName: string;
+  //   receiverPhone?: string;
+  //   slotDate: string;
+  //   startTime: string;
+  //   endTime: string;
+  //   actedBy: string;
+  //   reasonType: string;
+  //   comment?: string;
+  // }) {
+  //   await this.mailerService.sendMail({
+  //     to: payload.receiverEmail,
+  //     subject: 'Slot Cancelled',
+  //     template: MAILER_TEMPLATES.SLOT_CANCELLED,
+  //     context: {
+  //       receiverName: payload.receiverName,
+  //       slotDate: payload.slotDate,
+  //       startTime: payload.startTime,
+  //       endTime: payload.endTime,
+  //       actedBy: payload.actedBy,
+  //       reasonType: payload.reasonType,
+  //       comment: payload.comment || '',
 
-//   if (payload.receiverPhone) {
-//     this.smsService
-//       .send(
-//         payload.receiverPhone,
-//         `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`,
-//       )
-//       .catch(() => {});
-//   }
-// }
+  //       isEarlyCancel: payload.reasonType === 'EARLY_CANCEL',
+  //       isLateCancel: payload.reasonType === 'LATE_CANCEL',
 
-async sendSlotCancelledNotification(payload: {
-  receiverEmail: string;
-  receiverName: string;
-  receiverPhone?: string;
-  slotDate: string;
-  startTime: string;
-  endTime: string;
-  actedBy: string;
-  reasonType: string;
-  comment?: string;
-}) {
-  await this.mailerService.sendMail({
-    to: payload.receiverEmail,
-    subject: 'Slot Cancelled',
-    template: MAILER_TEMPLATES.SLOT_CANCELLED,
-    context: {
-      receiverName: payload.receiverName,
+  //       website_url: process.env['WEBSITE_URL'],
+  //     },
+  //   });
 
-      slotDate: payload.slotDate,
-      startTime: payload.startTime,
-      endTime: payload.endTime,
+  //   if (payload.receiverPhone) {
+  //     this.smsService
+  //       .send(
+  //         payload.receiverPhone,
+  //         `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`,
+  //       )
+  //       .catch(() => {});
+  //   }
+  // }
 
-      actedBy: payload.actedBy,
-      reasonType: payload.reasonType,
+  async sendSlotCancelledNotification(payload: {
+    receiverEmail: string;
+    receiverName: string;
+    receiverPhone?: string;
+    slotDate: string;
+    startTime: string;
+    endTime: string;
+    actedBy: string;
+    reasonType: string;
+    comment?: string;
+  }) {
+    await this.mailerService.sendMail({
+      to: payload.receiverEmail,
+      subject: 'Slot Cancelled',
+      template: MAILER_TEMPLATES.SLOT_CANCELLED,
+      context: {
+        receiverName: payload.receiverName,
 
-      comment: payload.comment || '',
+        slotDate: payload.slotDate,
+        startTime: payload.startTime,
+        endTime: payload.endTime,
 
-      // ✅ template flags
-      isEarlyCancel:
-        payload.reasonType === 'EARLY_CANCEL',
+        actedBy: payload.actedBy,
+        reasonType: payload.reasonType,
 
-      isInstructorLateCancel:
-        payload.reasonType === 'INSTRUCTOR_LATE_CANCEL',
+        comment: payload.comment || '',
 
-      isLearnerLateCancel:
-        payload.reasonType === 'LEARNER_LATE_CANCEL',
+        // ✅ template flags
+        isEarlyCancel:
+          payload.reasonType === 'EARLY_CANCEL',
 
-      // ✅ backward compatibility
-      isLateCancel:
-        payload.reasonType === 'INSTRUCTOR_LATE_CANCEL' ||
-        payload.reasonType === 'LEARNER_LATE_CANCEL',
+        isInstructorLateCancel:
+          payload.reasonType === 'INSTRUCTOR_LATE_CANCEL',
 
-      website_url: process.env['WEBSITE_URL'],
-    },
-  });
+        isLearnerLateCancel:
+          payload.reasonType === 'LEARNER_LATE_CANCEL',
 
-  if (payload.receiverPhone) {
-    let smsMessage = `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`;
+        // ✅ backward compatibility
+        isLateCancel:
+          payload.reasonType === 'INSTRUCTOR_LATE_CANCEL' ||
+          payload.reasonType === 'LEARNER_LATE_CANCEL',
 
-    // ✅ optional better SMS messages
-    if (payload.reasonType === 'INSTRUCTOR_LATE_CANCEL') {
-      smsMessage =
-        `Instructor cancelled your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} within 24 hours.`;
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+
+    if (payload.receiverPhone) {
+      let smsMessage = `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} has been cancelled.`;
+
+      // ✅ optional better SMS messages
+      if (payload.reasonType === 'INSTRUCTOR_LATE_CANCEL') {
+        smsMessage =
+          `Instructor cancelled your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} within 24 hours.`;
+      }
+
+      if (payload.reasonType === 'LEARNER_LATE_CANCEL') {
+        smsMessage =
+          `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} was cancelled within 24 hours.`;
+      }
+
+      this.smsService
+        .send(payload.receiverPhone, smsMessage)
+        .catch(() => { });
     }
+  }
 
-    if (payload.reasonType === 'LEARNER_LATE_CANCEL') {
-      smsMessage =
-        `Your slot on ${payload.slotDate} from ${payload.startTime} to ${payload.endTime} was cancelled within 24 hours.`;
+  /**
+   * Feedback
+   */
+  async sendFeedbackNotification(payload: {
+    receiverEmail: string;
+    receiverName: string;
+    receiverPhone?: string;
+    feedbackType: FeedbackType;
+    description: string;
+    attachmentUrl?: string;
+    submittedBy?: string; // learner / instructor / admin
+  }) {
+    await this.mailerService.sendMail({
+      to: payload.receiverEmail,
+      subject: `New Feedback Submitted - ${payload.feedbackType}`,
+      template: MAILER_TEMPLATES.FEEDBACK_NOTIFICATION,
+      context: {
+        receiverName: payload.receiverName,
+        feedbackType: payload.feedbackType,
+        description: payload.description,
+        attachmentUrl: payload.attachmentUrl || '',
+        submittedBy: payload.submittedBy || 'User',
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+
+    // ✅ Optional SMS Notification
+    if (payload.receiverPhone) {
+      // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.receiverPhone.startsWith('0')
+        ? `+61${payload.receiverPhone.slice(1)}`
+        : payload.receiverPhone;
+
+      this.smsService
+        .send(
+          formattedPhone,
+          `Your feedback (${payload.feedbackType}) has been submitted successfully. Thank you for helping us improve.`,
+        )
+        .catch(() => { });
     }
-
-    this.smsService
-      .send(payload.receiverPhone, smsMessage)
-      .catch(() => {});
   }
-}
-
-/**
- * Feedback
- */
-async sendFeedbackNotification(payload: {
-  receiverEmail: string;
-  receiverName: string;
-  receiverPhone?: string;
-  feedbackType: FeedbackType;
-  description: string;
-  attachmentUrl?: string;
-  submittedBy?: string; // learner / instructor / admin
-}) {
-  await this.mailerService.sendMail({
-    to: payload.receiverEmail,
-    subject: `New Feedback Submitted - ${payload.feedbackType}`,
-    template: MAILER_TEMPLATES.FEEDBACK_NOTIFICATION,
-    context: {
-      receiverName: payload.receiverName,
-      feedbackType: payload.feedbackType,
-      description: payload.description,
-      attachmentUrl: payload.attachmentUrl || '',
-      submittedBy: payload.submittedBy || 'User',
-      website_url: process.env['WEBSITE_URL'],
-    },
-  });
-
-  // ✅ Optional SMS Notification
-  if (payload.receiverPhone) {
-    this.smsService
-      .send(
-        payload.receiverPhone,
-        `Your feedback (${payload.feedbackType}) has been submitted successfully. Thank you for helping us improve.`,
-      )
-      .catch(() => {});
-  }
-}
 
 }
