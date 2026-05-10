@@ -1620,7 +1620,7 @@ export class OrderService {
       'CONSUME',
     );
 
-    const instructorEarning = grossAmount - platformCommission - discountCommission;
+    const instructorEarning = grossAmount - platformCommission - (discountCommission/2);
 
     // 💳 Create instructor transaction (report history)
     const txn = await this.instructorTransactionModel.create({
@@ -1633,7 +1633,7 @@ export class OrderService {
       pricePerHour,
       grossAmount,
       platformCommission,
-      discountCommission,
+      discountCommission:(discountCommission/2),
       instructorEarning,
       payoutStatus: 'PAID',
       payoutDate: new Date(),
