@@ -801,12 +801,20 @@ export class OrderService {
 
     // ✅ Instructor cancellation → always refund
     if (role === 'instructor') {
-      refund = hours * order.pricePerHour;
+      if(hours>2){
+        refund =  order.testPrice; // cap refund to 2 hours
+      } else {
+        refund = hours * order.pricePerHour;
+      }
     }
 
     // ✅ Learner cancellation → refund only before 24h
     if (role === 'learner' && !isLateCancel) {
-      refund = hours * order.pricePerHour;
+      if(hours>2){
+        refund =  order.testPrice; // cap refund to 2 hours
+      } else {
+        refund = hours * order.pricePerHour;
+      }
     }
 
     // ✅ Update slot status
