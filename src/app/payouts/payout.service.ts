@@ -808,9 +808,9 @@ async instructorFastCash(
       throw new BadRequestException('Transaction not found');
     }
 
-    if (txn.payoutStatus === 'PAID') {
-      throw new BadRequestException('Wallet already credited');
-    }
+    // if (txn.payoutStatus === 'PAID') {
+    //   throw new BadRequestException('Wallet already credited');
+    // }
 
     const instructorEarning = txn.instructorEarning;
 
