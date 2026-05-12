@@ -15,7 +15,8 @@ export const MAILER_TEMPLATES = {
      ORDER_CREATED: 'order-created',
      FORGOT_PASSWORD:'instructor/forgot-password',
      SLOT_CANCELLED:'order-actions/slot-cancelled',
-     FEEDBACK_NOTIFICATION: 'feedback-notification'
+     FEEDBACK_NOTIFICATION: 'feedback-notification',
+     CONTACT_US_NOTIFICATION : 'contact-notification',
   };
   
   

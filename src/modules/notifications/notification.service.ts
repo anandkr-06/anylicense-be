@@ -767,4 +767,52 @@ export class NotificationService {
     }
   }
 
+  /**
+ * Contact Us
+ */
+async sendContactUsNotification(payload: {
+  receiverEmail: string;
+  receiverName: string;
+  receiverPhone?: string;
+  inquiryType: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  message: string;
+  submittedBy?: string; // learner / instructor / admin
+}) {
+  await this.mailerService.sendMail({
+    to: payload.receiverEmail,
+    subject: `New Contact Inquiry - ${payload.inquiryType}`,
+    template: MAILER_TEMPLATES.CONTACT_US_NOTIFICATION,
+    context: {
+      receiverName: payload.receiverName,
+      inquiryType: payload.inquiryType,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email,
+      phone: payload.phone,
+      message: payload.message,
+      submittedBy: payload.submittedBy || 'User',
+      website_url: process.env['WEBSITE_URL'],
+    },
+  });
+
+  // ✅ Optional SMS Notification
+  if (payload.receiverPhone) {
+    // Convert Australian local number (starting with 0) to +61 format
+    const formattedPhone = payload.receiverPhone.startsWith('0')
+      ? `+61${payload.receiverPhone.slice(1)}`
+      : payload.receiverPhone;
+
+    this.smsService
+      .send(
+        formattedPhone,
+        `Your enquiry (${payload.inquiryType}) has been submitted successfully. Our support team will contact you shortly.`,
+      )
+      .catch(() => {});
+  }
+}
+
 }
