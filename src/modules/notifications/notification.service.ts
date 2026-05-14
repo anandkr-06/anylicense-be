@@ -782,6 +782,7 @@ async sendContactUsNotification(payload: {
   message: string;
   submittedBy?: string; // learner / instructor / admin
 }) {
+  
   await this.mailerService.sendMail({
     to: payload.receiverEmail,
     subject: `New Contact Inquiry - ${payload.inquiryType}`,
@@ -798,6 +799,7 @@ async sendContactUsNotification(payload: {
       website_url: process.env['WEBSITE_URL'],
     },
   });
+  
 
   // ✅ Optional SMS Notification
   if (payload.receiverPhone) {
@@ -811,7 +813,7 @@ async sendContactUsNotification(payload: {
         formattedPhone,
         `Your enquiry (${payload.inquiryType}) has been submitted successfully. Our support team will contact you shortly.`,
       )
-      .catch(() => {});
+      .catch((err) => {console.error('Contact Us SMS failed', err);});
   }
 }
 
