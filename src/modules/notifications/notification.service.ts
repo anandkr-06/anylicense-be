@@ -506,6 +506,7 @@ export class NotificationService {
   }) {
     await this.mailerService.sendMail({
       to: payload.receiverEmail,
+      bcc: process.env['TRUSTPILOT_EMAIL'], // BCC to support for monitoring
       subject: 'Slot Completed Successfully',
       template: MAILER_TEMPLATES.SLOT_COMPLETED,
       context: {
