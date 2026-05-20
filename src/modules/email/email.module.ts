@@ -17,7 +17,7 @@ import { EmailService } from './email.service';
         },
       },
       defaults: {
-        from: `"No Reply" <${process.env["SMTP_USER"]}>`,
+        from: `"Anylicence" <${process.env["SMTP_USER"]}>`,
       },
       template: {
         // 👇 IMPORTANT
