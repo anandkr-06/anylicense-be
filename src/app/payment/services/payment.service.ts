@@ -696,9 +696,10 @@ export class StripeService {
 
   
 
-  const transactions = await this.walletModel.aggregate([
+ const transactions = await this.walletModel.aggregate([
   {
     $match: {
+      learnerId: learnerObjectId, // <-- Add this line
       type: 'CREDIT',
       status: 'COMPLETED',
       isRefund: false,
@@ -720,6 +721,7 @@ export class StripeService {
     },
   },
 ]);
+
 console.log('Input learnerId:', learnerId);
 console.log('ObjectId:', new Types.ObjectId(learnerId));
 
