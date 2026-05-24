@@ -28,10 +28,18 @@ export class PublicCourseService {
 
   async getCourseFilters() {
 
-    const suburb = await this.courseModel.distinct('location.suburb');
-    const state = await this.courseModel.distinct('location.state');
-    const category = await this.courseModel.distinct('category');
-    const courseName = await this.courseModel.distinct('courseName');
+    const suburb = await this.courseModel.distinct('location.suburb',{
+  status: 'APPROVED',
+});
+    const state = await this.courseModel.distinct('location.state',{
+  status: 'APPROVED',
+});
+    const category = await this.courseModel.distinct('category',{
+  status: 'APPROVED',
+});
+    const courseName = await this.courseModel.distinct('courseName', {
+  status: 'APPROVED',
+});
 
     return {
       state,
