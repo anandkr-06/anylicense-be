@@ -17,6 +17,7 @@ export const MAILER_TEMPLATES = {
      SLOT_CANCELLED:'order-actions/slot-cancelled',
      FEEDBACK_NOTIFICATION: 'feedback-notification',
      CONTACT_US_NOTIFICATION : 'contact-notification',
+     INSTRUCTOR_LEAD_NOTIFICATION : 'instructor/instructor-lead',
   };
   
   
