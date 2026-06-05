@@ -14,15 +14,15 @@ export class InstructorLeadService {
   ) { }
 
   async create(payload: CreateInstructorLeadDto) {
-    // const isCaptchaValid = await verifyCaptcha(
-    //   payload.captchaToken,
-    // );
+    const isCaptchaValid = await verifyCaptcha(
+      payload.captchaToken,
+    );
 
-    // if (!isCaptchaValid) {
-    //   throw new BadRequestException(
-    //     'Captcha verification failed',
-    //   );
-    // }
+    if (!isCaptchaValid) {
+      throw new BadRequestException(
+        'Captcha verification failed',
+      );
+    }
 
     const lead = await this.instructorLeadModel.create({
       firstName: payload.firstName,
