@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>New Instructor Lead</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f4f4f4; font-family: Arial, Helvetica, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f4">
+<tr>
+<td align="center" style="padding:20px 0;">
+
+<table width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff">
+
+<!-- Header -->
+<tr>
+<td style="background-color:#3a3a3a; padding:15px 30px;">
+  <img src="https://static.anylicence.com/media/statics/logo.png" style="width:140px;" />
+</td>
+</tr>
+
+<!-- Body -->
+<tr>
+<td style="padding:25px 30px; color:#333; font-size:14px; line-height:1.6;">
+
+<h2 style="color:#ff9800; margin-top:0;">
+  New Instructor Lead Received
+</h2>
+
+<p>
+A new instructor enquiry has been submitted from the website.
+</p>
+
+<table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">First Name</td>
+  <td style="border:1px solid #ddd;">{{firstName}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">Last Name</td>
+  <td style="border:1px solid #ddd;">{{lastName}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">Email</td>
+  <td style="border:1px solid #ddd;">{{email}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">Phone</td>
+  <td style="border:1px solid #ddd;">{{phone}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">State</td>
+  <td style="border:1px solid #ddd;">{{state}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">Post Code</td>
+  <td style="border:1px solid #ddd;">{{postCode}}</td>
+</tr>
+
+{{#if message}}
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">Message</td>
+  <td style="border:1px solid #ddd;">{{message}}</td>
+</tr>
+{{/if}}
+
+</table>
+
+<h3 style="margin-top:30px; color:#ff9800;">
+  Marketing Attribution
+</h3>
+
+<table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">UTM Source</td>
+  <td style="border:1px solid #ddd;">{{utmSource}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">UTM Medium</td>
+  <td style="border:1px solid #ddd;">{{utmMedium}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">UTM Campaign</td>
+  <td style="border:1px solid #ddd;">{{utmCampaign}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">UTM Content</td>
+  <td style="border:1px solid #ddd;">{{utmContent}}</td>
+</tr>
+
+<tr>
+  <td style="font-weight:bold; border:1px solid #ddd;">UTM Term</td>
+  <td style="border:1px solid #ddd;">{{utmTerm}}</td>
+</tr>
+
+</table>
+
+<p style="margin-top:25px;">
+<strong>Lead Status:</strong> NEW
+</p>
+
+<p style="margin-top:20px;">
+<strong>Team AnyLicence</strong><br/>
+<a href="{{website_url}}" style="color:#ff9800;">{{website_url}}</a>
+</p>
+
+</td>
+</tr>
+
+<tr>
+<td style="background-color:#ffb300; height:5px;"></td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>

@@ -78,15 +78,15 @@ export class NotificationService {
     });
 
 
-// Convert Australian local number (starting with 0) to +61 format
-      const formattedPhone = course.mobileNumber.startsWith('0')
-        ? `+61${course.mobileNumber.slice(1)}`
-        : course.mobileNumber;
+    // Convert Australian local number (starting with 0) to +61 format
+    const formattedPhone = course.mobileNumber.startsWith('0')
+      ? `+61${course.mobileNumber.slice(1)}`
+      : course.mobileNumber;
 
     await this.smsService.send(
-        formattedPhone,
-        `Thank you for signing up for the course at ${course.instituteName}. We will contact you soon!`,
-      );
+      formattedPhone,
+      `Thank you for signing up for the course at ${course.instituteName}. We will contact you soon!`,
+    );
   }
   //Lead Customer
   async sendCourseLeadCustomer(course: any) {
@@ -128,10 +128,10 @@ export class NotificationService {
       context: { learner, order },
     });
 
-// Convert Australian local number (starting with 0) to +61 format
-      const formattedPhone = learner.mobileNumber.startsWith('0')
-        ? `+61${learner.mobileNumber.slice(1)}`
-        : learner.mobileNumber;
+    // Convert Australian local number (starting with 0) to +61 format
+    const formattedPhone = learner.mobileNumber.startsWith('0')
+      ? `+61${learner.mobileNumber.slice(1)}`
+      : learner.mobileNumber;
     await this.smsService.send(
       formattedPhone,
       `Your booking is confirmed on ${order.bookedSlots[0].date}`,
@@ -149,9 +149,9 @@ export class NotificationService {
     );
 
     // Convert Australian local number (starting with 0) to +61 format
-      const formattedPhone = learner.mobileNumber.startsWith('0')
-        ? `+61${learner.mobileNumber.slice(1)}`
-        : learner.mobileNumber;
+    const formattedPhone = learner.mobileNumber.startsWith('0')
+      ? `+61${learner.mobileNumber.slice(1)}`
+      : learner.mobileNumber;
     await this.smsService.send(
       formattedPhone,
       `Your booking is confirmed with ${instructor.fullName}`,
@@ -419,7 +419,7 @@ export class NotificationService {
       const smsText = `${mainMessage}
   New Slot: ${payload.newSlot.date} ${payload.newSlot.startTime}-${payload.newSlot.endTime}`;
 
-  // Convert Australian local number (starting with 0) to +61 format
+      // Convert Australian local number (starting with 0) to +61 format
       const formattedPhone = payload.receiverPhone.startsWith('0')
         ? `+61${payload.receiverPhone.slice(1)}`
         : payload.receiverPhone;
@@ -771,51 +771,94 @@ export class NotificationService {
   /**
  * Contact Us
  */
-async sendContactUsNotification(payload: {
-  receiverEmail: string;
-  receiverName: string;
-  receiverPhone?: string;
-  inquiryType: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  message: string;
-  submittedBy?: string; // learner / instructor / admin
-}) {
-  
-  await this.mailerService.sendMail({
-    to: payload.receiverEmail,
-    subject: `New Contact Inquiry - ${payload.inquiryType}`,
-    template: MAILER_TEMPLATES.CONTACT_US_NOTIFICATION,
-    context: {
-      receiverName: payload.receiverName,
-      inquiryType: payload.inquiryType,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      email: payload.email,
-      phone: payload.phone,
-      message: payload.message,
-      submittedBy: payload.submittedBy || 'User',
-      website_url: process.env['WEBSITE_URL'],
-    },
-  });
-  
+  async sendContactUsNotification(payload: {
+    receiverEmail: string;
+    receiverName: string;
+    receiverPhone?: string;
+    inquiryType: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    message: string;
+    submittedBy?: string; // learner / instructor / admin
+  }) {
 
-  // ✅ Optional SMS Notification
-  if (payload.receiverPhone) {
-    // Convert Australian local number (starting with 0) to +61 format
-    const formattedPhone = payload.receiverPhone.startsWith('0')
-      ? `+61${payload.receiverPhone.slice(1)}`
-      : payload.receiverPhone;
+    await this.mailerService.sendMail({
+      to: payload.receiverEmail,
+      subject: `New Contact Inquiry - ${payload.inquiryType}`,
+      template: MAILER_TEMPLATES.CONTACT_US_NOTIFICATION,
+      context: {
+        receiverName: payload.receiverName,
+        inquiryType: payload.inquiryType,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone,
+        message: payload.message,
+        submittedBy: payload.submittedBy || 'User',
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
 
-    this.smsService
-      .send(
-        formattedPhone,
-        `Your enquiry (${payload.inquiryType}) has been submitted successfully. Our support team will contact you shortly.`,
-      )
-      .catch((err) => {console.error('Contact Us SMS failed', err);});
+
+    // ✅ Optional SMS Notification
+    if (payload.receiverPhone) {
+      // Convert Australian local number (starting with 0) to +61 format
+      const formattedPhone = payload.receiverPhone.startsWith('0')
+        ? `+61${payload.receiverPhone.slice(1)}`
+        : payload.receiverPhone;
+
+      this.smsService
+        .send(
+          formattedPhone,
+          `Your enquiry (${payload.inquiryType}) has been submitted successfully. Our support team will contact you shortly.`,
+        )
+        .catch((err) => { console.error('Contact Us SMS failed', err); });
+    }
   }
-}
 
+  async sendInstructorLeadNotification(payload: {
+    receiverEmail: string;
+    receiverName: string;
+
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    state: string;
+    postCode?: string;
+    message?: string;
+
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+  }) {
+    await this.mailerService.sendMail({
+      to: payload.receiverEmail,
+      subject: `New Instructor Lead - ${payload.firstName} ${payload.lastName}`,
+      template: MAILER_TEMPLATES.INSTRUCTOR_LEAD_NOTIFICATION,
+      context: {
+        receiverName: payload.receiverName,
+
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone,
+        state: payload.state,
+        postCode: payload.postCode,
+        message: payload.message,
+
+        utmSource: payload.utmSource,
+        utmMedium: payload.utmMedium,
+        utmCampaign: payload.utmCampaign,
+        utmContent: payload.utmContent,
+        utmTerm: payload.utmTerm,
+
+        website_url: process.env['WEBSITE_URL'],
+      },
+    });
+  }
 }

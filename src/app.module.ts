@@ -34,6 +34,7 @@ import { PayoutScheduler } from '@app/schedulers/payout.scheduler';
 import { PayoutModule } from '@app/payouts/payout.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ContactModule } from '@app/contact/contact.module';
+import { InstructorLeadModule } from '@app/instructor/instructor-lead.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { ContactModule } from '@app/contact/contact.module';
     GiftVoucherModule,
     PayoutModule,
     ContactModule,
+    InstructorLeadModule,
   ],
   providers: [
     GlobalExceptionFilter,
