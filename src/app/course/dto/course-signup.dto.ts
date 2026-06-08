@@ -30,6 +30,9 @@ export class CourseSignupDto {
   websiteUrl?: string;
 
   @IsOptional()
+  rtoNumber?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => ProviderLocationDto)
   location?: ProviderLocationDto;
