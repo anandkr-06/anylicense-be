@@ -44,6 +44,10 @@ export class UpdateCourseProviderProfileDto {
   websiteUrl?: string;
 
   @IsOptional()
+  @IsString()
+  rtoNumber?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => ProviderLocationDto)
   location?: ProviderLocationDto;
