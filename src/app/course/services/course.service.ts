@@ -91,7 +91,7 @@ export class CourseService {
   
     // ✅ Step 3: Send email (non-blocking)
     this.notificationService
-      .sendCourseSignUp(payload)
+      .sendCourseSignUp(payload,password)
       .catch(error =>
         this.smtpErrorHandler.handle(error, {
           providerId: payload._id,
