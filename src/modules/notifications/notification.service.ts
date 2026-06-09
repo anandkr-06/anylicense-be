@@ -69,12 +69,12 @@ export class NotificationService {
 
 
 
-  async sendCourseSignUp(course: any) {
+  async sendCourseSignUp(course: any,password:string) {
     await this.mailerService.sendMail({
       to: course.email,
       subject: 'Course Sign Up: Thank you!',
       template: 'course/course-booking',
-      context: { instituteName: course.instituteName, email: course.email },
+      context: { instituteName: course.instituteName, email: course.email, password: password, support_email: process.env['SUPPORT_EMAIL'], website_name: process.env['WEBSITE_NAME'], website_url: process.env['WEBSITE_URL']},
     });
 
 
