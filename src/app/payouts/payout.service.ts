@@ -16,7 +16,7 @@ import { StripeService } from './stripe.service';
 import { User } from '@common/db/schemas/user.schema';
 import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
 import { WalletTransaction, WalletTransactionDocument } from '@common/db/schemas/wallet-transaction.schema';
-import { error } from 'console';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class PayoutService {
@@ -35,6 +35,7 @@ export class PayoutService {
     private readonly instructorProfileModel: Model<InstructorProfileDocument>,
     @InjectModel(WalletTransaction.name)
     private readonly walletTransactionModel: Model<WalletTransactionDocument>,
+    private readonly logger: PinoLogger,
   ) { }
 
 
@@ -109,309 +110,64 @@ export class PayoutService {
     return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
   }
 
-
-  // async instructorFastCash(instructorId: string, amount: number) {
-
-  //   if (!amount || amount <= 0) {
-  //     throw new BadRequestException('Invalid payout amount');
-  //   }
-
-  //   const instructor = await this.userModel.findById(instructorId);
-
-  //   if (!instructor) {
-  //     throw new BadRequestException('Instructor not found');
-  //   }
-
-  //   const stripeAccountId = instructor.stripeAccountId;
-
-  //   if (!stripeAccountId) {
-  //     throw new BadRequestException('Stripe account not connected');
-  //   }
-
-  //   const account = await this.stripeService.getAccount(stripeAccountId);
-
-  //   if (!account.payouts_enabled || account.capabilities?.transfers !== 'active') {
-
-  //     const onboardingLink =
-  //       await this.stripeService.createAccountOnboardingLink(stripeAccountId);
-
-  //     return {
-  //       message: 'Stripe onboarding required',
-  //       onboardingUrl: onboardingLink.url,
-  //     };
-  //   }
-
-  //   const payoutAmount = Math.round(amount * 100);
-
-  //   // ✅ Check Stripe platform AUD balance
-  //   const balance = await this.stripeService.getPlatformBalance();
-
-  //   const audBalance = balance.available.find(
-  //     (b) => b.currency === 'aud'
-  //   );
-
-  //   const available = audBalance?.amount || 0;
-
-  //   if (available < payoutAmount) {
-  //     throw new BadRequestException('Stripe platform balance insufficient');
-  //   }
-
-  //   // ✅ Atomic wallet deduction (prevents double payouts)
-  //   const updatedInstructor = await this.userModel.findOneAndUpdate(
-  //     {
-  //       _id: instructorId,
-  //       walletBalance: { $gte: amount }
-  //     },
-  //     {
-  //       $inc: { walletBalance: -amount }
-  //     },
-  //     { new: true }
-  //   );
-
-  //   if (!updatedInstructor) {
-  //     throw new BadRequestException('Insufficient wallet balance');
-  //   }
-
-  //   try {
-
-  //     // ✅ Transfer platform → instructor Stripe
-  //     const transfer = await this.stripeService.createTransfer(
-  //       stripeAccountId,
-  //       payoutAmount,
-  //       instructorId,
-  //     );
-
-  //     // ✅ Instant payout instructor → bank
-  //     const payout = await this.stripeService.instantPayout(
-  //       stripeAccountId,
-  //       payoutAmount,
-  //     );
-
-  //     // ✅ Wallet ledger entry
-  //     await this.walletTransactionModel.create({
-  //       userId: new Types.ObjectId(instructorId),
-  //       role: 'instructor',
-  //       type: 'DEBIT',
-  //       amount: amount,
-  //       balanceAfter: updatedInstructor.walletBalance,
-  //       source: 'FAST_CASH',
-  //     });
-
-  //     return {
-  //       message: 'Fast cash successful',
-  //       amount,
-  //       transferId: transfer.id,
-  //       payoutId: payout.id,
-  //       walletBalance: updatedInstructor.walletBalance
-  //     };
-
-  //   } catch (error) {
-
-  //     // 🔁 Rollback wallet if Stripe fails
-  //     await this.userModel.findByIdAndUpdate(
-  //       instructorId,
-  //       { $inc: { walletBalance: amount } }
-  //     );
-
-  //     throw new BadRequestException(
-  //       'Stripe payout failed: ' + error
-  //     );
-  //   }
-  // }
-
-  // async instructorFastCash(instructorId: string, amount: number) {
-
-  //   if (!amount || amount <= 0) {
-  //     throw new BadRequestException('Invalid payout amount');
-  //   }
-
-  //   let instructor = await this.userModel.findById(instructorId);
-
-  //   if (!instructor) {
-  //     throw new BadRequestException('Instructor not found');
-  //   }
-
-  //   let stripeAccountId = instructor.stripeAccountId;
-
-  //   // ✅ 1️⃣ Create Stripe account if not exists
-  //   if (!stripeAccountId) {
-
-  //     const account = await this.stripeService.createExpressAccount(
-  //       instructor.email
-  //     );
-
-  //     stripeAccountId = account.id;
-
-  //     await this.userModel.findByIdAndUpdate(instructorId, {
-  //       stripeAccountId,
-  //     });
-
-  //     const onboardingLink =
-  //       await this.stripeService.createAccountOnboardingLink(stripeAccountId);
-
-  //     return {
-  //       message: 'Stripe account created. Please complete onboarding.',
-  //       onboardingUrl: onboardingLink.url,
-  //     };
-  //   }
-
-  //   // ✅ 2️⃣ Check onboarding status
-  //   const account = await this.stripeService.getAccount(stripeAccountId);
-
-  //   if (!account.payouts_enabled || account.capabilities?.transfers !== 'active') {
-
-  //     const onboardingLink =
-  //       await this.stripeService.createAccountOnboardingLink(stripeAccountId);
-
-  //     return {
-  //       message: 'Stripe onboarding required',
-  //       onboardingUrl: onboardingLink.url,
-  //     };
-  //   }
-
-  //   const payoutAmount = Math.round(amount * 100);
-
-  //   // ✅ 3️⃣ Check platform AUD balance
-  //   const balance = await this.stripeService.getPlatformBalance();
-
-  //   const audBalance = balance.available.find(
-  //     (b) => b.currency === 'aud'
-  //   );
-
-  //   const available = audBalance?.amount || 0;
-
-  //   if (available < payoutAmount) {
-  //     throw new BadRequestException('Stripe platform balance insufficient');
-  //   }
-
-  //   // ✅ 4️⃣ Atomic wallet deduction
-  //   const updatedInstructor = await this.userModel.findOneAndUpdate(
-  //     {
-  //       _id: instructorId,
-  //       walletBalance: { $gte: amount }
-  //     },
-  //     {
-  //       $inc: { walletBalance: -amount }
-  //     },
-  //     { new: true }
-  //   );
-
-  //   if (!updatedInstructor) {
-  //     throw new BadRequestException('Insufficient wallet balance');
-  //   }
-
-  //   try {
-
-  //     // ✅ 5️⃣ Transfer → Stripe account
-  //     const transfer = await this.stripeService.createTransfer(
-  //       stripeAccountId,
-  //       payoutAmount,
-  //       instructorId,
-  //     );
-
-  //     // ✅ 6️⃣ Instant payout → bank
-  //     const payout = await this.stripeService.instantPayout(
-  //       stripeAccountId,
-  //       payoutAmount,
-  //     );
-
-  //     // ✅ 7️⃣ Ledger entry
-  //     await this.walletTransactionModel.create({
-  //       userId: new Types.ObjectId(instructorId), // keep consistent with your DB (string)
-  //       role: 'instructor',
-  //       type: 'DEBIT',
-  //       amount: amount,
-  //       balanceAfter: updatedInstructor.walletBalance,
-  //       source: 'FAST_CASH',
-  //     });
-
-  //     return {
-  //       message: 'Fast cash successful',
-  //       amount,
-  //       transferId: transfer.id,
-  //       payoutId: payout.id,
-  //       walletBalance: updatedInstructor.walletBalance
-  //     };
-
-  //   } catch (error) {
-
-  //     // 🔁 Rollback wallet
-  //     await this.userModel.findByIdAndUpdate(
-  //       instructorId,
-  //       { $inc: { walletBalance: amount } }
-  //     );
-
-  //     throw new BadRequestException(
-  //       'Stripe payout failed: ' + error
-  //     );
-  //   }
-  // }
-
-async instructorFastCash(
+  async getStripeStatus(
   instructorId: string,
-  amount: number,
 ) {
-
-  // =========================================================
-  // ✅ VALIDATE AMOUNT
-  // =========================================================
-
-  if (!amount || amount <= 0) {
-
-    throw new BadRequestException(
-      'Invalid payout amount',
-    );
-  }
-
-  // =========================================================
-  // ✅ GET INSTRUCTOR
-  // =========================================================
-
-  let instructor =
+  const instructor =
     await this.userModel.findById(
       instructorId,
     );
 
-  if (!instructor) {
+  return {
+    stripeAccountId:
+      instructor?.stripeAccountId,
 
-    throw new BadRequestException(
-      'Instructor not found',
-    );
-  }
+    onboardingCompleted:
+      instructor?.stripeOnboardingCompleted,
 
-  let stripeAccountId =
-    instructor.stripeAccountId;
+    requirements:
+      instructor?.stripeRequirements,
+  };
+}
 
-  // =========================================================
-  // ✅ CREATE STRIPE ACCOUNT ONLY ONCE
-  // =========================================================
+  async instructorFastCash(
+    instructorId: string,
+    amount: number,
+  ) {
 
-  if (!stripeAccountId) {
+    // =========================================================
+    // ✅ VALIDATE AMOUNT
+    // =========================================================
 
-    // 🔁 Re-fetch latest instructor
-    instructor =
+    if (!amount || amount <= 0) {
+      throw new BadRequestException(
+        'Invalid payout amount',
+      );
+    }
+
+    // =========================================================
+    // ✅ GET INSTRUCTOR
+    // =========================================================
+
+    let instructor =
       await this.userModel.findById(
         instructorId,
       );
 
     if (!instructor) {
-
       throw new BadRequestException(
         'Instructor not found',
       );
     }
 
-    // ✅ Another request already created account
-    if (instructor.stripeAccountId) {
+    let stripeAccountId =
+      instructor.stripeAccountId;
 
-      stripeAccountId =
-        instructor.stripeAccountId;
+    // =========================================================
+    // ✅ CREATE STRIPE ACCOUNT IF MISSING
+    // =========================================================
 
-    } else {
-
-      // =====================================================
-      // ✅ CREATE STRIPE EXPRESS ACCOUNT
-      // =====================================================
+    if (!stripeAccountId) {
 
       const account =
         await this.stripeService
@@ -420,280 +176,258 @@ async instructorFastCash(
             instructorId,
           );
 
-      // =====================================================
-      // ✅ SAVE ACCOUNT ID ATOMICALLY
-      // =====================================================
+      await this.userModel.findByIdAndUpdate(
+        instructorId,
+        {
+          stripeAccountId: account.id,
 
-      const updatedInstructor =
-        await this.userModel.findOneAndUpdate(
-          {
-            _id: instructorId,
+          stripeOnboardingCompleted:
+            false,
 
-            $or: [
-              {
-                stripeAccountId: {
-                  $exists: false,
-                },
-              },
-              {
-                stripeAccountId: null,
-              },
-              {
-                stripeAccountId: '',
-              },
-            ],
-          },
-          {
-            $set: {
-              stripeAccountId:
-                account.id,
-            },
-          },
-          {
-            new: true,
-          },
-        );
+          stripePayoutsEnabled:
+            false,
 
-      // =====================================================
-      // ✅ HANDLE RACE CONDITION
-      // =====================================================
+          stripeChargesEnabled:
+            false,
 
-      if (!updatedInstructor) {
+          stripeRequirements: [],
+        },
+      );
 
-        const latestInstructor =
-          await this.userModel.findById(
+      const onboardingLink =
+        await this.stripeService
+          .createAccountOnboardingLink(
+            account.id,
+          );
+
+      return {
+        message:
+          'Stripe account created. Please complete onboarding.',
+
+        onboardingCompleted:
+          false,
+
+        onboardingUrl:
+          onboardingLink.url,
+      };
+    }
+
+    // =========================================================
+    // ✅ ONBOARDING CHECK
+    // =========================================================
+
+    if (!instructor.stripeOnboardingCompleted) {
+
+      try {
+
+        const account =
+          await this.stripeService.getAccount(
+            stripeAccountId,
+          );
+
+        const currentlyDue =
+          account.requirements
+            ?.currently_due ?? [];
+
+        const onboardingCompleted =
+          account.payouts_enabled
+          && account.capabilities
+            ?.transfers === 'active'
+          && currentlyDue.length === 0;
+
+        if (onboardingCompleted) {
+
+          await this.userModel.findByIdAndUpdate(
             instructorId,
+            {
+              stripeOnboardingCompleted:
+                true,
+
+              stripePayoutsEnabled:
+                account.payouts_enabled,
+
+              stripeChargesEnabled:
+                account.charges_enabled,
+
+              stripeRequirements:
+                currentlyDue,
+            },
           );
 
-        if (
-          !latestInstructor
-          || !latestInstructor.stripeAccountId
-        ) {
+        } else {
 
-          throw new BadRequestException(
-            'Failed to create Stripe account',
-          );
+          const onboardingLink =
+            await this.stripeService
+              .createAccountOnboardingLink(
+                stripeAccountId,
+              );
+
+          return {
+            message:
+              'Please complete your Stripe onboarding.',
+
+            onboardingCompleted:
+              false,
+
+            onboardingUrl:
+              onboardingLink.url,
+
+            requirements:
+              currentlyDue,
+          };
         }
 
-        stripeAccountId =
-          latestInstructor.stripeAccountId;
+      } catch (error) {
 
-      } else {
+        this.logger.warn(
+          'Stripe onboarding verification failed',
+          error,
+        );
 
-        stripeAccountId =
-          updatedInstructor.stripeAccountId;
+        const onboardingLink =
+          await this.stripeService
+            .createAccountOnboardingLink(
+              stripeAccountId,
+            );
+
+        return {
+          message:
+            'Please complete your Stripe onboarding.',
+
+          onboardingCompleted:
+            false,
+
+          onboardingUrl:
+            onboardingLink.url,
+        };
       }
     }
 
-    // =====================================================
-    // ✅ GENERATE ONBOARDING LINK
-    // =====================================================
+    // =========================================================
+    // ✅ STRIPE ACCOUNT READY
+    // =========================================================
 
-    const onboardingLink =
+    // =========================================================
+    // ✅ CONVERT TO CENTS
+    // =========================================================
+
+    const payoutAmount =
+      Math.round(amount * 100);
+
+    // =========================================================
+    // ✅ CHECK STRIPE PLATFORM BALANCE
+    // =========================================================
+
+    const balance =
       await this.stripeService
-        .createAccountOnboardingLink(
-          stripeAccountId,
-        );
+        .getPlatformBalance();
 
-    return {
-      message:
-        'Stripe account created. Please complete onboarding.',
+    const audBalance =
+      balance.available.find(
+        (b) => b.currency === 'aud',
+      );
 
-      onboardingUrl:
-        onboardingLink.url,
-    };
-  }
+    const available =
+      audBalance?.amount || 0;
 
-  // =========================================================
-  // ✅ CHECK STRIPE ACCOUNT STATUS
-  // =========================================================
+    if (available < payoutAmount) {
 
-  const account =
-    await this.stripeService.getAccount(
-      stripeAccountId,
-    );
+      throw new BadRequestException(
+        'Stripe platform balance insufficient',
+      );
+    }
 
-  // =========================================================
-  // ✅ ONBOARDING INCOMPLETE
-  // =========================================================
+    // =========================================================
+    // ✅ ATOMIC WALLET DEDUCTION
+    // =========================================================
 
-  if (
-    !account.details_submitted
-    || !account.payouts_enabled
-    || account.capabilities?.transfers !== 'active'
-  ) {
-
-    const onboardingLink =
-      await this.stripeService
-        .createAccountOnboardingLink(
-          stripeAccountId,
-        );
-
-    return {
-      message:
-        'Stripe onboarding required',
-
-      onboardingUrl:
-        onboardingLink.url,
-    };
-  }
-
-  // =========================================================
-  // ✅ CONVERT TO CENTS
-  // =========================================================
-
-  const payoutAmount =
-    Math.round(amount * 100);
-
-  // =========================================================
-  // ✅ CHECK STRIPE PLATFORM BALANCE
-  // =========================================================
-
-  const balance =
-    await this.stripeService
-      .getPlatformBalance();
-
-  const audBalance =
-    balance.available.find(
-      (b) => b.currency === 'aud',
-    );
-
-  const available =
-    audBalance?.amount || 0;
-
-  if (available < payoutAmount) {
-
-    throw new BadRequestException(
-      'Stripe platform balance insufficient',
-    );
-  }
-
-  // =========================================================
-  // ✅ ATOMIC WALLET DEDUCTION
-  // =========================================================
-
-  const updatedInstructor =
-    await this.userModel.findOneAndUpdate(
-      {
-        _id: instructorId,
-
-        walletBalance: {
-          $gte: amount,
+    const updatedInstructor =
+      await this.userModel.findOneAndUpdate(
+        {
+          _id: instructorId,
+          walletBalance: {
+            $gte: amount,
+          },
         },
-      },
-      {
-        $inc: {
-          walletBalance: -amount,
+        {
+          $inc: {
+            walletBalance: -amount,
+          },
         },
-      },
-      {
-        new: true,
-      },
-    );
+        {
+          new: true,
+        },
+      );
 
-  if (!updatedInstructor) {
+    if (!updatedInstructor) {
 
-    throw new BadRequestException(
-      'Insufficient wallet balance',
-    );
-  }
+      throw new BadRequestException(
+        'Insufficient wallet balance',
+      );
+    }
 
-  // =========================================================
-  // ✅ STRIPE PAYOUT FLOW
-  // =========================================================
+    try {
 
-  try {
+      const transfer =
+        await this.stripeService
+          .createTransfer(
+            stripeAccountId,
+            payoutAmount,
+            instructorId,
+          );
 
-    // =====================================================
-    // ✅ TRANSFER TO CONNECTED ACCOUNT
-    // =====================================================
+      const payout =
+        await this.stripeService
+          .instantPayout(
+            stripeAccountId,
+            payoutAmount,
+          );
 
-    const transfer =
-      await this.stripeService
-        .createTransfer(
-          stripeAccountId,
-          payoutAmount,
-          instructorId,
-        );
+      await this.walletTransactionModel.create({
+        userId:
+          new Types.ObjectId(
+            instructorId,
+          ),
+        role: 'instructor',
+        type: 'DEBIT',
+        amount,
+        balanceAfter:
+          updatedInstructor.walletBalance,
+        source: 'FAST_CASH',
+      });
 
-    // =====================================================
-    // ✅ INSTANT PAYOUT TO BANK
-    // =====================================================
+      return {
+        message:
+          'Fast cash successful',
+        amount,
+        transferId:
+          transfer.id,
+        payoutId:
+          payout.id,
+        walletBalance:
+          updatedInstructor.walletBalance,
+      };
 
-    const payout =
-      await this.stripeService
-        .instantPayout(
-          stripeAccountId,
-          payoutAmount,
-        );
+    } catch (error: any) {
 
-    // =====================================================
-    // ✅ WALLET TRANSACTION LEDGER
-    // =====================================================
+      await this.userModel.findByIdAndUpdate(
+        instructorId,
+        {
+          $inc: {
+            walletBalance: amount,
+          },
+        },
+      );
 
-    await this.walletTransactionModel.create({
-      userId:
-        new Types.ObjectId(
-          instructorId,
+      throw new BadRequestException(
+        'Stripe payout failed: '
+        + (
+          error?.message
+          || 'Unknown error'
         ),
-
-      role: 'instructor',
-
-      type: 'DEBIT',
-
-      amount,
-
-      balanceAfter:
-        updatedInstructor.walletBalance,
-
-      source: 'FAST_CASH',
-    });
-
-    // =====================================================
-    // ✅ SUCCESS RESPONSE
-    // =====================================================
-
-    return {
-      message:
-        'Fast cash successful',
-
-      amount,
-
-      transferId:
-        transfer.id,
-
-      payoutId:
-        payout.id,
-
-      walletBalance:
-        updatedInstructor.walletBalance,
-    };
-
-  } catch (error: any) {
-
-    // =====================================================
-    // 🔁 ROLLBACK WALLET
-    // =====================================================
-
-    await this.userModel.findByIdAndUpdate(
-      instructorId,
-      {
-        $inc: {
-          walletBalance: amount,
-        },
-      },
-    );
-
-    throw new BadRequestException(
-      'Stripe payout failed: '
-      + (
-        error?.message
-        || 'Unknown error'
-      ),
-    );
+      );
+    }
   }
-}
-
 
   async addWalletBalance(instructorId: string, amount: number) {
     return this.userModel.findByIdAndUpdate(

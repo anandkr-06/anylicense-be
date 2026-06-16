@@ -93,7 +93,18 @@ public stripeAccountId!: string;
 
   @Prop({ default: 0 })
   walletBalance!: number;
+//Added new field for instructor payout
+@Prop({ default: false })
+stripeOnboardingCompleted!: boolean;
 
+@Prop({ default: false })
+stripePayoutsEnabled!: boolean;
+
+@Prop({ default: false })
+stripeChargesEnabled!: boolean;
+
+@Prop({ type: [String], default: [] })
+stripeRequirements!: string[];
 }
 
 export type UserDocument = User & Document & { _id: Types.ObjectId };

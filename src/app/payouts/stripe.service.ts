@@ -14,18 +14,7 @@ export class StripeService {
     });
   }
 
-  // 1️⃣ Create Stripe Express Account
-  // async createExpressAccount(email: string) {
-  //   const account = await this.stripe.accounts.create({
-  //     type: 'express',
-  //     email: email,
-  //     capabilities: {
-  //       transfers: { requested: true },
-  //     },
-  //   });
 
-  //   return account;
-  // }
   // 1️⃣ Create Stripe Express Account
   async createExpressAccount(
     email: string,
@@ -61,36 +50,26 @@ export class StripeService {
     return account;
   }
 
+
   // 2️⃣ Generate onboarding link
-  // async createAccountOnboardingLink(accountId: string) {
-  //   const accountLink = await this.stripe.accountLinks.create({
-  //     account: accountId,
-  //     refresh_url: process.env['REFRESH_URL'] || 'https://dev.anylicence.com/reauth',
-  //     return_url: process.env['RETURN_URL'] || 'https://dev.anylicence.com/dashboard',
-  //     type: 'account_onboarding',
-  //   });
+  async createAccountOnboardingLink(
+    accountId: string,
+  ) {
 
-  //   return accountLink;
-  // }
-  // 2️⃣ Generate onboarding link
-async createAccountOnboardingLink(
-  accountId: string,
-) {
+    return await this.stripe.accountLinks.create({
+      account: accountId,
 
-  return await this.stripe.accountLinks.create({
-    account: accountId,
+      refresh_url:
+        process.env['REFRESH_URL']
+        || 'https://dev.anylicence.com/reauth',
 
-    refresh_url:
-      process.env['REFRESH_URL']
-      || 'https://dev.anylicence.com/reauth',
+      return_url:
+        process.env['RETURN_URL']
+        || 'https://dev.anylicence.com/dashboard',
 
-    return_url:
-      process.env['RETURN_URL']
-      || 'https://dev.anylicence.com/dashboard',
-
-    type: 'account_onboarding',
-  });
-}
+      type: 'account_onboarding',
+    });
+  }
 
 
 

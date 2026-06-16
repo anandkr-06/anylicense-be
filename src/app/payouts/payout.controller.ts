@@ -10,43 +10,43 @@ import { StripeService } from './stripe.service';
 export class PayoutController {
   constructor(private readonly payoutService: PayoutService,
     private readonly stripeService: StripeService
-  ) {}
-@Public()
+  ) { }
+  @Public()
   @Post('run-weekly')
   async runWeeklyPayout() {
     return this.payoutService.generateWeeklyPayout();
   }
 
-  // @Post('fast-cash')
-  // async fastCash(
-  //   @CurrentUser() currentUser: JwtPayload,
-  //   @Body() withdrawDto: WithdrawDto,
-  // ) {
-  //   const instructor = currentUser.sub; // from JWT
-
-  //   return this.payoutService.instructorFastCash(instructor,withdrawDto.amount);
-  // }
-
   @Post('fast-cash')
-async fastCash(
-  @CurrentUser() currentUser: JwtPayload,
-  @Body('amount') amount: number,
-) {
-  const instructorId = currentUser.sub;
+  async fastCash(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body('amount') amount: number,
+  ) {
+    const instructorId = currentUser.sub;
 
-  return this.payoutService.instructorFastCash(
-    instructorId,
-    amount,
-  );
-}
+    return this.payoutService.instructorFastCash(
+      instructorId,
+      amount,
+    );
+  }
 
-@Post('add-wallet')
-addWallet(
-  @CurrentUser() currentUser: JwtPayload,
-  @Body('amount') amount: number,
-) {
-  return this.payoutService.addWalletBalance(currentUser.sub, amount);
-}
+  @Get('get-stripe-status')
+  async getStripeStatus(
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    const instructorId = currentUser.sub;
+
+    return this.payoutService.getStripeStatus(instructorId);
+  }
+
+
+  @Post('add-wallet')
+  addWallet(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body('amount') amount: number,
+  ) {
+    return this.payoutService.addWalletBalance(currentUser.sub, amount);
+  }
 
 
   @Get('instructor-transactions')
@@ -78,7 +78,7 @@ addWallet(
     @Query('endDate') endDate?: string,
   ) {
     const instructorId = currentUser.sub;
-    
+
 
     return this.payoutService.getInstructorWalletHistory(
       instructorId,
@@ -90,14 +90,14 @@ addWallet(
   }
 
   @Post('test-charge')
-async createTestCharge() {
-  return this.stripeService.createTestCharge();
-}
+  async createTestCharge() {
+    return this.stripeService.createTestCharge();
+  }
 
   @Post('test-topup')
-async createTestTopup() {
-  return this.stripeService.addTestBalance();
-}
+  async createTestTopup() {
+    return this.stripeService.addTestBalance();
+  }
 
 
 
