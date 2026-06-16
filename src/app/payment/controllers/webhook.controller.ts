@@ -29,6 +29,7 @@ import { NormalizedSlot } from '@common/types/express';
 import { Slot } from '@common/db/schemas/slot.schema';
 import { NotificationService } from 'modules/notifications/notification.service';
 import { PopulatedOrder } from '@constant/helper';
+import { User, UserDocument } from '@common/db/schemas/user.schema';
 
 @Public()
 @Controller('webhooks/stripe')
@@ -57,6 +58,8 @@ export class StripeWebhookController {
     private readonly referralService: ReferralService,
     private readonly giftVoucherService: GiftVoucherService,
     private readonly notificationService: NotificationService, // ✅ ADD THIS
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
   ) { }
 
   /* -------------------------------------------
@@ -117,6 +120,59 @@ export class StripeWebhookController {
 
     console.log('✅ Stripe event:', event.type);
 
+   /* -------------------------------------------
+       onboarding SUCCESS
+    -------------------------------------------- */
+
+    switch (event.type) {
+
+  case 'account.updated': {
+  const account =
+    event.data.object as Stripe.Account;
+
+  const instructorId =
+    account.metadata?.['instructorId'];
+
+  if (!instructorId) {
+    break;
+  }
+
+  const currentlyDue =
+    account.requirements?.currently_due ?? [];
+
+  const onboardingCompleted =
+    account.payouts_enabled &&
+    account.capabilities?.transfers === 'active' &&
+    currentlyDue.length === 0;
+
+  await this.userModel.findByIdAndUpdate(
+    instructorId,
+    {
+      stripeOnboardingCompleted:
+        onboardingCompleted,
+
+      stripePayoutsEnabled:
+        account.payouts_enabled,
+
+      stripeChargesEnabled:
+        account.charges_enabled,
+
+      stripeRequirements:
+        currentlyDue,
+    },
+  );
+
+  break;
+}
+
+  case 'transfer.created':
+    // existing logic
+    break;
+
+  case 'payout.paid':
+    // existing logic
+    break;
+}
     /* -------------------------------------------
        PAYMENT SUCCESS
     -------------------------------------------- */
@@ -303,205 +359,6 @@ export class StripeWebhookController {
     return { received: true };
   }
 
-
-
-
-  // private async handlePublicOrderSuccess(
-  //   intent: Stripe.PaymentIntent,
-  //   metadata: StripeIntentMetadata,
-  //   cardMeta: StripeCardMeta,
-  // ) {
-
-  //   const orderId = new Types.ObjectId(metadata.orderId);
-
-  //   const order = await this.orderModel.findById(orderId);
-
-  //   if (!order) return;
-
-  //   /* -----------------------------
-  //      WALLET CREDIT
-  //   ----------------------------- */
-
-  //   const lessonWalletAmount =
-  //     (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-
-  //   if (order.totalHours > 0 && lessonWalletAmount > 0 && !order.walletCredited) {
-
-  //     console.log("CREDITING WALLET", lessonWalletAmount);
-
-  //     await this.walletService.creditWallet(
-  //       order.learnerId,
-  //       lessonWalletAmount,
-  //       WalletTxnSource.ORDER,
-  //       order._id,
-  //       intent.id,
-  //       cardMeta,
-  //     );
-
-  //     order.walletCredited = lessonWalletAmount;
-  //   }
-
-  //   /* -----------------------------
-  //      ORDER STATUS
-  //   ----------------------------- */
-
-  //   order.status = 'CONFIRMED';
-  //   order.paymentStatus = 'PAID';
-
-
-  //   console.log("WALLET CREDIT TRIGGERED", {
-  //     lessonWalletAmount,
-  //     learnerId: order.learnerId
-  //   });
-
-  //   await order.save();
-
-  //   /* -----------------------------
-  //      ATTACH SLOTS
-  //   ----------------------------- */
-
-  //   if (order.bookedSlots?.length) {
-
-  //     const instructor = await this.instructorProfileModel.findById(
-  //       order.instructorId,
-  //     );
-
-  //     if (instructor) {
-
-  //       for (const slot of order.bookedSlots) {
-  //         this.attachBookingByRange(
-  //           instructor,
-  //           slot,
-  //           order._id,
-  //         );
-  //       }
-
-  //       await instructor.save();
-  //     }
-  //   }
-  // }
-
-  // private async handlePublicOrderSuccess(
-  //   intent: Stripe.PaymentIntent,
-  //   metadata: StripeIntentMetadata,
-  //   cardMeta: StripeCardMeta,
-  // ) {
-  //   const orderId = new Types.ObjectId(metadata.orderId);
-
-  //   /** -----------------------------------------
-  //    * ✅ STEP 1: ATOMIC LOCK (prevents race)
-  //    ------------------------------------------ */
-  //   const lockedOrder = await this.orderModel.findOneAndUpdate(
-  //     {
-  //       _id: orderId,
-  //       paymentStatus: { $ne: 'PAID' },
-  //       status: { $ne: 'CONFIRMING' },
-  //     },
-  //     {
-  //       $set: { status: 'CONFIRMING' },
-  //     },
-  //     { new: true },
-  //   );
-
-  //   /** -----------------------------------------
-  //    * ✅ STEP 2: FALLBACK (important for retries)
-  //    ------------------------------------------ */
-  //   let order = lockedOrder;
-
-  //   if (!order) {
-  //     order = await this.orderModel.findById(orderId);
-  //     if (!order) return;
-
-  //     // 🔒 Already processed → skip safely
-  //     if (order.paymentStatus === 'PAID') {
-  //       console.log('⚠️ Order already processed');
-  //       return;
-  //     }
-
-  //     // Optional: lock again if needed
-  //     order.status = 'CONFIRMING';
-  //     await order.save();
-  //   }
-
-  //   try {
-  //     /** -----------------------------------------
-  //      * ✅ STEP 3: ATTACH SLOTS (FIRST)
-  //      ------------------------------------------ */
-  //      if (order.bookedSlots?.length) {
-  //       const instructor = await this.instructorProfileModel.findById(
-  //         order.instructorId,
-  //       );
-
-  //       if (instructor) {
-  //         for (const slot of order.bookedSlots) {
-  //           try {
-  //             await this.validateSlotConflict(order, slot);
-
-  //             this.attachBookingByRange(
-  //               instructor,
-  //               slot,
-  //               order._id,
-  //             );
-
-  //           } catch (err) {
-  //             console.warn("⚠️ SLOT SKIPPED:", slot);
-  //           }
-  //         }
-
-  //         await instructor.save();
-  //       }
-  //     }
-
-  //     /** -----------------------------------------
-  //      * ✅ STEP 4: WALLET CREDIT (LESSON ONLY)
-  //      ------------------------------------------ */
-  //     const lessonWalletAmount =
-  //       (order.totalHours ?? 0) * (order.pricePerHour ?? 0);
-
-  //     if (
-  //       order.totalHours > 0 &&
-  //       lessonWalletAmount > 0 &&
-  //       !order.walletCredited
-  //     ) {
-  //       console.log('✅ WALLET CREDIT EXECUTING', {
-  //         lessonWalletAmount,
-  //         learnerId: order.learnerId,
-  //       });
-
-  //       await this.walletService.creditWallet(
-  //         new Types.ObjectId(order.learnerId),
-  //         lessonWalletAmount,
-  //         WalletTxnSource.ORDER,
-  //         order._id,
-  //         intent.id,
-  //         cardMeta,
-  //         order.orderTypeFullName,
-  //       );
-
-  //       order.walletCredited = lessonWalletAmount;
-  //     }
-
-  //     /** -----------------------------------------
-  //      * ✅ STEP 5: FINAL STATUS UPDATE
-  //      ------------------------------------------ */
-  //     order.status = 'CONFIRMED';
-  //     order.paymentStatus = 'PAID';
-
-  //     await order.save();
-
-  //   } catch (err) {
-  //     /** -----------------------------------------
-  //      * ❌ ROLLBACK SAFETY
-  //      ------------------------------------------ */
-  //     console.error('❌ Webhook failed, rolling back', err);
-
-  //     await this.orderModel.findByIdAndUpdate(orderId, {
-  //       status: 'PENDING_PAYMENT',
-  //     });
-
-  //     throw err;
-  //   }
-  // }
   private async handlePublicOrderSuccess(
     intent: Stripe.PaymentIntent,
     metadata: StripeIntentMetadata,
@@ -787,32 +644,6 @@ export class StripeWebhookController {
   }
 
 
-  // private async validateSlotConflict(
-  //   order: OrderDocument,
-  //   slot: NormalizedSlot,
-  // ){
-
-  //   const conflict = await this.orderModel.findOne({
-  //     instructorId: order.instructorId,
-  //     _id: { $ne: order._id },
-  //     paymentStatus: 'PAID',
-  //     status: 'CONFIRMED',
-  //     bookedSlots: {
-  //       $elemMatch: {
-  //         date: slot.date,
-  //         startTime: { $lt: slot.endTime },
-  //         endTime: { $gt: slot.startTime },
-  //       },
-  //     },
-  //   });
-
-  //   if (conflict) {
-  //     throw new BadRequestException(
-  //       `Slot ${slot.startTime}-${slot.endTime} already booked on ${slot.date}`,
-  //     );
-  //   }
-  // }
-
   private async validateSlotConflict(
     order: OrderDocument,
     slot: NormalizedSlot,
@@ -853,4 +684,5 @@ export class StripeWebhookController {
       }
     }
   }
+
 }
