@@ -4,6 +4,7 @@ import { GetQuestionsByCategoryDto } from '../dto/get-questions-by-category.dto'
 import { QuestionsService } from '../services/questions.service';
 import { Public } from '@common/decorators/public.decorator';
 import { SubmitCategoryAnswersDto } from '../dto/submit-category-answers.dto';
+import { publicDecrypt } from 'crypto';
 
 
 @Controller('questions')
@@ -24,4 +25,9 @@ export class QuestionsController {
     submitCategoryAnswers(@Body() body: SubmitCategoryAnswersDto) {
       return this.questionsService.submitCategoryAnswers(body);
     }
+@Public()
+  @Get('filters')
+  getQuestionFilters() {
+    return this.questionsService.getQuestionFilters();
+  }
 }

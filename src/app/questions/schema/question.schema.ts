@@ -28,6 +28,9 @@ export class Question {
 
   @Prop()
   sourcePage?: number;
+
+  @Prop({ required: true, index: true, enum: ['Car', 'Truck', 'Both'] })
+  vehicleType!: string;
 }
 
 export const QuestionSchema = SchemaFactory.createForClass(Question);
