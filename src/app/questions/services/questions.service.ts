@@ -18,8 +18,8 @@ export class QuestionsService {
   async getCategoryGroups(filters: GetCategoryGroupsDto) {
     const match: FilterQuery<QuestionDocument> = {};
 
-    if (filters.code?.trim()) {
-      match.code = { $regex: this.escapeRegex(filters.code.trim()), $options: 'i' };
+    if (filters.vehicleType?.trim()) {
+      match.vehicleType = filters.vehicleType.trim();
     }
 
     if (filters.category?.trim()) {
