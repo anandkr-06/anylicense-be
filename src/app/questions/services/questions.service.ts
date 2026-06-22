@@ -175,4 +175,16 @@ export class QuestionsService {
   
       return normalizedSubmittedAnswer === correctAnswer.trim().toLowerCase();
     }
+
+    async getQuestionFilters() {
+    const [vehicleTypes, categories] = await Promise.all([
+      this.questionModel.distinct('vehicleType', { vehicleType: { $ne: null } }),
+      this.questionModel.distinct('category', { category: { $ne: null } }),
+    ]);
+
+    return {
+      vehicleTypes: vehicleTypes.sort(),
+      categories: categories.sort(),
+    };
+  }
 }
