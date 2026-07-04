@@ -55,6 +55,10 @@ export class CourseProvider extends Document {
   @Prop({ default: true })
   isActive!: boolean;
 
+  @Prop({ default: false })
+  isPaid!: boolean;
+
+
   @Prop({ type: ProviderLocation })
   location?: ProviderLocation;
 

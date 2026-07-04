@@ -43,5 +43,8 @@ export class CourseSignupDto {
   @IsEnum({default:true})
   isAgreedToCommunicationAndOffers?: boolean;
 
+  @IsOptional()
+  isPaid?: boolean;
+
   captchaToken!: string; // 👈 add this
 }
