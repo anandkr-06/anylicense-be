@@ -85,6 +85,11 @@ export class User {
   transmissionType!: TransmissionType;
   @Prop({ default: false })
   public isActive!: boolean;
+
+  
+  @Prop({ default: false })
+  public isPaid!: boolean;
+  
   @Prop({ default: false })
   isPublish!: boolean;
 

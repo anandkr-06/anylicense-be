@@ -141,6 +141,7 @@ export class UserService {
         state: rest.state,
         transmissionType: rest.transmissionType,
         password: hashedPassword,
+        isPaid: rest.isPaid? true : false,
       });
   
       // ✅ Step 5: Instructor profile
