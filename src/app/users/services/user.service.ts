@@ -2,7 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
- ConflictException
+  ConflictException
 } from '@nestjs/common';
 import { UserDbService } from '@common/db/services/user.db.service';
 import { InstructorProfile, InstructorProfileDocument } from '@common/db/schemas/instructor-profile.schema';
@@ -62,15 +62,15 @@ export class UserService {
   //       transmissionType: dto.transmissionType,
   //       password: hashedPassword,
   //     });
-  
+
   //     const vehicles = this.buildDefaultVehicles(dto.transmissionType);
-  
+
   //     await this.instructorProfileModel.create({
   //       userId: user._id,
   //       isVerified: false,
   //       vehicles,
   //     });
-  
+
   //     this.notificationService.sendInstructorWelcomeEmail({
   //       recipientEmail: user.email,
   //       instructorName: user.firstName,
@@ -78,16 +78,16 @@ export class UserService {
   //     }).catch(err =>
   //       this.logger.error(err, 'Welcome email failed'),
   //     );
-      
-  
+
+
   //     this.logger.info(`Instructor registered: ${user.email}`);
-  
+
   //     // ✅ IMPORTANT
   //     return successResponse(user);
-     
+
   //   } catch (error: any) {
   //     this.logger.error({ error }, 'User registration failed');
-  
+
   //     if (error?.code === 11000) {
   //       if (error?.keyPattern?.email) {
   //         throw new ConflictException('Email already registered');
@@ -97,34 +97,34 @@ export class UserService {
   //       }
   //       throw new ConflictException('User already exists');
   //     }
-  
+
   //     throw new InternalServerErrorException(error?.message);
   //   }
   // }
   public async register(dto: RegisterUserDto) {
     const { captchaToken, ...rest } = dto;
-  
+
     try {
       // ✅ Step 1: CAPTCHA validation FIRST
       const captchaRes = await verifyCaptcha(captchaToken);
-  
+
       if (!captchaRes.success) {
         throw new BadRequestException('Captcha verification failed');
       }
-  
+
       if (captchaRes.score !== undefined && captchaRes.score < 0.5) {
         throw new BadRequestException('Suspicious activity detected');
       }
-  
+
       // ✅ Step 2: Business validation
       if (!rest.transmissionType) {
         throw new BadRequestException('transmissionType is required');
       }
-  
+
       // ✅ Step 3: Generate password
       const randomString = createRandomString(10);
       const hashedPassword = await hashPassword(randomString);
-  
+
       // ✅ Step 4: Create user
       const user = await this.userDbService.createUser({
         firstName: rest.firstName,
@@ -141,18 +141,18 @@ export class UserService {
         state: rest.state,
         transmissionType: rest.transmissionType,
         password: hashedPassword,
-        isPaid: rest.isPaid? true : false,
+        isPaid: rest.isPaid ? true : false,
       });
-  
+
       // ✅ Step 5: Instructor profile
       const vehicles = this.buildDefaultVehicles(rest.transmissionType);
-  
+
       await this.instructorProfileModel.create({
         userId: user._id,
         isVerified: false,
         vehicles,
       });
-  
+
       // ✅ Step 6: Send email (non-blocking)
       this.notificationService
         .sendInstructorWelcomeEmail({
@@ -163,14 +163,26 @@ export class UserService {
         .catch(err =>
           this.logger.error(err, 'Welcome email failed'),
         );
-  
+if(user.isPaid){
+      await this.notificationService.sendInstructorLeadNotification({
+        receiverEmail: process.env['SUPPORT_EMAIL']!,
+        receiverName: 'Admin',
+        firstName: user.firstName,
+        lastName: user.lastName ?? '',
+        email: user.email,
+        phone: user.mobileNumber,
+        state: user.state,
+        postCode: user.postCode,
+        message: user.description,
+      });
+    }
       this.logger.info(`Instructor registered: ${user.email}`);
-  
+
       return successResponse(user);
-  
+
     } catch (error: any) {
       this.logger.error({ error }, 'User registration failed');
-  
+
       if (error?.code === 11000) {
         if (error?.keyPattern?.email) {
           throw new ConflictException('Email already registered');
@@ -180,11 +192,11 @@ export class UserService {
         }
         throw new ConflictException('User already exists');
       }
-  
+
       throw new InternalServerErrorException(error?.message);
     }
   }
-  
+
 
 
 
@@ -257,7 +269,7 @@ export class UserService {
     user: UserDocument,
     params: Record<string, unknown> = {},
   ): Promise<UserResponse> {
-    
+
     this.logger.debug(
       { userId: user._id },
       'Fetching instructor profile',
