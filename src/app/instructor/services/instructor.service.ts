@@ -2217,17 +2217,12 @@ week.days = updatedDays;
         user.isMemberOfDrivingAssociation = dto.isMemberOfDrivingAssociation;
       }
 
-      // if (
-      //   dto.drivingAssociations !== undefined &&
-      //   user.isMemberOfDrivingAssociation
-      // ) {
-      //   user.drivingAssociations = dto.drivingAssociations;
-      // }
+      
       if (
         dto.drivingAssociations !== undefined &&
         user.isMemberOfDrivingAssociation
       ) {
-        (user as any).drivingAssociations = dto.drivingAssociations;
+        user.drivingAssociations = dto.drivingAssociations;
       }
 
       await user.save();
