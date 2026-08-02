@@ -137,7 +137,8 @@ export class SearchService {
           vehicles: 1,
           serviceAreas: 1,
           testLocations: 1,
-          totalHours: 1
+          totalHours: 1,
+          instructorExperienceYears:'$user.instructorExperienceYears'
         }
       }
     ]);
