@@ -2223,6 +2223,12 @@ week.days = updatedDays;
       // ) {
       //   user.drivingAssociations = dto.drivingAssociations;
       // }
+      if (
+        dto.drivingAssociations !== undefined &&
+        user.isMemberOfDrivingAssociation
+      ) {
+        (user as any).drivingAssociations = dto.drivingAssociations;
+      }
 
       await user.save();
       return successResponse({ instructor: user });
