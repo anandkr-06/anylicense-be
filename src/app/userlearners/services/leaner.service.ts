@@ -111,6 +111,43 @@ export class LearnerService {
   //   });
   // }
 
+  // async getOrdersForLearner(learnerId: string) {
+  //   const orders = await this.orderModel
+  //     .find({
+  //       learnerId: new Types.ObjectId(learnerId),
+  //       status: 'CONFIRMED',
+  //       paymentStatus: 'PAID',
+  //     })
+  //     .populate({
+  //       path: 'instructorId',
+  //       select: 'rating vehicles reschedule userId',
+  //       populate: {
+  //         path: 'userId',
+  //         model: 'User',
+  //         select: 'firstName lastName profileImage mobileNumber vehicles',
+  //       },
+  //     })
+  //     .sort({ createdAt: -1 })
+  //     .lean<any[]>();
+  
+  //   // ✅ Process instructor vehicle mapping
+  //   return orders.map(order => {
+  //     const instructor = order.instructorId;
+  //     const vehicleType = order.vehicleType;
+  
+  //     if (instructor?.vehicles) {
+  //       order.instructorId = {
+  //         ...instructor,
+  //         vehicle: instructor.vehicles[vehicleType] ?? null,
+  //       };
+  
+  //       delete (order.instructorId as any).vehicles;
+  //     }
+  
+  //     return order;
+  //   });
+  // }
+
   async getOrdersForLearner(learnerId: string) {
     const orders = await this.orderModel
       .find({
@@ -124,24 +161,32 @@ export class LearnerService {
         populate: {
           path: 'userId',
           model: 'User',
-          select: 'firstName lastName profileImage mobileNumber',
+          select: 'firstName lastName profileImage mobileNumber vehicles',
         },
       })
       .sort({ createdAt: -1 })
       .lean<any[]>();
   
-    // ✅ Process instructor vehicle mapping
-    return orders.map(order => {
+    return orders.map((order) => {
       const instructor = order.instructorId;
       const vehicleType = order.vehicleType;
   
-      if (instructor?.vehicles) {
+      if (instructor) {
+        // Vehicle details based on booked vehicle type
+        const vehicle = instructor.vehicles?.[vehicleType] ?? null;
+  
+        // Rename user.vehicles -> user.vehiclesImage
+        if (instructor.userId?.vehicles) {
+          instructor.userId.vehiclesImage = instructor.userId.vehicles;
+          delete instructor.userId.vehicles;
+        }
+  
         order.instructorId = {
           ...instructor,
-          vehicle: instructor.vehicles[vehicleType] ?? null,
+          vehicle,
         };
   
-        delete (order.instructorId as any).vehicles;
+        delete order.instructorId.vehicles;
       }
   
       return order;
