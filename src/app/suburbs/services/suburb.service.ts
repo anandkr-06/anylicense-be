@@ -36,6 +36,70 @@ export class SuburbService {
 
   return response;
   }
+  // public async getAllSuburbs({
+  //   search = '',
+  //   page = 1,
+  //   limit = 10,
+  // }: SearchPaginationDto = { search: '', page: 1, limit: 10 }) {
+  
+  //   const skip = (page - 1) * limit;
+  //   const filter: any = {};
+  
+  //   // if (search && search.length >= 3) {
+  //   //   const regex = new RegExp(`^${search}`, 'i');
+  //   //   filter.$or = [
+  //   //     { locality: regex },
+  //   //     { postcode: regex },
+  //   //   ];
+  //   // }
+  
+  //   if (search && search.length >= 3) {
+  //     const regex = new RegExp(`^${search}`, 'i');
+    
+  //     filter.$or = [
+  //       { locality: regex },
+  //       {
+  //         $expr: {
+  //           $regexMatch: {
+  //             input: { $toString: '$postcode' },
+  //             regex,
+  //           },
+  //         },
+  //       },
+  //     ];
+  //   }
+    
+    
+  //   const [data, total] = await Promise.all([
+  //     this.suburbModel
+  //       .find(filter)
+  //       .select({
+  //         _id: 1,          // ✅ remove _id
+  //         locality: 1,
+  //         postcode: 1,
+  //         state: 1,
+  //         long:1,
+  //         lat:1
+  //       })
+  //       .skip(skip)
+  //       .limit(limit)
+  //       .sort({ locality: 1 })
+  //       .lean(),
+  
+  //     this.suburbModel.countDocuments(filter),
+  //   ]);
+  
+  //   return {
+  //     data,
+  //     meta: {
+  //       page,
+  //       limit,
+  //       total,
+  //       totalPages: Math.ceil(total / limit),
+  //     },
+  //   };
+  // }
+
   public async getAllSuburbs({
     search = '',
     page = 1,
@@ -43,19 +107,15 @@ export class SuburbService {
   }: SearchPaginationDto = { search: '', page: 1, limit: 10 }) {
   
     const skip = (page - 1) * limit;
-    const filter: any = {};
   
-    // if (search && search.length >= 3) {
-    //   const regex = new RegExp(`^${search}`, 'i');
-    //   filter.$or = [
-    //     { locality: regex },
-    //     { postcode: regex },
-    //   ];
-    // }
+    // Only fetch active suburbs
+    const filter: any = {
+      isActive: true,
+    };
   
     if (search && search.length >= 3) {
       const regex = new RegExp(`^${search}`, 'i');
-    
+  
       filter.$or = [
         { locality: regex },
         {
@@ -68,22 +128,21 @@ export class SuburbService {
         },
       ];
     }
-    
-    
+  
     const [data, total] = await Promise.all([
       this.suburbModel
         .find(filter)
         .select({
-          _id: 1,          // ✅ remove _id
+          _id: 1,
           locality: 1,
           postcode: 1,
           state: 1,
-          long:1,
-          lat:1
+          long: 1,
+          lat: 1,
         })
+        .sort({ locality: 1 })
         .skip(skip)
         .limit(limit)
-        .sort({ locality: 1 })
         .lean(),
   
       this.suburbModel.countDocuments(filter),
