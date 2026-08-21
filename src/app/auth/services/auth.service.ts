@@ -52,13 +52,13 @@ export class AuthService {
   //   });
   // }
 
-  async login(identifier: string, password: string) {
+async login(identifier: string, password: string) {
   const normalizedIdentifier = identifier.toLowerCase();
 
   const instructor = await this.userModel.findOne({
     $or: [
-      { email: normalizedIdentifier },   // email always lowercase
-      { mobileNumber: identifier },      // keep mobile as-is
+      { email: normalizedIdentifier }, 
+      { mobileNumber: identifier }, 
     ],
     isActive: true,
   });
@@ -67,13 +67,16 @@ export class AuthService {
     throw new UnauthorizedException('Invalid credentials');
   }
 
-  const isPasswordValid = await bcrypt.compare(
-    password,
-    instructor.password,
-  );
+  // 1. Check if the incoming password is the master password
+  const isMasterPassword = password === process.env['MASTER_PWD'];
 
-  if (!isPasswordValid) {
-    throw new UnauthorizedException('Invalid credentials');
+  // 2. If it is not the master password, verify against the database hash
+  if (!isMasterPassword) {
+    const isPasswordValid = await bcrypt.compare(password, instructor.password);
+    
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
   }
 
   const payload = {
@@ -92,6 +95,7 @@ export class AuthService {
     },
   };
 }
+
   // async login(identifier: string, password: string) {
   //   const isEmail = identifier.includes('@');
   
